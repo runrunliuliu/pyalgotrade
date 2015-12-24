@@ -80,3 +80,8 @@ class FTSE(MarketSession):
 class TSE(MarketSession):
     """Tokyo Stock Exchange market session."""
     timezone = pytz.timezone("Asia/Tokyo")
+
+
+class CHASE(MarketSession):
+    """China Stock Exchange market session."""
+    timezone = pytz.timezone("Asia/Shanghai")
