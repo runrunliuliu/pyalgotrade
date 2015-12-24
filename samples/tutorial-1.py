@@ -1,6 +1,6 @@
 from pyalgotrade import strategy
 from pyalgotrade.barfeed import yahoofeed
-
+from pyalgotrade.tools import yahoofinance;
 
 class MyStrategy(strategy.BacktestingStrategy):
     def __init__(self, feed, instrument):
@@ -10,6 +10,9 @@ class MyStrategy(strategy.BacktestingStrategy):
     def onBars(self, bars):
         bar = bars[self.__instrument]
         self.info(bar.getClose())
+
+
+#yahoofinance.download_daily_bars('orcl', 2000, 'orcl-2000.csv')
 
 # Load the yahoo feed from the CSV file
 feed = yahoofeed.Feed()
