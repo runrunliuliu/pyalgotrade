@@ -5,7 +5,7 @@ import pandas as pd
 from bokeh.sampledata.stocks import _load_stock
 from bokeh.plotting import figure, show, output_file,vplot
 
-df = pd.DataFrame(_load_stock('../SZ000001.csv'))
+df = pd.DataFrame(_load_stock('SZ000001.csv'))
 df["date"] = pd.to_datetime(df["date"])
 
 mids = (df.open + df.close)/2

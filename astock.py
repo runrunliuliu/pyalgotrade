@@ -4,7 +4,6 @@ from pyalgotrade.tools import yahoofinance
 from pyalgotrade.barfeed import yahoofeed
 from pyalgotrade.technical import bollinger
 from pyalgotrade.stratanalyzer import sharpe
-from pyalgotrade.stratanalyzer import drawdown 
 from samples import rsi2
 from samples import macross
 
@@ -38,17 +37,14 @@ class BBands(strategy.BacktestingStrategy):
 
 def main(plot):
    
+    instrument = "sz00001"
+
     # Download the bars.
     # feed = yahoofinance.build_feed([instrument], 2011, 2012, ".")
     
     # Load From Local FIle
     feed = yahoofeed.Feed()
-
-    # instrument = "sz00001"
-    # feed.addBarsFromCSV("sz00001", "SZ000001.csv")
-    
-    instrument = "sh600305"
-    feed.addBarsFromCSV("sh600305", "SH600305.csv")
+    feed.addBarsFromCSV("sz00001", "../qts/pytrade/data/SZ000001.csv")
 
 # ==============================================================================
 #     bBandsPeriod = 40
@@ -90,21 +86,18 @@ def main(plot):
     strat = macross.DualMAcross(feed, instrument,ma1,ma2,ma3,ma4)
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
     strat.attachAnalyzer(sharpeRatioAnalyzer)
-    ddAnalyzer = drawdown.DrawDown()
-    strat.attachAnalyzer(ddAnalyzer)
 
     if plot:
-        plt = plotterBokeh.StrategyPlotter(strat, True, True, True)
+        plt = plotterBokeh.StrategyPlotter(strat, True, False, True)
         plt.getInstrumentSubplot(instrument).addDataSeries("ma1", strat.getMa1())
-        plt.getInstrumentSubplot(instrument).addDataSeries("ma2", strat.getMa2())
+        plt.getInstrumentSubplot(instrument).addDataSeries("ma4", strat.getMa4())
    
     strat.run()
     print "Sharpe ratio: %.2f" % sharpeRatioAnalyzer.getSharpeRatio(0.05)
-    print "Max DrawDown: %.2f" % ddAnalyzer.getMaxDrawDown()
 
     if plot:
         plt.plot()
-        plt.show()
+    plt.show()
         
 if __name__ == "__main__":
     main(True)
