@@ -18,10 +18,14 @@
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
 
+import multiprocessing as mp
 from pyalgotrade import barfeed
 from pyalgotrade import dataseries
 from pyalgotrade import bar
 from pyalgotrade import utils
+from pyalgotrade.tools import parallel 
+from pyalgotrade.tools import uutils 
+import sys
 
 
 # A non real-time BarFeed responsible for:
@@ -31,6 +35,21 @@ from pyalgotrade import utils
 # Subclasses should:
 # - Forward the call to start() if they override it.
 
+
+def mindate(index,_nextPos,bars,insts,div):
+
+    start = div[index][0]
+    end   = div[index][1]
+
+    ret = None
+    for i in range(start,end):
+        ins = insts[i]
+        nextPos = _nextPos[ins]
+        if nextPos < len(bars[ins]):
+            ret = utils.safe_min(ret, bars[ins][nextPos].getDateTime())
+    return ret
+
+
 class BarFeed(barfeed.BaseBarFeed):
     def __init__(self, frequency, maxLen=dataseries.DEFAULT_MAX_LEN):
         barfeed.BaseBarFeed.__init__(self, frequency, maxLen)
@@ -38,6 +57,11 @@ class BarFeed(barfeed.BaseBarFeed):
         self.__nextPos = {}
         self.__started = False
         self.__currDateTime = None
+        
+        # used for parallel
+        self.__pl    = None
+        self.__div   = dict()
+        self.__insts = [] 
 
     def reset(self):
         self.__nextPos = {}
@@ -82,13 +106,34 @@ class BarFeed(barfeed.BaseBarFeed):
                 break
         return ret
 
-    def peekDateTime(self):
-        ret = None
+    def BarsKeys(self):
+        return self.__bars.keys()
 
-        for instrument, bars in self.__bars.iteritems():
-            nextPos = self.__nextPos[instrument]
-            if nextPos < len(bars):
-                ret = utils.safe_min(ret, bars[nextPos].getDateTime())
+    def initParallel(self,cores):
+        self.__pl = parallel.Parallel(cores)
+
+    def div4Parallel(self):
+        self.__insts = self.__bars.keys()
+        keylen = len(self.__insts)
+        self.__div = self.__pl.div4Parallel(keylen)
+
+    # upgrade to MULTI_PROCESS if INSTRUMENT > 10
+    def peekDateTime(self):
+
+        if len(self.__div) == 0:
+            ret = None
+            for instrument, bars in self.__bars.iteritems():
+                nextPos = self.__nextPos[instrument]
+                if nextPos < len(bars):
+                    ret = utils.safe_min(ret, bars[nextPos].getDateTime())
+        else:
+            ret = [] 
+            if len(self.__div) == 1:
+                ret.append(mindate(0,self.__nextPos,self.__bars,self.__insts,self.__div))
+            else:
+                ret = self.__pl.handleCombineRet(mindate,self.__nextPos,self.__bars,self.__insts,self.__div)
+
+            ret = min(ret, key=lambda x:uutils.TimeUtils.dt2stamp(x) if x is not None else sys.maxint)
         return ret
 
     def getNextBars(self):
