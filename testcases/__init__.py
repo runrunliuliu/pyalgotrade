@@ -17,3 +17,6 @@
 """
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
+import sys
+
+sys.path.append('../')
