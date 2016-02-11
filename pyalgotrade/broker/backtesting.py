@@ -111,6 +111,22 @@ class BacktestingOrder(object):
         raise NotImplementedError()
 
 
+class RangeLimitOrder(broker.RangeLimitOrder, BacktestingOrder):
+    def __init__(self, action, instrument, lowPrice, upPrice, quantity, instrumentTraits):
+        broker.RangeLimitOrder.__init__(self, action, instrument, lowPrice, upPrice, quantity, instrumentTraits)
+        BacktestingOrder.__init__(self)
+        self.__stopHit = False  # Set to true when the limit order is activated (stop price is hit)
+
+    def setStopHit(self, stopHit):
+        self.__stopHit = stopHit
+
+    def getStopHit(self):
+        return self.__stopHit
+
+    def process(self, broker_, bar_):
+        return broker_.getFillStrategy().fillRangeLimitOrder(broker_, self, bar_)
+
+
 class MarketOrder(broker.MarketOrder, BacktestingOrder):
     def __init__(self, action, instrument, quantity, onClose, instrumentTraits):
         broker.MarketOrder.__init__(self, action, instrument, quantity, onClose, instrumentTraits)
@@ -394,7 +410,19 @@ class Broker(broker.Broker):
 
     # Return True if further processing is needed.
     def __preProcessOrder(self, order, bar_):
-        ret = True
+        ret  = True
+
+        # According to Different Market; Use Different Trade Rules
+        inst = order.getInstrument()
+        market = self.__barFeed.getMarketDict()[inst]
+        if market.getRiseLimit() == 1:
+            high = bar_.getHigh(True)
+            low = bar_.getLow(True)
+            if high == low:
+                self._unregisterOrder(order)
+                order.switchState(broker.Order.State.CANCELED)
+                self.notifyOrderEvent(broker.OrderEvent(order, broker.OrderEvent.Type.CANCELED, "Cancel Rise Limited"))
+                return False
 
         # For non-GTC orders we need to check if the order has expired.
         if not order.getGoodTillCanceled():
@@ -487,6 +515,9 @@ class Broker(broker.Broker):
 
     def peekDateTime(self):
         return None
+
+    def createRangeLimitOrder(self, action, instrument, lowPrice, upPrice, quantity):
+        return RangeLimitOrder(action, instrument, lowPrice, upPrice, quantity, self.getInstrumentTraits(instrument))
 
     def createMarketOrder(self, action, instrument, quantity, onClose=False):
         # In order to properly support market-on-close with intraday feeds I'd need to know about different
