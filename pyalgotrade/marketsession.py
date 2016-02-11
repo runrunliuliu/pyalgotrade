@@ -28,6 +28,20 @@ class MarketSession(object):
     .. note::
         This is a base class and should not be used directly.
     """
+    def __init__(self,riseLimit = 0,tradefreq = 0):
+        # 0 repsent NO rise limit otherwise 1
+        self.__riseLimit = riseLimit 
+        # 0 means t+0;
+        # 1 means t+1;
+        self.__tradefreq = tradefreq 
+
+    def getRiseLimit(self):
+        """Returns the pytz timezone for the market session."""
+        return self.__riseLimit
+
+    def getTradeFreq(self):
+        """Returns the pytz timezone for the market session."""
+        return self.__tradefreq
 
     @classmethod
     def getTimezone(cls):
@@ -85,3 +99,8 @@ class TSE(MarketSession):
 class CHASE(MarketSession):
     """China Stock Exchange market session."""
     timezone = pytz.timezone("Asia/Shanghai")
+
+    def __init__(self):
+        MarketSession.__init__(self,1,1)
+    
+#
