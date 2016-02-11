@@ -58,6 +58,7 @@ class WaitingEntryState(PositionState):
         elif orderEvent.getEventType() == broker.OrderEvent.Type.CANCELED:
             assert(position.getEntryOrder().getFilled() == 0)
             position.switchState(ClosedState())
+            position.setCancelDesc(orderEvent.getEventInfo())
             position.getStrategy().onEnterCanceled(position)
 
     def isOpen(self, position):
@@ -96,7 +97,7 @@ class OpenState(PositionState):
     def isOpen(self, position):
         return True
 
-    def exit(self, position, stopPrice=None, limitPrice=None, goodTillCanceled=None):
+    def exit(self, position, stopPrice=None, limitPrice=None, goodTillCanceled=None, lowPrice = None, upPrice = None):
         assert(position.getShares() != 0)
 
         # Fail if a previous exit order is active.
@@ -107,7 +108,7 @@ class OpenState(PositionState):
         if position.entryActive():
             position.getStrategy().getBroker().cancelOrder(position.getEntryOrder())
 
-        position._submitExitOrder(stopPrice, limitPrice, goodTillCanceled)
+        position._submitExitOrder(stopPrice, limitPrice, goodTillCanceled, lowPrice, upPrice)
 
 
 class ClosedState(PositionState):
@@ -175,6 +176,8 @@ class Position(object):
         self.__submitAndRegisterOrder(entryOrder)
         self.__entryOrder = entryOrder
 
+        self.__cancelDesc = ''
+
     def __submitAndRegisterOrder(self, order):
         assert(order.isInitial())
 
@@ -193,6 +196,12 @@ class Position(object):
 
     def setExitDateTime(self, dateTime):
         self.__exitDateTime = dateTime
+
+    def setCancelDesc(self, desc):
+        self.__cancelDesc = desc
+
+    def getCancelDesc(self):
+        return self.__cancelDesc
 
     def switchState(self, newState):
         self.__state = newState
@@ -306,6 +315,9 @@ class Position(object):
         if self.exitActive():
             self.getStrategy().getBroker().cancelOrder(self.getExitOrder())
 
+    def exitRange(self, goodTillCanceled=None, lowPrice=None, upPrice=None):
+        self.__state.exit(self, None, None, goodTillCanceled, lowPrice, upPrice)
+
     def exitMarket(self, goodTillCanceled=None):
         """Submits a market order to close this position.
 
@@ -383,10 +395,10 @@ class Position(object):
 
         self.__state.exit(self, stopPrice, limitPrice, goodTillCanceled)
 
-    def _submitExitOrder(self, stopPrice, limitPrice, goodTillCanceled):
+    def _submitExitOrder(self, stopPrice, limitPrice, goodTillCanceled, lowPrice, upPrice):
         assert(not self.exitActive())
 
-        exitOrder = self.buildExitOrder(stopPrice, limitPrice)
+        exitOrder = self.buildExitOrder(stopPrice, limitPrice, lowPrice, upPrice)
 
         # If goodTillCanceled was not set, match the entry order.
         if goodTillCanceled is None:
@@ -425,7 +437,7 @@ class Position(object):
             else:
                 self.__posTracker.sell(execInfo.getQuantity(), execInfo.getPrice(), execInfo.getCommission())
 
-    def buildExitOrder(self, stopPrice, limitPrice):
+    def buildExitOrder(self, stopPrice, limitPrice, lowPrice, upPrice):
         raise NotImplementedError()
 
     def isOpen(self):
@@ -467,10 +479,12 @@ class LongPosition(Position):
 
         Position.__init__(self, strategy, entryOrder, goodTillCanceled, allOrNone)
 
-    def buildExitOrder(self, stopPrice, limitPrice):
+    def buildExitOrder(self, stopPrice, limitPrice, lowPrice, upPrice):
         quantity = self.getShares()
         assert(quantity > 0)
-        if limitPrice is None and stopPrice is None:
+        if lowPrice is not None and upPrice is not None:
+            ret = self.getStrategy().getBroker().createRangeLimitOrder(broker.Order.Action.SELL, self.getInstrument(), lowPrice, upPrice, quantity)
+        elif limitPrice is None and stopPrice is None:
             ret = self.getStrategy().getBroker().createMarketOrder(broker.Order.Action.SELL, self.getInstrument(), quantity, False)
         elif limitPrice is not None and stopPrice is None:
             ret = self.getStrategy().getBroker().createLimitOrder(broker.Order.Action.SELL, self.getInstrument(), limitPrice, quantity)
@@ -500,7 +514,7 @@ class ShortPosition(Position):
 
         Position.__init__(self, strategy, entryOrder, goodTillCanceled, allOrNone)
 
-    def buildExitOrder(self, stopPrice, limitPrice):
+    def buildExitOrder(self, stopPrice, limitPrice, lowPrice, upPrice):
         quantity = self.getShares() * -1
         assert(quantity > 0)
         if limitPrice is None and stopPrice is None:
