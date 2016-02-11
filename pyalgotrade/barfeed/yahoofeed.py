@@ -23,12 +23,13 @@ from pyalgotrade.barfeed import common
 from pyalgotrade.utils import dt
 from pyalgotrade import bar
 from pyalgotrade import dataseries
+from pyalgotrade import marketsession 
 
 import datetime
 
 
 ######################################################################
-## Yahoo Finance CSV parser
+# Yahoo Finance CSV parser
 # Each bar must be on its own line and fields must be separated by comma (,).
 #
 # Bars Format:
@@ -48,11 +49,12 @@ def parse_date(date):
 
 
 class RowParser(csvfeed.RowParser):
-    def __init__(self, dailyBarTime, frequency, timezone=None, sanitize=False):
+    def __init__(self, dailyBarTime, frequency, timezone=None, sanitize=False, market=None):
         self.__dailyBarTime = dailyBarTime
         self.__frequency = frequency
         self.__timezone = timezone
         self.__sanitize = sanitize
+        self.__market   = market 
 
     def __parseDate(self, dateString):
         ret = parse_date(dateString)
@@ -122,7 +124,7 @@ class Feed(csvfeed.BarFeed):
     def barsHaveAdjClose(self):
         return True
 
-    def addBarsFromCSV(self, instrument, path, timezone=None):
+    def addBarsFromCSV(self, instrument, path, timezone=None,market=None):
         """Loads bars for a given instrument from a CSV formatted file.
         The instrument gets registered in the bar feed.
 
@@ -141,4 +143,4 @@ class Feed(csvfeed.BarFeed):
             timezone = self.__timezone
 
         rowParser = RowParser(self.getDailyBarTime(), self.getFrequency(), timezone, self.__sanitizeBars)
-        csvfeed.BarFeed.addBarsFromCSV(self, instrument, path, rowParser)
+        csvfeed.BarFeed.addBarsFromCSV(self, instrument, path, rowParser,market)

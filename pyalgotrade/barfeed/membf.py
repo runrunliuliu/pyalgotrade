@@ -58,6 +58,9 @@ class BarFeed(barfeed.BaseBarFeed):
         self.__started = False
         self.__currDateTime = None
         
+        # used for diverse Market for different instrument
+        self.__marketDict = dict()
+
         # used for parallel
         self.__pl    = None
         self.__div   = dict()
@@ -69,6 +72,9 @@ class BarFeed(barfeed.BaseBarFeed):
             self.__nextPos.setdefault(instrument, 0)
         self.__currDateTime = None
         barfeed.BaseBarFeed.reset(self)
+
+    def getMarketDict(self):
+        return self.__marketDict
 
     def getCurrentDateTime(self):
         return self.__currDateTime
@@ -82,7 +88,7 @@ class BarFeed(barfeed.BaseBarFeed):
     def join(self):
         pass
 
-    def addBarsFromSequence(self, instrument, bars):
+    def addBarsFromSequence(self, instrument, bars, market=None):
         if self.__started:
             raise Exception("Can't add more bars once you started consuming bars")
 
@@ -95,6 +101,8 @@ class BarFeed(barfeed.BaseBarFeed):
         self.__bars[instrument].sort(barCmp)
 
         self.registerInstrument(instrument)
+
+        self.__marketDict[instrument] = market
 
     def eof(self):
         ret = True
