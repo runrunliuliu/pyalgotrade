@@ -112,7 +112,7 @@ class BarFeed(membf.BarFeed):
     def setBarFilter(self, barFilter):
         self.__barFilter = barFilter
 
-    def addBarsFromCSV(self, instrument, path, rowParser):
+    def addBarsFromCSV(self, instrument, path, rowParser, market=None):
         # Load the csv file
         loadedBars = []
         reader = csvutils.FastDictReader(open(path, "r"), fieldnames=rowParser.getFieldNames(), delimiter=rowParser.getDelimiter())
@@ -121,7 +121,7 @@ class BarFeed(membf.BarFeed):
             if bar_ is not None and (self.__barFilter is None or self.__barFilter.includeBar(bar_)):
                 loadedBars.append(bar_)
 
-        self.addBarsFromSequence(instrument, loadedBars)
+        self.addBarsFromSequence(instrument, loadedBars, market)
 
 
 class GenericRowParser(RowParser):
