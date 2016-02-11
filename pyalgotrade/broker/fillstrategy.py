@@ -25,6 +25,41 @@ import pyalgotrade.bar
 import slippage
 
 
+# range price trigger
+def get_range_price_trigger(action, lowPrice, upPrice, useAdjustedValues, bar):
+    ret = None
+    open_ = bar.getOpen(useAdjustedValues)
+    high = bar.getHigh(useAdjustedValues)
+    low = bar.getLow(useAdjustedValues)
+
+    # If the bar is below the limit price, use the open price.
+    # If the bar includes the limit price, use the open price or the limit price.
+    # if action in [broker.Order.Action.BUY, broker.Order.Action.BUY_TO_COVER]:
+    #     if high < limitPrice:
+    #         ret = open_
+    #     elif limitPrice >= low:
+    #         if open_ < limitPrice:  # The limit price was penetrated on open.
+    #             ret = open_
+    #         else:
+    #             ret = limitPrice
+    # If low of the bar is below lowPrice, use the open price when open is below lowPrice else use lowPrice.
+    # If high of the bar is above upPrice, use the open price when open is above upPrice else use upPrice.
+    if action in [broker.Order.Action.SELL, broker.Order.Action.SELL_SHORT]:
+        if low < lowPrice:
+            if open_ < lowPrice:
+                ret = open_
+            else:
+                ret = lowPrice 
+        elif upPrice <= high:
+            if open_ > upPrice:  # The limit price was penetrated on open.
+                ret = open_
+            else:
+                ret = upPrice
+    else:  # Unknown action
+        assert(False)
+    return ret
+
+
 # Returns the trigger price for a Limit or StopLimit order, or None if the limit price was not yet penetrated.
 def get_limit_price_trigger(action, limitPrice, useAdjustedValues, bar):
     ret = None
@@ -306,6 +341,22 @@ class DefaultStrategy(FillStrategy):
         elif order.getRemaining() <= maxVolume:
             ret = order.getRemaining()
 
+        return ret
+
+    # fill orders by range price
+    def fillRangeLimitOrder(self, broker_, order, bar):
+        # Calculate the fill size for the order.
+        fillSize = self.__calculateFillSize(broker_, order, bar)
+        if fillSize == 0:
+            broker_.getLogger().debug("Not enough volume to fill %s limit order [%s] for %s share/s" % (
+                order.getInstrument(), order.getId(), order.getRemaining())
+            )
+            return None
+
+        ret = None
+        price = get_range_price_trigger(order.getAction(), order.getLowPrice(), order.getUpPrice(),broker_.getUseAdjustedValues(), bar)
+        if price is not None:
+            ret = FillInfo(price, fillSize)
         return ret
 
     def fillMarketOrder(self, broker_, order, bar):
