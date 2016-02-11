@@ -127,6 +127,7 @@ class Order(object):
         LIMIT = 2
         STOP = 3
         STOP_LIMIT = 4
+        RANGE_LIMIT = 5 
 
     # Valid state transitions.
     VALID_TRANSITIONS = {
@@ -154,6 +155,9 @@ class Order(object):
         self.__state = Order.State.INITIAL
         self.__submitDateTime = None
 
+        # used in short order to track crossponding buy order
+        self.__enterId = None
+
     # This is to check that orders are not compared directly. order ids should be compared.
 #    def __eq__(self, other):
 #        if other is None:
@@ -165,6 +169,12 @@ class Order(object):
 #        if other is None:
 #            return True
 #        assert(False)
+
+    def setEnterId(self,ids):
+        self.__enterId = ids
+
+    def getEnterId(self):
+        return self.__enterId
 
     def getInstrumentTraits(self):
         return self.__instrumentTraits
@@ -349,6 +359,28 @@ class Order(object):
     # Returns True if this is a SELL or SELL_SHORT order.
     def isSell(self):
         return self.__action in [Order.Action.SELL, Order.Action.SELL_SHORT]
+
+
+class RangeLimitOrder(Order):
+    """Base class for range limit orders.
+
+    .. note::
+
+        This is a base class and should not be used directly.
+    """
+
+    def __init__(self, action, instrument, lowPrice, upPrice, quantity, instrumentTraits):
+        Order.__init__(self, Order.Type.RANGE_LIMIT, action, instrument, quantity, instrumentTraits)
+        self.__lowPrice = lowPrice
+        self.__upPrice = upPrice
+
+    def getLowPrice(self):
+        """Returns the stop price."""
+        return self.__lowPrice
+
+    def getUpPrice(self):
+        """Returns the limit price."""
+        return self.__upPrice
 
 
 class MarketOrder(Order):
