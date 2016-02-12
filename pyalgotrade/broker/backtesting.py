@@ -413,15 +413,34 @@ class Broker(broker.Broker):
         ret  = True
 
         # According to Different Market; Use Different Trade Rules
+        ordertype = None
+        if order.isBuy():   
+            ordertype = 'Buy'
+        else:
+            ordertype = 'Sell'
+
         inst = order.getInstrument()
         market = self.__barFeed.getMarketDict()[inst]
-        if market.getRiseLimit() == 1:
+        if market.getChangeLimit() == 1:
             high = bar_.getHigh(True)
             low = bar_.getLow(True)
             if high == low:
-                self._unregisterOrder(order)
-                order.switchState(broker.Order.State.CANCELED)
-                self.notifyOrderEvent(broker.OrderEvent(order, broker.OrderEvent.Type.CANCELED, "Cancel Rise Limited"))
+                # if change limit is achieved
+                # 1. if order is buy, cancel orders 
+                # 2. if order is sell, return false to keep the ORDER is active
+                if order.isBuy():
+                    self._unregisterOrder(order)
+                    order.switchState(broker.Order.State.CANCELED)
+                    self.notifyOrderEvent(broker.OrderEvent(order, broker.OrderEvent.Type.CANCELED, ordertype + "-Cancel for Change Limited"))
+                return False
+
+        # Works in Sell, IF instruments obey T+1: 
+        # return false when curdate == order accept date
+        # move to next bar
+        if order.isSell() and market.getTradeFreq() == 1:
+            curdate = bar_.getDateTime().date()
+            ordate  = order.getAcceptedDateTime().date()
+            if curdate == ordate:
                 return False
 
         # For non-GTC orders we need to check if the order has expired.
