@@ -28,16 +28,16 @@ class MarketSession(object):
     .. note::
         This is a base class and should not be used directly.
     """
-    def __init__(self,riseLimit = 0,tradefreq = 0):
-        # 0 repsent NO rise limit otherwise 1
-        self.__riseLimit = riseLimit 
+    def __init__(self,changeLimit = 0,tradefreq = 0):
+        # 0 repsent NO change limit otherwise 1
+        self.__changeLimit = changeLimit 
         # 0 means t+0;
         # 1 means t+1;
         self.__tradefreq = tradefreq 
 
-    def getRiseLimit(self):
+    def getChangeLimit(self):
         """Returns the pytz timezone for the market session."""
-        return self.__riseLimit
+        return self.__changeLimit
 
     def getTradeFreq(self):
         """Returns the pytz timezone for the market session."""
