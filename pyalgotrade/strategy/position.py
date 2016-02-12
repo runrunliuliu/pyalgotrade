@@ -216,6 +216,9 @@ class Position(object):
     def getActiveOrders(self):
         return self.__activeOrders.values()
 
+    def getState(self):
+        return self.__state
+
     def getShares(self):
         """Returns the number of shares.
         This will be a possitive number for a long position, and a negative number for a short position.
