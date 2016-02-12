@@ -17,11 +17,14 @@
 """
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
+import sys
+sys.path.append('../')
 
 import datetime
 import pytz
 
 import common
+import unittest
 import strategy_test
 
 from pyalgotrade import bar
@@ -38,7 +41,7 @@ from pyalgotrade import marketsession
 
 def load_daily_barfeed(instrument):
     barFeed = yahoofeed.Feed()
-    barFeed.addBarsFromCSV(instrument, common.get_data_file_path("orcl-2000-yahoofinance.csv"))
+    barFeed.addBarsFromCSV(instrument, common.get_data_file_path("orcl-2000-yahoofinance.csv"),market=marketsession.FTSE())
     return barFeed
 
 
@@ -131,7 +134,7 @@ class TestStrategy(BaseTestStrategy):
         return self.__activePosition
 
     def onEnterOk(self, position):
-        # print "Enter ok", position.getEntryOrder().getExecutionInfo().getDateTime()
+        print "Enter ok", position.getEntryOrder().getExecutionInfo().getDateTime()
         BaseTestStrategy.onEnterOk(self, position)
         if self.__activePosition is None:
             self.__activePosition = position
@@ -140,7 +143,7 @@ class TestStrategy(BaseTestStrategy):
             assert(position.getShares() != 0)
 
     def onEnterCanceled(self, position):
-        # print "Enter canceled", position.getEntryOrder().getExecutionInfo().getDateTime()
+        print "Enter canceled", position.getEntryOrder().getExecutionInfo().getDateTime()
         BaseTestStrategy.onEnterCanceled(self, position)
         self.__activePosition = None
         assert(not position.isOpen())
@@ -148,17 +151,17 @@ class TestStrategy(BaseTestStrategy):
         assert(position.getShares() == 0)
 
     def onExitOk(self, position):
-        # print "Exit ok", position.getExitOrder().getExecutionInfo().getDateTime()
+        print "Exit ok", position.getExitOrder().getExecutionInfo().getDateTime()
         BaseTestStrategy.onExitOk(self, position)
         self.__result += position.getReturn()
-        self.__netProfit += position.getNetProfit()
+        self.__netProfit += position.getPnL()
         self.__activePosition = None
         assert(not position.isOpen())
         assert(len(position.getActiveOrders()) == 0)
         assert(position.getShares() == 0)
 
     def onExitCanceled(self, position):
-        # print "Exit canceled", position.getExitOrder().getExecutionInfo().getDateTime()
+        print "Exit canceled", position.getExitOrder().getExecutionInfo().getDateTime()
         BaseTestStrategy.onExitCanceled(self, position)
         assert(position.isOpen())
         assert(len(position.getActiveOrders()) == 0)
@@ -166,7 +169,6 @@ class TestStrategy(BaseTestStrategy):
 
     def onBars(self, bars):
         dateTime = bars.getDateTime()
-
         # Check position entry.
         for meth, args, kwargs in strategy_test.get_by_datetime_or_date(self.__posEntry, dateTime):
             if self.__activePosition is not None:
@@ -206,7 +208,7 @@ class DoubleExitStrategy(BaseTestStrategy):
             self.doubleExit = True
             self.position.exitMarket()
             try:
-                self.position.exit()
+                self.position.exitMarket()
             except Exception:
                 self.doubleExitFailed = True
 
@@ -228,7 +230,26 @@ class ExitEntryNotFilledStrategy(BaseTestStrategy):
     def onBars(self, bars):
         if self.position is None:
             self.position = self.enterLong(self.instrument, 1)
-            self.position.exit()
+            self.position.exitMarket()
+
+
+class RangeExitStrategy(BaseTestStrategy):
+    def onStart(self):
+        self.position = None
+
+    def onBars(self, bars):
+        dateTime = bars.getDateTime()
+
+        if self.position is None:
+            self.position = self.enterLong(self.instrument, 1,False)
+            print "Entry:",dateTime,self.position.getState()
+        elif self.position.entryFilled():
+            exitorder = self.position.getExitOrder()
+            if exitorder is None:
+                execInfo = self.position.getEntryOrder().getExecutionInfo() 
+                price    = execInfo.getPrice()
+                print "Sell:",dateTime,price,execInfo,self.position.getState()
+                self.position.exitRange(True, price * 0.9, price * 1.10)
 
 
 class ResubmitExitStrategy(BaseTestStrategy):
@@ -248,21 +269,24 @@ class ResubmitExitStrategy(BaseTestStrategy):
 
 class BaseTestCase(common.TestCase):
     TestInstrument = "doesntmatter"
+    market = marketsession.CHASE()
+    # market = marketsession.FTSE()
 
     def loadIntradayBarFeed(self):
         fromMonth = 1
         toMonth = 1
         fromDay = 3
-        toDay = 3
+        toDay = 4 
         barFilter = csvfeed.USEquitiesRTH(us_equities_datetime(2011, fromMonth, fromDay, 00, 00), us_equities_datetime(2011, toMonth, toDay, 23, 59))
         barFeed = ninjatraderfeed.Feed(barfeed.Frequency.MINUTE)
         barFeed.setBarFilter(barFilter)
-        barFeed.addBarsFromCSV(BaseTestCase.TestInstrument, common.get_data_file_path("nt-spy-minute-2011.csv"))
+        barFeed.addBarsFromCSV(BaseTestCase.TestInstrument, common.get_data_file_path("nt-spy-minute-2011.csv"),market=BaseTestCase.market)
         return barFeed
 
     def loadDailyBarFeed(self):
+
         barFeed = yahoofeed.Feed()
-        barFeed.addBarsFromCSV(BaseTestCase.TestInstrument, common.get_data_file_path("orcl-2000-yahoofinance.csv"))
+        barFeed.addBarsFromCSV(BaseTestCase.TestInstrument, common.get_data_file_path("orcl-2000-yahoofinance.csv"),market=BaseTestCase.market)
         return barFeed
 
     def createStrategy(self, useIntradayBarFeed=False):
@@ -341,6 +365,12 @@ class LongPosTestCase(BaseTestCase):
         self.assertEqual(len(strat.getActivePositions()), 0)
         self.assertEqual(len(strat.getOrderToPosition()), 0)
         self.assertEqual(strat.position.getAge().days, 1)
+
+    def testRangeExit(self):
+        instrument = "orcl"
+        barFeed = load_daily_barfeed(instrument)
+        strat = RangeExitStrategy(barFeed, instrument)
+        strat.run()
 
     def testResubmitExit(self):
         instrument = "orcl"
@@ -446,6 +476,21 @@ class LongPosTestCase(BaseTestCase):
         self.assertTrue(strat.getBroker().getCash() == 10)
         self.assertTrue(strat.getNetProfit() == 0)
 
+    def testTradeFreq(self):
+        strat = self.createStrategy(True)
+
+        # 3/Jan/2011 205300 - Enter long
+        # 3/Jan/2011 205400 - entry gets filled at 127.21
+        # 3/Jan/2011 210000 - last bar
+
+        strat.addPosEntry(dt.localize(datetime.datetime(2011, 1, 3, 19, 53), pytz.utc), strat.enterLong, BaseTestCase.TestInstrument, 1, True)
+        strat.addPosExitMarket(dt.localize(datetime.datetime(2011, 1, 3, 20, 50), pytz.utc))
+
+        strat.run()
+
+        self.assertEqual(strat.enterOkCalls, 1)
+        self.assertEqual(strat.exitOkCalls, 1)
+
     def testUnrealized1(self):
         strat = self.createStrategy(True)
 
@@ -465,9 +510,9 @@ class LongPosTestCase(BaseTestCase):
         entryPrice = 127.21
         lastPrice = strat.getFeed().getCurrentBars()[BaseTestCase.TestInstrument].getClose()
 
-        self.assertEqual(strat.getActivePosition().getUnrealizedReturn(), (lastPrice - entryPrice) / entryPrice)
         self.assertEqual(strat.getActivePosition().getReturn(), (lastPrice - entryPrice) / entryPrice)
-        self.assertEqual(strat.getActivePosition().getUnrealizedNetProfit(), lastPrice - entryPrice)
+        self.assertEqual(strat.getActivePosition().getReturn(), (lastPrice - entryPrice) / entryPrice)
+        self.assertEqual(strat.getActivePosition().getPnL(), lastPrice - entryPrice)
         self.assertEqual(strat.getActivePosition().getPnL(), lastPrice - entryPrice)
 
     def testUnrealized2(self):
@@ -478,9 +523,9 @@ class LongPosTestCase(BaseTestCase):
         strat.run()
 
         self.assertEqual(strat.positions[0].isOpen(), True)
-        self.assertEqual(strat.getActivePosition().getUnrealizedNetProfit(), 29.06 - 29.25)
         self.assertEqual(strat.getActivePosition().getPnL(), 29.06 - 29.25)
-        self.assertEqual(strat.getActivePosition().getUnrealizedReturn(), (29.06 - 29.25) / 29.25)
+        self.assertEqual(strat.getActivePosition().getPnL(), 29.06 - 29.25)
+        self.assertEqual(strat.getActivePosition().getReturn(), (29.06 - 29.25) / 29.25)
         self.assertEqual(strat.getActivePosition().getReturn(), (29.06 - 29.25) / 29.25)
 
     def testUnrealizedAdjusted(self):
@@ -492,9 +537,9 @@ class LongPosTestCase(BaseTestCase):
         strat.run()
 
         self.assertEqual(strat.positions[0].isOpen(), True)
-        self.assertEqual(round(strat.getActivePosition().getUnrealizedNetProfit(), 2), round(28.41 - 28.60, 2))
         self.assertEqual(round(strat.getActivePosition().getPnL(), 2), round(28.41 - 28.60, 2))
-        self.assertEqual(round(strat.getActivePosition().getUnrealizedReturn(), 2), round((28.41 - 28.60) / 28.60, 2))
+        self.assertEqual(round(strat.getActivePosition().getPnL(), 2), round(28.41 - 28.60, 2))
+        self.assertEqual(round(strat.getActivePosition().getReturn(), 2), round((28.41 - 28.60) / 28.60, 2))
         self.assertEqual(round(strat.getActivePosition().getReturn(), 2), round((28.41 - 28.60) / 28.60, 2))
 
     def testInvalidUnrealized(self):
@@ -531,7 +576,7 @@ class LongPosTestCase(BaseTestCase):
                     # At this point the entry order should have been filled.
                     testCase.assertEqual(len(self.pos.getActiveOrders()), 0)
                     testCase.assertEqual(self.pos.getShares(), 1)
-                    self.pos.exit()
+                    self.pos.exitMarket()
                     testCase.assertEqual(len(self.pos.getActiveOrders()), 1)
                     testCase.assertEqual(self.pos.getShares(), 1)
                 else:
@@ -547,8 +592,8 @@ class LongPosTestCase(BaseTestCase):
         self.assertEqual(strat.pos.isOpen(), False)
         # Entered on 2000-01-04 at 115.50
         # Exit on 2000-01-05 at 101.62
-        self.assertEqual(strat.pos.getNetProfit(),  101.62 - 115.50)
-        self.assertEqual(strat.pos.getPnL(),  101.62 - 115.50)
+        self.assertEqual(strat.pos.getPnL(), 101.62 - 115.50)
+        self.assertEqual(strat.pos.getPnL(), 101.62 - 115.50)
 
     def testIsOpen_NotClosed(self):
         strat = self.createStrategy()
@@ -565,9 +610,9 @@ class LongPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 2), 11, 11, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),]
+
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLong, instrument, 4, True)
         strat.addPosExitMarket(datetime.datetime(2000, 1, 3))
@@ -606,9 +651,8 @@ class LongPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 2), 11, 11, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),]
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLong, instrument, 4, True)
         # Exit the position before the entry order gets completely filled.
@@ -661,9 +705,9 @@ class LongPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 2), 11, 11, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),]
+
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat._setBroker(SkipCancelBroker(strat.getBroker()))
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLong, instrument, 4, True)
@@ -717,9 +761,9 @@ class LongPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 2), 11, 11, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),]
+
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat._setBroker(SkipFirstCancelBroker(strat.getBroker()))
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLong, instrument, 4, True)
@@ -790,8 +834,8 @@ class ShortPosTestCase(BaseTestCase):
         self.assertEqual(strat.pos.isOpen(), False)
         # Entered on 2000-01-04 at 115.50
         # Exit on 2000-01-05 at 101.62
-        self.assertEqual(strat.pos.getNetProfit(),  115.50 - 101.62)
-        self.assertEqual(strat.pos.getPnL(),  115.50 - 101.62)
+        self.assertEqual(strat.pos.getPnL(), 115.50 - 101.62)
+        self.assertEqual(strat.pos.getPnL(), 115.50 - 101.62)
 
     def testShortPosition(self):
         strat = self.createStrategy()
@@ -895,9 +939,9 @@ class ShortPosTestCase(BaseTestCase):
         entryPrice = 127.21
         lastPrice = strat.getFeed().getCurrentBars()[BaseTestCase.TestInstrument].getClose()
 
-        self.assertEqual(strat.getActivePosition().getUnrealizedReturn(), (entryPrice - lastPrice) / entryPrice)
         self.assertEqual(strat.getActivePosition().getReturn(), (entryPrice - lastPrice) / entryPrice)
-        self.assertEqual(strat.getActivePosition().getUnrealizedNetProfit(), entryPrice - lastPrice)
+        self.assertEqual(strat.getActivePosition().getReturn(), (entryPrice - lastPrice) / entryPrice)
+        self.assertEqual(strat.getActivePosition().getPnL(), entryPrice - lastPrice)
         self.assertEqual(strat.getActivePosition().getPnL(), entryPrice - lastPrice)
 
 
@@ -1078,9 +1122,9 @@ class StopPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),]
+
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLongStop, instrument, 12, 4, True)
         strat.addPosExit(datetime.datetime(2000, 1, 4))
@@ -1120,9 +1164,8 @@ class StopPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),]
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLongStop, instrument, 12, 4, True)
         # Exit the position before the entry order gets completely filled.
@@ -1176,9 +1219,8 @@ class StopPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),]
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat._setBroker(SkipCancelBroker(strat.getBroker()))
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLongStop, instrument, 12, 4, True)
@@ -1233,9 +1275,8 @@ class StopPosTestCase(BaseTestCase):
             bar.BasicBar(datetime.datetime(2000, 1, 3), 12, 12, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 4), 13, 13, 10, 10, 10, 10, bar.Frequency.DAY),
             bar.BasicBar(datetime.datetime(2000, 1, 5), 14, 14, 10, 10, 10, 10, bar.Frequency.DAY),
-            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),
-            ]
-        bf.addBarsFromSequence(instrument, bars)
+            bar.BasicBar(datetime.datetime(2000, 1, 6), 15, 15, 10, 10, 10, 10, bar.Frequency.DAY),]
+        bf.addBarsFromSequence(instrument, bars, market=marketsession.FTSE())
         strat = TestStrategy(bf, instrument, 1000)
         strat._setBroker(SkipFirstCancelBroker(strat.getBroker()))
         strat.addPosEntry(datetime.datetime(2000, 1, 1), strat.enterLongStop, instrument, 12, 4, True)
@@ -1316,3 +1357,6 @@ class StopLimitPosTestCase(BaseTestCase):
         self.assertEqual(strat.exitOkCalls, 1)
         self.assertTrue(strat.exitCanceledCalls == 0)
         self.assertTrue(round(strat.getBroker().getCash(), 2) == round(1000 + (29 - 24), 2))
+
+if __name__ == '__main__':
+    unittest.main()
