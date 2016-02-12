@@ -30,7 +30,7 @@ import datetime
 
 
 ######################################################################
-## NinjaTrader CSV parser
+# NinjaTrader CSV parser
 # Each bar must be on its own line and fields must be separated by semicolon (;).
 #
 # Minute Bars Format:
@@ -126,7 +126,7 @@ class Feed(csvfeed.BarFeed):
     def barsHaveAdjClose(self):
         return False
 
-    def addBarsFromCSV(self, instrument, path, timezone=None):
+    def addBarsFromCSV(self, instrument, path, timezone=None, market=None):
         """Loads bars for a given instrument from a CSV formatted file.
         The instrument gets registered in the bar feed.
 
@@ -145,4 +145,4 @@ class Feed(csvfeed.BarFeed):
             timezone = self.__timezone
 
         rowParser = RowParser(self.getFrequency(), self.getDailyBarTime(), timezone)
-        csvfeed.BarFeed.addBarsFromCSV(self, instrument, path, rowParser)
+        csvfeed.BarFeed.addBarsFromCSV(self, instrument, path, rowParser, market)
