@@ -210,6 +210,7 @@ class Broker(broker.Broker):
             self.__commission = commission
         self.__shares = {}
         self.__activeOrders = {}
+        self.__keepOrders = {}
         self.__useAdjustedValues = False
         self.__fillStrategy = fillstrategy.DefaultStrategy()
         self.__logger = logger.getLogger(Broker.LOGGER_NAME)
@@ -219,6 +220,8 @@ class Broker(broker.Broker):
         self.__barFeed = barFeed
         self.__allowNegativeCash = False
         self.__nextOrderId = 1
+
+        self.__orderHoldings = dict()
 
     def _getNextOrderId(self):
         ret = self.__nextOrderId
@@ -235,6 +238,7 @@ class Broker(broker.Broker):
         assert(order.getId() not in self.__activeOrders)
         assert(order.getId() is not None)
         self.__activeOrders[order.getId()] = order
+        self.__keepOrders[order.getId()]   = order
 
     def _unregisterOrder(self, order):
         assert(order.getId() in self.__activeOrders)
@@ -408,6 +412,17 @@ class Broker(broker.Broker):
         else:
             raise Exception("The order was already processed")
 
+    def checkTradeInterval(self,order,market,bar_):
+        ret = False
+        if order.isSell() and market.getTradeFreq() == 1:
+            iid = order.getEnterId()
+            buydate = self.__keepOrders[iid].getSubmitDateTime().date()
+            # ordate  = order.getAcceptedDateTime().date()
+            bardate = bar_.getDateTime().date() 
+            if buydate == bardate:
+                ret = True  
+        return ret
+
     # Return True if further processing is needed.
     def __preProcessOrder(self, order, bar_):
         ret  = True
@@ -437,11 +452,8 @@ class Broker(broker.Broker):
         # Works in Sell, IF instruments obey T+1: 
         # return false when curdate == order accept date
         # move to next bar
-        if order.isSell() and market.getTradeFreq() == 1:
-            curdate = bar_.getDateTime().date()
-            ordate  = order.getAcceptedDateTime().date()
-            if curdate == ordate:
-                return False
+        if self.checkTradeInterval(order,market,bar_):
+            return False
 
         # For non-GTC orders we need to check if the order has expired.
         if not order.getGoodTillCanceled():
@@ -503,6 +515,7 @@ class Broker(broker.Broker):
                 assert(order not in self.__activeOrders)
 
     def onBars(self, dateTime, bars):
+        # NOTE THAT: bars to be handled were SELECTED based on CURRENT_DateTime 
         # Let the fill strategy know that new bars are being processed.
         self.__fillStrategy.onBars(self, bars)
 
@@ -511,8 +524,15 @@ class Broker(broker.Broker):
         ordersToProcess = self.__activeOrders.values()
 
         for order in ordersToProcess:
+            self.updateOrderHoldings(order,bars)
             # This may trigger orders to be added/removed from __activeOrders.
             self.__onBarsImpl(order, bars)
+
+    def updateOrderHoldings(self,order,bars):
+        inst = order.getInstrument()
+        bar_ = bars.getBar(inst)
+        # if bar_ is not None and order.isSell():
+        #     print inst,order.getId(),bar_.getDateTime()
 
     def start(self):
         pass

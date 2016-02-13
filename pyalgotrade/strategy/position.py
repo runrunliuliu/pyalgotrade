@@ -177,6 +177,7 @@ class Position(object):
         self.__entryOrder = entryOrder
 
         self.__cancelDesc = ''
+        self.__entryid = None
 
     def __submitAndRegisterOrder(self, order):
         assert(order.isInitial())
@@ -190,6 +191,9 @@ class Position(object):
 
         self.__activeOrders[order.getId()] = order
         self.getStrategy().registerPositionOrder(self, order)
+
+    def setEntryId(self,iid):
+        self.__entryid = iid
 
     def setEntryDateTime(self, dateTime):
         self.__entryDateTime = dateTime
@@ -402,6 +406,8 @@ class Position(object):
         assert(not self.exitActive())
 
         exitOrder = self.buildExitOrder(stopPrice, limitPrice, lowPrice, upPrice)
+
+        exitOrder.setEnterId(self.getEntryOrder().getId())
 
         # If goodTillCanceled was not set, match the entry order.
         if goodTillCanceled is None:
