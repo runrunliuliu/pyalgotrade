@@ -210,7 +210,7 @@ class Broker(broker.Broker):
             self.__commission = commission
         self.__shares = {}
         self.__activeOrders = {}
-        self.__keepOrders = {}
+        self.__pairOrders = {}
         self.__useAdjustedValues = False
         self.__fillStrategy = fillstrategy.DefaultStrategy()
         self.__logger = logger.getLogger(Broker.LOGGER_NAME)
@@ -238,7 +238,11 @@ class Broker(broker.Broker):
         assert(order.getId() not in self.__activeOrders)
         assert(order.getId() is not None)
         self.__activeOrders[order.getId()] = order
-        self.__keepOrders[order.getId()]   = order
+        self.__pairOrders[order.getId()]   = order
+
+    def _unregisterPairOrder(self, iid):
+        assert(iid in self.__pairOrders)
+        del self.__pairOrders[iid]
 
     def _unregisterOrder(self, order):
         assert(order.getId() in self.__activeOrders)
@@ -301,6 +305,13 @@ class Broker(broker.Broker):
                 stacklevel=2
             )
         self.__useAdjustedValues = useAdjusted
+
+    def getPairOrders(self, instrument=None):
+        if instrument is None:
+            ret = self.__pairOrders.values()
+        else:
+            ret = [order for order in self.__pairOrders.values() if order.getInstrument() == instrument]
+        return ret
 
     def getActiveOrders(self, instrument=None):
         if instrument is None:
@@ -388,6 +399,11 @@ class Broker(broker.Broker):
             if order.isFilled():
                 self._unregisterOrder(order)
                 self.notifyOrderEvent(broker.OrderEvent(order, broker.OrderEvent.Type.FILLED, orderExecutionInfo))
+
+                if order.isSell():
+                    self._unregisterPairOrder(order.getEnterId())
+                    self._unregisterPairOrder(order.getId())
+
             elif order.isPartiallyFilled():
                 self.notifyOrderEvent(
                     broker.OrderEvent(order, broker.OrderEvent.Type.PARTIALLY_FILLED, orderExecutionInfo)
@@ -416,7 +432,7 @@ class Broker(broker.Broker):
         ret = False
         if order.isSell() and market.getTradeFreq() == 1:
             iid = order.getEnterId()
-            buydate = self.__keepOrders[iid].getSubmitDateTime().date()
+            buydate = self.__pairOrders[iid].getSubmitDateTime().date()
             # ordate  = order.getAcceptedDateTime().date()
             bardate = bar_.getDateTime().date() 
             if buydate == bardate:
@@ -450,7 +466,7 @@ class Broker(broker.Broker):
                 return False
 
         # Works in Sell, IF instruments obey T+1: 
-        # return false when curdate == order accept date
+        # return false when curdate == bar accept date
         # move to next bar
         if self.checkTradeInterval(order,market,bar_):
             return False
@@ -522,17 +538,16 @@ class Broker(broker.Broker):
         # This is to froze the orders that will be processed in this event, to avoid new getting orders introduced
         # and processed on this very same event.
         ordersToProcess = self.__activeOrders.values()
-
         for order in ordersToProcess:
-            self.updateOrderHoldings(order,bars)
+            # self.updateOrderHoldings(order,bars)
             # This may trigger orders to be added/removed from __activeOrders.
             self.__onBarsImpl(order, bars)
 
     def updateOrderHoldings(self,order,bars):
         inst = order.getInstrument()
         bar_ = bars.getBar(inst)
-        # if bar_ is not None and order.isSell():
-        #     print inst,order.getId(),bar_.getDateTime()
+        if bar_ is not None and order.isSell():
+            print inst,order.getId(),bar_.getDateTime()
 
     def start(self):
         pass
