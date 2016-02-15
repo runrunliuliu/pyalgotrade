@@ -221,7 +221,13 @@ class Broker(broker.Broker):
         self.__allowNegativeCash = False
         self.__nextOrderId = 1
 
-        self.__orderHoldings = dict()
+        self.__orderHoldings  = dict()
+        self.__maxHoldingDays = None
+
+        self.__strategy = None
+
+    def _setStrategy(self,strategy):
+        self.__strategy = strategy
 
     def _getNextOrderId(self):
         ret = self.__nextOrderId
@@ -267,6 +273,12 @@ class Broker(broker.Broker):
 
     def setCash(self, cash):
         self.__cash = cash
+
+    def setMaxHoldingDays(self, days):
+        self.__maxHoldingDays = days
+
+    def getMaxHoldingDays(self):
+        return self.__maxHoldingDays
 
     def getCommission(self):
         """Returns the strategy used to calculate order commissions.
@@ -484,7 +496,23 @@ class Broker(broker.Broker):
 
         return ret
 
+    def checkHoldings(self,order):
+        ret = True 
+        eid = None
+        if order.isSell():
+            eid = order.getEnterId()
+            if len(self.__orderHoldings[eid]) == self.getMaxHoldingDays():
+                ret = False
+        return (ret,eid)
+
     def __postProcessOrder(self, order, bar_):
+        (ret,eid) = self.checkHoldings(order)
+        if not ret and eid in self.__strategy.getOrderToPosition():
+            position_ = self.__strategy.getOrderToPosition()[eid]
+            self.cancelOrder(order)
+            position_.exitMarket()
+            return
+
         # For non-GTC orders and daily (or greater) bars we need to check if orders should expire right now
         # before waiting for the next bar.
         if not order.getGoodTillCanceled():
@@ -535,19 +563,25 @@ class Broker(broker.Broker):
         # Let the fill strategy know that new bars are being processed.
         self.__fillStrategy.onBars(self, bars)
 
+        self.updateOrderHoldings(bars)
+
         # This is to froze the orders that will be processed in this event, to avoid new getting orders introduced
         # and processed on this very same event.
         ordersToProcess = self.__activeOrders.values()
         for order in ordersToProcess:
-            # self.updateOrderHoldings(order,bars)
             # This may trigger orders to be added/removed from __activeOrders.
             self.__onBarsImpl(order, bars)
 
-    def updateOrderHoldings(self,order,bars):
-        inst = order.getInstrument()
-        bar_ = bars.getBar(inst)
-        if bar_ is not None and order.isSell():
-            print inst,order.getId(),bar_.getDateTime()
+    def updateOrderHoldings(self,bars):
+        for iid,order in self.__pairOrders.iteritems():
+            inst = order.getInstrument()
+            bar_ = bars.getBar(inst)
+            if bar_ is not None:
+                dset = set()
+                if iid in self.__orderHoldings:
+                    dset = self.__orderHoldings[iid]
+                dset.add(bar_.getDateTime().date())
+                self.__orderHoldings[iid] = dset
 
     def start(self):
         pass
