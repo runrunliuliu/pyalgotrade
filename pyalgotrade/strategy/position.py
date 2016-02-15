@@ -420,9 +420,9 @@ class Position(object):
         self.__exitOrder = exitOrder
 
     def onOrderEvent(self, orderEvent):
+        order = orderEvent.getOrder()
         self.__updatePosTracker(orderEvent)
 
-        order = orderEvent.getOrder()
         if not order.isActive():
             del self.__activeOrders[order.getId()]
 
