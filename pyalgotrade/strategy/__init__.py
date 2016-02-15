@@ -498,9 +498,10 @@ class BaseStrategy(object):
         pos = self.__orderToPosition.get(order.getId(), None)
         self.onOrderUpdated(order)
         if pos is not None:
+            # why unlink?
             # Unlink the order from the position if its not active anymore.
-            if not order.isActive():
-                self.unregisterPositionOrder(pos, order)
+            # if not order.isActive():
+            #    self.unregisterPositionOrder(pos, order)
 
             pos.onOrderEvent(orderEvent)
 
@@ -596,6 +597,8 @@ class BacktestingStrategy(BaseStrategy):
         self.__useAdjustedValues = False
         self.setUseEventDateTimeInLogs(True)
         self.setDebugMode(True)
+
+        broker._setStrategy(self)
 
     def getUseAdjustedValues(self):
         return self.__useAdjustedValues
