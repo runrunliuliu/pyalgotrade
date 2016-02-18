@@ -60,7 +60,7 @@ class SOEventWindow(technical.EventWindow):
         if self.windowFull():
             lowestLow, highestHigh = get_low_high_values(self.__barWrapper, self.getValues())
             currentClose = self.__barWrapper.getClose(self.getValues()[-1])
-            ret = (currentClose - lowestLow) / float(highestHigh - lowestLow) * 100
+            ret = (currentClose - lowestLow) / (0.0001 + float(highestHigh - lowestLow)) * 100
         return ret
 
 
@@ -88,8 +88,13 @@ class StochasticOscillator(technical.EventBasedFilter):
             "barDataSeries must be a dataseries.bards.BarDataSeries instance"
 
         technical.EventBasedFilter.__init__(self, barDataSeries, SOEventWindow(period, useAdjustedValues), maxLen)
-        self.__d = ma.SMA(self, dSMAPeriod, maxLen)
+        self.__K = ma.SMA(self, dSMAPeriod, maxLen)
+        self.__D = ma.SMA(self.__K, dSMAPeriod, maxLen)
+
+    def getK(self):
+        """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the %D values."""
+        return self.__K
 
     def getD(self):
         """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the %D values."""
-        return self.__d
+        return self.__D
