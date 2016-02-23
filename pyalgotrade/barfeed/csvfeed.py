@@ -88,6 +88,33 @@ class USEquitiesRTH(DateRangeFilter):
         return ret
 
 
+# Monday ~ Friday
+# 9:30 ~ 15:00 (GMT-5)
+class CHINAEquitiesRTH(DateRangeFilter):
+    timezone = pytz.timezone("Asia/Shanghai")
+
+    def __init__(self, fromDate=None, toDate=None):
+        DateRangeFilter.__init__(self, fromDate, toDate)
+
+        self.__fromTime = datetime.time(9, 30, 0)
+        self.__toTime = datetime.time(15, 0, 0)
+
+    def includeBar(self, bar_):
+        ret = DateRangeFilter.includeBar(self, bar_)
+        if ret and (bar_.getFrequency() == bar.Frequency.MINUTE):
+            # Check day of week
+            barDay = bar_.getDateTime().weekday()
+            if barDay > 4:
+                return False
+            # Check time
+            barTime = dt.localize(bar_.getDateTime(), CHINAEquitiesRTH.timezone).time()
+            if barTime < self.__fromTime:
+                return False
+            if barTime > self.__toTime:
+                return False
+        return ret
+
+
 class BarFeed(membf.BarFeed):
     """Base class for CSV file based :class:`pyalgotrade.barfeed.BarFeed`.
 
