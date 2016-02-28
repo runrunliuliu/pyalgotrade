@@ -87,7 +87,7 @@ class Trades(stratanalyzer.StrategyAnalyzer):
                 if newShares == 0:  # Exit long.
                     posTracker.sell(currentShares, price, commission)
                     self.__updateTrades(posTracker)
-                elif newShares > 0:  # Sell some shares.
+                elif newShares > 0:  # Sell some shares. WHY not update trades? TO BE IMPROVED!!
                     posTracker.sell(quantity*-1, price, commission)
                 else:  # Exit long and enter short. Use proportional commissions.
                     proportionalCommission = commission * currentShares / float(quantity*-1)

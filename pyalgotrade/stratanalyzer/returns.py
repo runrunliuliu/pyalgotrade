@@ -79,7 +79,6 @@ class PositionTracker(object):
 
     def __update(self, quantity, price, commission):
         assert(quantity != 0)
-
         if self.__shares == 0:
             # Opening a new position
             totalShares = quantity
