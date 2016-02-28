@@ -37,14 +37,21 @@ import datetime
 #
 # The csv Date column must have the following format: YYYY-MM-DD
 
-def parse_date(date):
-    # Sample: 2005-12-30
-    # This custom parsing works faster than:
-    # datetime.datetime.strptime(date, "%Y-%m-%d")
-    year = int(date[0:4])
-    month = int(date[5:7])
-    day = int(date[8:10])
-    ret = datetime.datetime(year, month, day)
+def parse_date(date, freq):
+    if freq == bar.Frequency.DAY:
+        year = int(date[0:4])
+        month = int(date[5:7])
+        day = int(date[8:10])
+        ret = datetime.datetime(year, month, day)
+
+    if freq == bar.Frequency.MINUTE:
+        year  = int(date[0:4])
+        month = int(date[5:7])
+        day   = int(date[8:10])
+        hour  = int(date[11:13])
+        mint  = int(date[14:16])
+        secs  = int(date[17:19])
+        ret = datetime.datetime(year, month, day, hour, mint, secs)
     return ret
 
 
@@ -57,9 +64,9 @@ class RowParser(csvfeed.RowParser):
         self.__market   = market 
 
     def __parseDate(self, dateString):
-        ret = parse_date(dateString)
+        ret = parse_date(dateString,self.__frequency)
         # Time on Yahoo! Finance CSV files is empty. If told to set one, do it.
-        if self.__dailyBarTime is not None:
+        if self.__frequency == bar.Frequency.DAY and self.__dailyBarTime is not None:
             ret = datetime.datetime.combine(ret, self.__dailyBarTime)
         # Localize the datetime if a timezone was given.
         if self.__timezone:
@@ -111,7 +118,7 @@ class Feed(csvfeed.BarFeed):
         if isinstance(timezone, int):
             raise Exception("timezone as an int parameter is not supported anymore. Please use a pytz timezone instead.")
 
-        if frequency not in [bar.Frequency.DAY, bar.Frequency.WEEK]:
+        if frequency not in [bar.Frequency.DAY, bar.Frequency.WEEK, bar.Frequency.MINUTE]:
             raise Exception("Invalid frequency.")
 
         csvfeed.BarFeed.__init__(self, frequency, maxLen)
