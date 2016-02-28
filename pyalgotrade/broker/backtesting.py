@@ -413,6 +413,13 @@ class Broker(broker.Broker):
                 self.notifyOrderEvent(broker.OrderEvent(order, broker.OrderEvent.Type.FILLED, orderExecutionInfo))
 
                 if order.isSell():
+                    inorder = self.__pairOrders[order.getEnterId()].getExecutionInfo().getPrice()
+                    exorder = self.__pairOrders[order.getId()].getExecutionInfo().getPrice()
+                    self.__logger.debug("Enter_id: %d -- Exit_id: %d -- Returns: %.2f" % (
+                        order.getEnterId(),
+                        order.getId(),
+                        (exorder - inorder) / (inorder + 0.00)
+                    ))
                     self._unregisterPairOrder(order.getEnterId())
                     self._unregisterPairOrder(order.getId())
 
