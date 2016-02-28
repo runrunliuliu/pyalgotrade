@@ -86,3 +86,4 @@ class ZScore(technical.EventBasedFilter):
 
     def __init__(self, dataSeries, period, ddof=0, maxLen=dataseries.DEFAULT_MAX_LEN):
         technical.EventBasedFilter.__init__(self, dataSeries, ZScoreEventWindow(period, ddof), maxLen)
+#
