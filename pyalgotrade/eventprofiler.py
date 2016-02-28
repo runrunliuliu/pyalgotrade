@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # PyAlgoTrade
 #
 # Copyright 2011-2015 Gabriel Martin Becedillas Ruiz
@@ -23,6 +24,7 @@ import matplotlib.pyplot as plt
 
 from pyalgotrade.technical import roc
 from pyalgotrade import dispatcher
+from prettytable import PrettyTable
 
 
 class Results(object):
@@ -45,6 +47,7 @@ class Results(object):
                     values = np.cumprod(event.getValues() + 1)
                     # Normalize everything to the time of the event
                     values = values / values[event.getLookBack()]
+
                     for t in range(event.getLookBack()*-1, event.getLookForward()+1):
                         self.setValue(t, values[t+event.getLookBack()])
 
@@ -90,13 +93,14 @@ class Predicate(object):
 
 
 class Event(object):
-    def __init__(self, lookBack, lookForward):
+    def __init__(self, lookBack, lookForward, dateTime):
         assert(lookBack > 0)
         assert(lookForward > 0)
         self.__lookBack = lookBack
         self.__lookForward = lookForward
         self.__values = np.empty((lookBack + lookForward + 1))
         self.__values[:] = np.NAN
+        self.__dateTime = dateTime
 
     def __mapPos(self, t):
         assert(t >= -1*self.__lookBack and t <= self.__lookForward)
@@ -122,6 +126,9 @@ class Event(object):
 
     def getValues(self):
         return self.__values
+
+    def getDateTime(self):
+        return self.__dateTime
 
 
 class Profiler(object):
@@ -171,7 +178,7 @@ class Profiler(object):
             self.__addCurrentReturns(instrument)
             eventOccurred = self.__predicate.eventOccurred(instrument, self.__feed[instrument])
             if eventOccurred:
-                event = Event(self.__lookBack, self.__lookForward)
+                event = Event(self.__lookBack, self.__lookForward, dateTime)
                 self.__events[instrument].append(event)
                 self.__addPastReturns(instrument, event)
                 # Add next return for this instrument at t=1.
@@ -248,6 +255,26 @@ def plot(profilerResults):
     :param profilerResults: The result of the analysis
     :type profilerResults: :class:`Results`.
     """
-
     build_plot(profilerResults)
     plt.show()
+
+
+def printStats(profilerResults):
+    tab = PrettyTable(['T日', '平均值', '方差', '最大值', '最小值', '胜率'])
+    tab.float_format = '.4'
+    tday = ''
+    for t in xrange(profilerResults.getLookBack()*-1, profilerResults.getLookForward()+1):
+        values = np.asarray(profilerResults.getValues(t))
+
+        pos = len(np.nonzero(values > 1.0)[0])
+        neg = len(np.nonzero(values < 1.0)[0])
+        if pos == 0 and neg == 0:
+            win = 0.0
+        else: 
+            win = pos / (pos + neg + 0.0) 
+        if t > 0 or t == 0:
+            tday = '+'
+        tab.add_row([ 'T' + tday + str(t), values.mean(), values.std(), values.max(), values.min(), win])
+    tab.align = 'l'
+    print tab
+#
