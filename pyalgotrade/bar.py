@@ -114,6 +114,24 @@ class Bar(object):
         raise NotImplementedError()
 
 
+class IndicatorBar(object):
+
+    def __init__(self, dateTime, kvs):
+        if len(kvs) == 0:
+            raise Exception("kvs size is zero")
+
+        self.__dateTime = dateTime
+        self.__dict     = kvs 
+
+    def getValue(self, key):
+        if key not in self.__dict:
+            return None
+        return self.__dict[key]
+
+    def getDateTime(self):
+        return self.__dateTime
+
+
 class BasicBar(Bar):
     # Optimization to reduce memory footprint.
     __slots__ = (
