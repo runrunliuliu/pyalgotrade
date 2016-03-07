@@ -615,6 +615,30 @@ class BacktestingStrategy(BaseStrategy):
         self.getLogger().setLevel(level)
         self.getBroker().getLogger().setLevel(level)
 
+    def onEnterOk(self, position):
+        entorder = position.getEntryOrder()
+        execInfo = entorder.getExecutionInfo()
+        inst     = entorder.getInstrument()
+        price    = format(execInfo.getPrice(),'<6.2f')
+        shares   = format(execInfo.getQuantity(),'<10.2f')
+        self.debug(format("BUY:",'<6') + str(inst) + " at $%s shares:%s orderid:%d" % (price,shares,entorder.getId()))
+
+    def onExitOk(self, position):
+        extorder = position.getExitOrder()
+        execInfo = extorder.getExecutionInfo()
+        inst     = position.getEntryOrder().getInstrument()
+        price    = format(execInfo.getPrice(),'<6.2f')
+        shares   = format(execInfo.getQuantity(),'<10.2f')
+        self.debug("SELL: " + str(inst) + " at $%s shares:%s orderid:%d" % (price,shares,extorder.getId()))
+
+    def onEnterCanceled(self, position):
+        inst = position.getEntryOrder().getInstrument()
+        info = position.getCancelDesc()
+        self.debug("%s inst - Execinfo: %s" % (
+            inst,
+            info
+        ))
+
 
 class Strategy(BacktestingStrategy):
     def __init__(self, *args, **kwargs):
