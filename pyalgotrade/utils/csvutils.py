@@ -37,6 +37,9 @@ class FastDictReader(object):
     def __iter__(self):
         return self
 
+    def getFiledNames(self):
+        return self.__fieldNames
+
     def next(self):
         # Skip empty rows.
         row = self.reader.next()
