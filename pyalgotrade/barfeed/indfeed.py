@@ -83,6 +83,9 @@ class RowParser(object):
     def getDelimiter(self):
         return ","
 
+    def getKeys(self):
+        return self.__keys
+
     def setKeys(self,keys):
         self.__keys = keys[2:]
 
@@ -106,6 +109,7 @@ class Feed(membf.BarFeed):
 
         membf.BarFeed.__init__(self, frequency, maxLen)
 
+        self.__dict = {}
         self.__bars = {}
         self.__name = None
         self.__timezone = timezone
@@ -131,11 +135,12 @@ class Feed(membf.BarFeed):
     def getMatch(self, inst, ndate):
         ret   = {}
         code  = None
-        match = self.__df.loc[(self.__df['code'] == inst) & (self.__df.Date == ndate)] 
-        if len(match) > 0:
-            code  = match.iloc[0]['code']
-            for f in self.__fields:
-                ret[f] = match.iloc[0][f]
+        key = (ndate,inst)
+        for f in self.__fields:
+            if f in self.__dict and key in self.__dict[f]:
+                code   = inst
+                val    = self.__dict[f][key]
+                ret[f] = val
         return (code,ret) 
 
     def addBarsFromSequence(self, instrument, bars, market=None):
@@ -160,6 +165,9 @@ class Feed(membf.BarFeed):
         reader      = csvutils.FastDictReader(open(path, "r"), fieldnames=rowParser.getFieldNames(), delimiter=rowParser.getDelimiter())
         self.__fields = reader.getFiledNames()
         rowParser.setKeys(reader.getFiledNames())
+
+        for f in rowParser.getKeys():
+            self.__dict[f] = self.__df.set_index(['Date','code'])[f].to_dict()
 
         for row in reader:
             [instrument, bar_] = rowParser.parseBar(row)
