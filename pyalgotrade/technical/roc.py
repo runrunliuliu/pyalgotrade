@@ -20,6 +20,25 @@
 
 from pyalgotrade import technical
 from pyalgotrade import dataseries
+from pyalgotrade.utils import collections
+
+
+class ROCcompute(object):
+    def __init__(self):
+        self.__ok = 1
+
+    def getROC(self, pbar, nbar, itype):
+        ROC = None 
+
+        if pbar is None or nbar is None:
+            return ROC
+
+        if itype == 1:
+            pval = pbar.getClose()
+            nval = nbar.getHigh()
+
+            ROC = (nval - pval) / (pval + 0.000000001)
+        return ROC
 
 
 class ROCEventWindow(technical.EventWindow):
@@ -55,3 +74,36 @@ class RateOfChange(technical.EventBasedFilter):
     def __init__(self, dataSeries, valuesAgo, maxLen=dataseries.DEFAULT_MAX_LEN):
         assert(valuesAgo > 0)
         technical.EventBasedFilter.__init__(self, dataSeries, ROCEventWindow(valuesAgo + 1), maxLen)
+
+
+class BARROCEventWindow(technical.EventWindow):
+    def __init__(self, windowSize, ntype):
+        technical.EventWindow.__init__(self, windowSize, dtype=object)
+
+        # 1. T+1.open() - T.close() / T.close()
+        self.__type = ntype 
+        self.__roc = ROCcompute()
+
+        self.__bars = collections.ListDeque(256)
+        self.__r1 = None
+
+    def onNewValue(self, dateTime, value):
+        technical.EventWindow.onNewValue(self, dateTime, value)
+
+        if value is not None and self.windowFull():
+            bars = self.getValues()
+            pbar = bars[0]
+            nbar = bars[-1]
+            
+            roc  = self.__roc.getROC(pbar, nbar, self.__type)
+            self.__r1 = roc
+
+    def getValue(self):
+        ret = self.__r1 
+        return ret
+
+
+class RateOfBarChange(technical.EventBasedFilter):
+    def __init__(self, bardataSeries, valuesAgo, ntype=1, maxLen=dataseries.DEFAULT_MAX_LEN):
+        technical.EventBasedFilter.__init__(self, bardataSeries, BARROCEventWindow(valuesAgo + 1, ntype), maxLen)
+#
