@@ -37,7 +37,7 @@ class MACD(dataseries.SequenceDataSeries):
         Once a bounded length is full, when new items are added, a corresponding number of items are discarded from the opposite end.
     :type maxLen: int.
     """
-    def __init__(self, dataSeries, fastEMA, slowEMA, signalEMA, maxLen=dataseries.DEFAULT_MAX_LEN):
+    def __init__(self, dataSeries, fastEMA, slowEMA, signalEMA, maxLen=dataseries.DEFAULT_MAX_LEN, flag=1):
         assert(fastEMA > 0)
         assert(slowEMA > 0)
         assert(fastEMA < slowEMA)
@@ -55,7 +55,8 @@ class MACD(dataseries.SequenceDataSeries):
         self.__signalEMAWindow = ma.EMAEventWindow(signalEMA)
         self.__signal = dataseries.SequenceDataSeries(maxLen)
         self.__histogram = dataseries.SequenceDataSeries(maxLen)
-        dataSeries.getNewValueEvent().subscribe(self.__onNewValue)
+        if flag == 1:
+            dataSeries.getNewValueEvent().subscribe(self.onNewValue)
 
     def getSignal(self):
         """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the EMA over the MACD."""
@@ -65,7 +66,7 @@ class MACD(dataseries.SequenceDataSeries):
         """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the histogram (the difference between the MACD and the Signal)."""
         return self.__histogram
 
-    def __onNewValue(self, dataSeries, dateTime, value):
+    def onNewValue(self, dataSeries, dateTime, value):
         diff = None
         macdValue = None
         signalValue = None
@@ -88,7 +89,7 @@ class MACD(dataseries.SequenceDataSeries):
         if self.__signalEMAWindow.windowFull():
             macdValue = diff
             signalValue = self.__signalEMAWindow.getValue()
-            histogramValue = macdValue - signalValue
+            histogramValue = 2 * (macdValue - signalValue)
 
         self.appendWithDateTime(dateTime, macdValue)
         self.__signal.appendWithDateTime(dateTime, signalValue)
