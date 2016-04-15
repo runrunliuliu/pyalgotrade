@@ -21,10 +21,12 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-
+from pyalgotrade import utils
 from pyalgotrade.technical import roc
 from pyalgotrade import dispatcher
 from prettytable import PrettyTable
+from pyalgotrade.plots import barplot 
+from collections import Counter
 
 
 class Results(object):
@@ -35,6 +37,8 @@ class Results(object):
         self.__lookBack = lookBack
         self.__lookForward = lookForward
         self.__values = [[] for i in xrange(lookBack+lookForward+1)]
+        self.__dtimes = [[] for i in xrange(lookBack+lookForward+1)]
+        self.__insts  = [[] for i in xrange(lookBack+lookForward+1)]
         self.__eventCount = 0
 
         # Process events.
@@ -42,6 +46,8 @@ class Results(object):
             for event in events:
                 # Skip events which are on the boundary or for some reason are not complete.
                 if event.isComplete():
+                    event_time = event.getDateTime()
+                    instrument = event.getInstrument()
                     self.__eventCount += 1
                     # Compute cumulative returns: (1 + R1)*(1 + R2)*...*(1 + Rn)
                     values = np.cumprod(event.getValues() + 1)
@@ -49,17 +55,31 @@ class Results(object):
                     values = values / values[event.getLookBack()]
 
                     for t in range(event.getLookBack()*-1, event.getLookForward()+1):
-                        self.setValue(t, values[t+event.getLookBack()])
+                        self.setValue(t, values[t+event.getLookBack()], event_time, instrument)
 
     def __mapPos(self, t):
         assert(t >= -1*self.__lookBack and t <= self.__lookForward)
         return t + self.__lookBack
 
-    def setValue(self, t, value):
+    def mapPos(self, t):
+        assert(t >= -1*self.__lookBack and t <= self.__lookForward)
+        return t + self.__lookBack
+
+    def setValue(self, t, value, dateTime, instrument):
         if value is None:
             raise Exception("Invalid value at time %d" % (t))
         pos = self.__mapPos(t)
         self.__values[pos].append(value)
+        self.__dtimes[pos].append(dateTime)
+        self.__insts[pos].append(instrument)
+
+    def getDateTimes(self,t):
+        pos = self.__mapPos(t)
+        return self.__dtimes[pos]
+
+    def getInstruments(self,t):
+        pos = self.__mapPos(t)
+        return self.__insts[pos]
 
     def getValues(self, t):
         pos = self.__mapPos(t)
@@ -93,14 +113,15 @@ class Predicate(object):
 
 
 class Event(object):
-    def __init__(self, lookBack, lookForward, dateTime):
+    def __init__(self, lookBack, lookForward, dateTime, instrument):
         assert(lookBack > 0)
         assert(lookForward > 0)
-        self.__lookBack = lookBack
+        self.__lookBack    = lookBack
         self.__lookForward = lookForward
-        self.__values = np.empty((lookBack + lookForward + 1))
-        self.__values[:] = np.NAN
-        self.__dateTime = dateTime
+        self.__values      = np.empty((lookBack + lookForward + 1))
+        self.__values[:]   = np.NAN
+        self.__dateTime    = dateTime
+        self.__inst        = instrument
 
     def __mapPos(self, t):
         assert(t >= -1*self.__lookBack and t <= self.__lookForward)
@@ -129,6 +150,9 @@ class Event(object):
 
     def getDateTime(self):
         return self.__dateTime
+
+    def getInstrument(self):
+        return self.__inst
 
 
 class Profiler(object):
@@ -178,7 +202,7 @@ class Profiler(object):
             self.__addCurrentReturns(instrument)
             eventOccurred = self.__predicate.eventOccurred(instrument, self.__feed[instrument])
             if eventOccurred:
-                event = Event(self.__lookBack, self.__lookForward, dateTime)
+                event = Event(self.__lookBack, self.__lookForward, dateTime, instrument)
                 self.__events[instrument].append(event)
                 self.__addPastReturns(instrument, event)
                 # Add next return for this instrument at t=1.
@@ -191,7 +215,7 @@ class Profiler(object):
         """
         return Results(self.__events, self.__lookBack, self.__lookForward)
 
-    def run(self, feed, useAdjustedCloseForReturns=True):
+    def run(self, feed, rc=1, useAdjustedCloseForReturns=True):
         """Runs the analysis using the bars supplied by the feed.
 
         :param barFeed: The bar feed to use to run the analysis.
@@ -214,7 +238,12 @@ class Profiler(object):
                     ds = feed[instrument].getAdjCloseDataSeries()
                 else:
                     ds = feed[instrument].getCloseDataSeries()
-                self.__rets[instrument] = roc.RateOfChange(ds, 1)
+
+                if rc == 1:
+                    self.__rets[instrument] = roc.RateOfChange(ds, 1)
+                if rc == 2:
+                    bars = feed.getDataSeries(instrument)
+                    self.__rets[instrument] = roc.RateOfBarChange(bars, 1)
 
             feed.getNewValuesEvent().subscribe(self.__onBars)
             disp = dispatcher.Dispatcher()
@@ -259,22 +288,71 @@ def plot(profilerResults):
     plt.show()
 
 
-def printStats(profilerResults):
-    tab = PrettyTable(['T日', '平均值', '方差', '最大值', '最小值', '胜率'])
+def printStats(profilerResults, base=1.0):
+    tab = PrettyTable(['T日', '平均值', '方差', '最大值', '最小值', '中值', '胜率'])
     tab.float_format = '.4'
     tday = ''
+    # loseday  = []
+    losebk  = {}
+    winbk   = {}
+    winnday  = []
+    winmonth = []
     for t in xrange(profilerResults.getLookBack()*-1, profilerResults.getLookForward()+1):
         values = np.asarray(profilerResults.getValues(t))
+        dtimes = np.asarray(profilerResults.getDateTimes(t))
+        insts  = np.asarray(profilerResults.getInstruments(t))
 
-        pos = len(np.nonzero(values > 1.0)[0])
-        neg = len(np.nonzero(values < 1.0)[0])
+        posvec = np.nonzero(values > base)[0]
+        negvec = np.nonzero(values < base)[0]
+
+        pos = len(posvec)
+        neg = len(negvec)
+
+        # Get Hist plot
+        if profilerResults.mapPos(t) == 2:
+            if neg > 0:
+                # loseday = map(lambda x: x.strftime('%Y-%m-%d'), dtimes[negvec])
+                losebk     = Counter(map(lambda x: utils.getStockCate(x), insts[negvec]))
+                loseMcount = Counter(map(lambda x: x.strftime('%Y-%m'), dtimes[negvec]))
+            if pos > 0:
+                winbk    = Counter(map(lambda x: utils.getStockCate(x), insts[posvec]))
+                winnday  = map(lambda x: x.strftime('%Y-%m-%d'), dtimes[posvec])
+                winmonth = map(lambda x: x.strftime('%Y-%m'), dtimes[posvec])
+                winMcount = Counter(map(lambda x: x.strftime('%Y-%m'), dtimes[posvec]))
+
         if pos == 0 and neg == 0:
             win = 0.0
         else: 
             win = pos / (pos + neg + 0.0) 
         if t > 0 or t == 0:
             tday = '+'
-        tab.add_row([ 'T' + tday + str(t), values.mean(), values.std(), values.max(), values.min(), win])
+        tab.add_row([ 'T' + tday + str(t), values.mean(), values.std(), values.max(), values.min(), np.median(values), win])
     tab.align = 'l'
     print tab
-#
+
+    # plots
+    datalist = []
+    if len(winnday) > 0:
+        data1 = dict()
+        data1['day']   = winnday
+        data1['winday']   = np.zeros(len(winnday)) + 1
+
+        data2 = dict()
+        data2['month'] = winmonth
+        data2['winmonth'] = np.zeros(len(winmonth)) + 1
+
+        data3 = dict()
+        data3['bk']    = winbk.keys()
+        data3['winbk']  = np.array(utils.getWinRate(winbk.keys(), winbk, losebk))
+ 
+        data4 = dict()
+        data4['mdist']    = winMcount.keys()
+        data4['winMdist'] = np.array(utils.getWinRate(winMcount.keys(), winMcount, loseMcount))
+       
+        datalist = [data1, data2, data3, data4]
+        lkey = ['day', 'month', 'bk', 'mdist']
+        vkey = ['winday', 'winmonth', 'winbk', 'winMdist']
+        title = ['获胜时间分布', '获胜时间分布', '版块胜率分布', '月份胜率分布']
+        bplot = barplot.BarPlot(datalist, vkey, lkey, title, False)
+        bplot.shows()
+###
