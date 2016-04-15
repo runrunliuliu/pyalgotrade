@@ -508,7 +508,7 @@ class Broker(broker.Broker):
         eid = None
         if order.isSell():
             eid = order.getEnterId()
-            if len(self.__orderHoldings[eid]) == self.getMaxHoldingDays():
+            if len(self.__orderHoldings[eid]) >= self.getMaxHoldingDays():
                 ret = False
         return (ret,eid)
 
@@ -517,7 +517,7 @@ class Broker(broker.Broker):
         if not ret and eid in self.__strategy.getOrderToPosition():
             position_ = self.__strategy.getOrderToPosition()[eid]
             self.cancelOrder(order)
-            position_.exitMarket()
+            position_.exitMarket(goodTillCanceled=True)
             return
 
         # For non-GTC orders and daily (or greater) bars we need to check if orders should expire right now
@@ -579,6 +579,7 @@ class Broker(broker.Broker):
             # This may trigger orders to be added/removed from __activeOrders.
             self.__onBarsImpl(order, bars)
 
+    # For NO-BAR instrument, drop?
     def updateOrderHoldings(self,bars):
         for iid,order in self.__pairOrders.iteritems():
             inst = order.getInstrument()
