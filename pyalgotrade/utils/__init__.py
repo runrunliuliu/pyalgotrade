@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 # PyAlgoTrade
 #
-# Copyright 2011-2015 Gabriel Martin Becedillas Ruiz
+# Copyright 2015- liuliu.tju@gmail.com
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,3 +45,29 @@ def safe_max(left, right):
         return left
     else:
         return max(left, right)
+
+
+def getStockCate(stockid):
+    ret = 'NULL'
+    f3 = stockid[:3]
+    if f3 == '300':
+        ret = 'CYB'
+    if f3 == '600' or f3 == '601' or f3 == '603':
+        ret = 'HUA'
+    if f3 == '000':
+        ret = 'SHENA'
+    if f3 == '002' or f3 == '001':
+        ret = 'ZXB'
+    return ret
+
+
+def getWinRate(keys, win, lose):
+    winrate = []
+    for k in keys:
+        if k in lose:
+            rate = win[k] / (win[k] + lose[k] + 0.000000001)
+        else:
+            rate = 1.0
+        winrate.append(rate)
+    return winrate
+#
