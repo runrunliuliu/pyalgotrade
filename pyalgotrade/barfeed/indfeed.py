@@ -86,8 +86,12 @@ class RowParser(object):
     def getKeys(self):
         return self.__keys
 
-    def setKeys(self,keys):
-        self.__keys = keys[2:]
+    def setKeys(self, keys, index=None):
+        if index is None:
+            self.__keys = keys[2:]
+        else:
+            setindex = set(index)
+            self.__keys = [a for a in keys if a not in setindex]
 
     def parseBar(self, csvRowDict):
         dateTime = self.__parseDate(csvRowDict["Date"])
@@ -132,10 +136,12 @@ class Feed(membf.BarFeed):
     def barsHaveAdjClose(self):
         return True
 
-    def getMatch(self, inst, ndate):
+    def getMatch(self, inst, ndate, extra=None):
         ret   = {}
         code  = None
         key = (ndate,inst)
+        if extra is not None:
+            key = key + extra 
         for f in self.__fields:
             if f in self.__dict and key in self.__dict[f]:
                 code   = inst
@@ -150,7 +156,7 @@ class Feed(membf.BarFeed):
         self.__bars[instrument].sort(barCmp)
         self.registerInstrument(instrument)
 
-    def addBarsFromCSV(self, name, path, timezone=None,market=None):
+    def addBarsFromCSV(self, name, path, index=None, timezone=None,market=None):
         if isinstance(timezone, int):
             raise Exception("timezone as an int parameter is not supported anymore. Please use a pytz timezone instead.")
 
@@ -164,10 +170,12 @@ class Feed(membf.BarFeed):
         rowParser   = RowParser(self.getDailyBarTime(), self.getFrequency(), timezone, self.__sanitizeBars)
         reader      = csvutils.FastDictReader(open(path, "r"), fieldnames=rowParser.getFieldNames(), delimiter=rowParser.getDelimiter())
         self.__fields = reader.getFiledNames()
-        rowParser.setKeys(reader.getFiledNames())
+        rowParser.setKeys(reader.getFiledNames(), index)
 
         for f in rowParser.getKeys():
-            self.__dict[f] = self.__df.set_index(['Date','code'])[f].to_dict()
+            if index is None:
+                index = ['Date', 'code']
+            self.__dict[f] = self.__df.set_index(index)[f].to_dict()
 
         for row in reader:
             [instrument, bar_] = rowParser.parseBar(row)
