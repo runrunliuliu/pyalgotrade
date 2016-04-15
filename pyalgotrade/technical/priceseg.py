@@ -1,10 +1,13 @@
 from pyalgotrade import technical
 from pyalgotrade import dataseries
 from pyalgotrade.utils import collections
+from pyalgotrade.utils import qsLineFit 
 from pyalgotrade.dataseries import bards
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import macd
+from pyalgotrade.technical import indicator 
 from array import array
+from utils import utils
 from collections import OrderedDict
 import numpy as np
 
@@ -18,8 +21,23 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__priceDS = BarSeries.getCloseDataSeries()
         self.__macd = macd.MACD(self.__priceDS, 12, 26, 9, flag=0)
 
-        self.__fix = 1 
+        self.__indicator = indicator.IndEventWindow()
 
+        self.__fix    = 1 
+        self.__beili  = 0 
+        self.__vbeili = 0 
+
+        self.__xtTriangle = None 
+        self.__roc = None
+
+        self.__vbused = set()
+        
+        # Record Trading Days FOR ZHOUQI theory
+        self.__zq   = 0
+        self.__dtzq = OrderedDict() 
+
+        self.__qsfilter  = set() 
+        self.__qsfit     = {}
         self.__datelow   = {}
         self.__datehigh  = {}
         self.__dateclose = {}
@@ -28,9 +46,13 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__fpeek   = []
         self.__desline = OrderedDict()
         self.__incline = OrderedDict()
+        
+        self.__nowdesline = OrderedDict()
+        self.__nowincline = OrderedDict()
 
         self.__gd       = OrderedDict()
         self.__LFVbeili = OrderedDict()
+        self.__LFPbeili = OrderedDict()
         self.__hlcluster = []
         self.__nowgd   = None
         self.__nowhist = None
@@ -125,6 +147,16 @@ class MacdSegEventWindow(technical.EventWindow):
                     if plow < self.__datelow[dateTime]:
                         update = tmp
                 self.__LFVbeili[self.__gddt] = update 
+        # Peek Beili
+        if flag == -1:
+            if self.__datehigh[dateTime] > self.__datehigh[self.__gddt]:
+                update = (dateTime, self.__datehigh[dateTime])
+                if self.__gddt in self.__LFPbeili:
+                    tmp = self.__LFPbeili[self.__gddt]
+                    phigh = tmp[1]
+                    if phigh > self.__datehigh[dateTime]:
+                        update = tmp
+                self.__LFPbeili[self.__gddt] = update 
 
     def parsePrevHistDay(self, ret, change, dateTime):
         now_val = None
@@ -142,10 +174,6 @@ class MacdSegEventWindow(technical.EventWindow):
                     self.__direct = -1
                     self.__gdval  = pmin_hist
                     self.__gddt   = pmin_date
-                else:
-                    # Valley BeiLi Check
-                    self.findBeiLi(dateTime, 1)
-
                 now = np.array(self.__poshigh)
                 now_val = now.max()
                 now_dt  = self.__posdate[now.argmax()]
@@ -164,6 +192,9 @@ class MacdSegEventWindow(technical.EventWindow):
                 now = np.array(self.__neglow)
                 now_val = now.min()
                 now_dt  = self.__negdate[now.argmin()]
+           
+            # Find BeiLi point
+            self.findBeiLi(dateTime, ret)
 
         return (now_val, now_dt)
 
@@ -204,40 +235,135 @@ class MacdSegEventWindow(technical.EventWindow):
                     res.append(p)
             # Valley point
             if flag == -1:
-                if nex > pre * 0.618 * 0.618:
+                if nex > pre * 0.618 * 0.618 or nex > 0.20:
                     res.append(p)
             cnt = cnt + 1
         return res
+    
+    # Future Peek or Valley cross the line or NOT
+    def breakQSLine(self, tups, peek, valley, MVP, GDS):
+        x0 = tups[0]; y0 = tups[1]; x1 = tups[2]; y1 = tups[3]
+        start = self.__dtzq[x0]; end = self.__dtzq[x1]
+        qfit = qsLineFit.QsLineFit(start, y0, end, y1)
+        
+        cross = 0
+        index = []
+        index.extend(valley)
+        index.extend(peek)
+        for p in index:
+            x = self.__dtzq[p[0]]
+            y = qfit.compute(x)
+            if end < x:
+                diff = (y - p[1]) / p[1] 
+                if abs(diff) < 0.01:
+                    cross = 1
+                    MVP = MVP + 1 
+                    cnt = 0
+                    if p in GDS:
+                        cnt = GDS[p]
+                    cnt = cnt + 1
+                    GDS[p] = cnt
+        return (cross, MVP, GDS) 
+
+    def scoreQSLine(self, flag, neighbors, lastvex):
+        for point in neighbors:
+            ndate = point[0]; nval  = point[1]
+            lines = None
+            if flag == 1 and ndate in self.__desline:
+                lines = self.__desline[ndate]
+            if flag == -1 and ndate in self.__incline:
+                lines = self.__incline[ndate]
+            if lines is None:
+                continue
+            destmp = []; inctmp = []
+            MVP = 0; GDS = dict() 
+            for tups in lines: 
+                if tups in self.__qsfilter:
+                    continue
+                (cross, MVP, GDS) = self.breakQSLine(tups, self.__fpeek, self.__fvalley, MVP, GDS)
+                # if cross == 1:
+                # print ndate, tups
+
+                x0 = tups[0]; y0 = tups[1]; y1 = tups[3]
+                # 1. remove EXPIRE QUSHI Line 
+                if flag == 1 and y0 > nval * 0.95 and y1 > nval * 0.95:
+                    if ndate in self.__nowdesline:
+                        destmp = self.__nowdesline[ndate]
+                    destmp.append(tups)
+                    self.__nowdesline[ndate] = destmp
+                if flag == -1 and self.__dtzq[ndate] - self.__dtzq[x0] < 120 \
+                        and y0 < lastvex[1] \
+                        and y1 <= lastvex[1]:
+                    if ndate in self.__nowincline:
+                        inctmp = self.__nowincline[ndate]
+                    inctmp.append(tups)
+                    self.__nowincline[ndate] = inctmp
+            # print MVP, GDS
+
+    # QuShi Fit to discard some useless lines
+    def qsFit(self, tups, flag):
+        x0 = tups[0]; y0 = tups[1]; x1 = tups[2]; y1 = tups[3]
+        start = self.__dtzq[x0]; end = self.__dtzq[x1]
+        qfit = None
+        if x1 not in self.__qsfit:
+            qfit = qsLineFit.QsLineFit(start, y0, end, y1)
+            qfit.setDesc(x0, x1)
+        else:
+            qfit = self.__qsfit[x1]
+        lines = []
+        if flag == 1 and x1 in self.__desline:
+            lines = self.__desline[x1]
+        if flag == -1 and x1 in self.__incline:
+            lines = self.__incline[x1]
+        qsfilter = 0
+        for l in lines:
+            x = self.__dtzq[l[0]]
+            y = qfit.compute(x)
+            if (l[1] - y) * flag > 0:
+                qsfilter = 1
+                break
+        if qsfilter == 1:
+            self.__qsfilter.add(tups)
+        return qfit
+
+    def connectPoint(self, date, val, lastvex, flag):
+        tmp  = []
+        tups = (date, val, lastvex[0], lastvex[1])
+        # Connect Higher Peek point to plot descending Line
+        if flag == 1 and (val - lastvex[1]) / lastvex[1] > 0.05:
+            self.qsFit(tups, flag)
+            if lastvex[0] in self.__desline:
+                tmp = self.__desline[lastvex[0]]
+            tmp.append(tups)
+            self.__desline[lastvex[0]] = tmp
+        # Connect Lower Valley point to plot increasing Line
+        if flag == -1 and (lastvex[1] - val) / val > 0.01:
+            self.qsFit(tups, flag)
+            if lastvex[0] in self.__incline:
+                tmp = self.__incline[lastvex[0]]
+            tmp.append(tups)
+            self.__incline[lastvex[0]] = tmp
 
     # Long Time QuChi Line 
     def pairVetex(self, lists, flag):
         if len(lists) < 2:
             return None
+        if flag == 1:
+            self.__nowdesline = OrderedDict()
+        if flag == -1:
+            self.__nowincline = OrderedDict()
+
+        neighbors = []
         lastvex = lists[0]
+        neighbors.append(lastvex)
         for i in range(1,len(lists)):
-            k = lists[i] 
-            # Connect Higher Peek point to plot descending Line
-            if flag == 1:
-                date = k[0]
-                val  = k[1]
-                # remove ineffective Pre-Peek which has been "break through"
-                if (val - lastvex[1]) / lastvex[1] > 0.05:
-                    tmp  = []
-                    tups = (date, val, lastvex[0], lastvex[1])
-                    if lastvex[0] in self.__desline:
-                        tmp = self.__desline[lastvex[0]]
-                    tmp.append(tups)
-                    self.__desline[lastvex[0]] = tmp
-            if flag == -1:
-                date = k[0]
-                val  = k[1]
-                if (lastvex[1] - val) / val > 0.05:
-                    tmp  = []
-                    tups = (date, val, lastvex[0], lastvex[1])
-                    if lastvex[0] in self.__incline:
-                        tmp = self.__incline[lastvex[0]]
-                    tmp.append(tups)
-                    self.__incline[lastvex[0]] = tmp
+            item = lists[i] 
+            date = item[0]; val = item[1]
+            self.connectPoint(date, val, lastvex, flag) 
+            if i < 3:
+                neighbors.append(item)
+        # Score Desending and Ascending Line
+        self.scoreQSLine(flag, neighbors, lastvex)
 
     # Identify Peek and Valley Index
     # connect important index to horizon line or tongdao
@@ -266,20 +392,28 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__fvalley = self.filterGD(valley, -1)
         self.__fpeek   = self.filterGD(peek, 1)
-
         if self.__direct == 1:
             self.pairVetex(self.__fpeek, 1)
-        if self.__direct == -1:
+        if self.__direct == -1 or self.__beili == -1:
             self.pairVetex(self.__fvalley, -1)
 
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
         self.__macd.onNewValue(self.__priceDS, dateTime, value.getClose())
 
+        self.__indicator.onNewValue(dateTime, value)
+
         self.__datelow[dateTime]   = value.getLow()
         self.__datehigh[dateTime]  = value.getHigh()
         self.__dateclose[dateTime] = value.getClose()
 
+        self.__zq = self.__zq + 1
+        self.__dtzq[dateTime] = self.__zq
+
+        self.__fts = self.__indicator.getValue()
+        change        = 0
+        self.__beili  = 0 
+        self.__vbeili = 0 
         nwprice = None
         if self.__macd[-1] is not None:
             hist = self.__macd.getHistogram()[-1]
@@ -293,31 +427,98 @@ class MacdSegEventWindow(technical.EventWindow):
                     gdprice = self.__datehigh[self.__gddt]
                     nwprice = value.getHigh()
 
-                print dateTime, self.__LFVbeili, now_val, now_dt
                 # Fix valley point based on BeiLi 
                 # UPDATE: It's not NECESSARY for CHANGE to be happend
-                if len(self.__LFVbeili) > 0 and self.__fix == 1:
-                    item = self.__LFVbeili.popitem()
-                    key  = item[0]
-                    val  = item[1]
-                    # check time of Beili 
-                    # if it happens after CURRENT MAX POINT --- NOT REPLACE
-                    if val[0].date() < now_dt.date():
-                        del self.__gd[key]
-                        self.__gd[val[0]] = val[1]
-                    else:
-                        print 'false', val[0], self.__gddt
+                self.updateGD(now_dt)
+                if change == 1:
+                    self.__gd[self.__gddt] = gdprice
 
-                self.__gd[self.__gddt] = gdprice
                 self.__nowgd   = now_dt
                 self.__nowhist = hist
-            if change == 1:
+            if change == 1 or self.__beili == -1:
                 self.parseGD(dateTime, self.__nowgd, nwprice) 
+            # VBeiLi Buy Point
+            self.__vbeili = self.setVBeiLiBuyPoint(dateTime) 
+            twoline = self.computeBarLinePosition(dateTime, value)
+            hline   = self.computeHLinePosition(dateTime, value)
+            self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline)
+            self.__roc = self.__fts[1] 
+
+    def computeHLinePosition(self, dateTime, bar):
+        hline = None
+        close = bar.getClose()
+        median = [x[2] for x in self.__hlcluster] 
+        tup = utils.minVertDistance(median, close) 
+        if tup is not None:
+            hline = (tup[1], tup[2])
+        return hline
+
+    # Triangle XingTai 
+    def xtTriangle(self, dateTime, twoline, hline):
+        ret = None 
+        incline_t = 0.01
+        incdiff  = twoline[0]
+        incqsfit = twoline[1]
+        # NO.1, Horizon Line + Increase Line
+        fts = self.__fts
+        if len(incdiff) > 0:
+            absdiff = np.abs(incdiff)
+            # if np.min(absdiff) < incline_t:
+            if np.min(absdiff) < incline_t and hline[0] < 0.01:
+                min_index = absdiff.argmin()
+                inc_pred  = incqsfit[min_index].compute(self.__dtzq[dateTime] + 1)
+                ret = (fts[0], inc_pred) 
+        return ret
+
+    # Score Instrument based on Current QUSHI
+    def computeBarLinePosition(self, dateTime, bar):
+        incdiff = []; incqsfit = []
+        desdiff = []; desqsfit = []
+        close = bar.getClose()
+
+        for k,val in self.__nowincline.iteritems():
+            for v in val:
+                qsfit = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+                incdiff.append((qsfit.compute(self.__dtzq[dateTime]) - close) / close)
+                incqsfit.append(qsfit)
+        for k,val in self.__nowdesline.iteritems():
+            for v in val:
+                qsfit = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+                desdiff.append((qsfit.compute(self.__dtzq[dateTime]) - close) / close)
+                desqsfit.append(qsfit)
+        return (incdiff, incqsfit, desdiff, desqsfit)
+
+    def updateGD(self, now_dt):
+        item = None
+        if self.__gddt in self.__LFVbeili and self.__fix == 1:
+            item = self.__LFVbeili[self.__gddt]
+        if self.__gddt in self.__LFPbeili and self.__fix == 1:
+            item = self.__LFPbeili[self.__gddt]
+        val = item
+        key = self.__gddt
+        # check time of Beili; IF it happens after CURRENT MAX/MIN POINT --- NOT REPLACE
+        if item is not None and val[0].date() < now_dt.date() and key in self.__gd:
+            del self.__gd[key]
+            self.__gd[val[0]] = val[1]
+            self.__beili = -1
+
+    def setVBeiLiBuyPoint(self, dateTime):
+        res = 0 
+        if self.__gddt in self.__LFVbeili and (self.__gddt not in self.__vbused):
+            # item = self.__LFVbeili[self.__gddt]
+            cdiff = self.__macd[-1] - self.__macd[-2]
+            cdea  = self.__macd.getSignal()[-1] - self.__macd.getSignal()[-2]
+            if np.mean(self.__neghist) < -0.05 and cdiff > 0 and cdea > 0:
+                res = 1
+                self.__vbused.add(self.__gddt)
+        return res 
 
     def getValue(self):
         ret = (self.__gd, self.__nowgd, self.__nowhist, self.__hlcluster, \
                self.__fvalley, self.__fpeek, \
-               self.__desline, self.__incline)
+               self.__desline, self.__incline, \
+               self.__nowdesline, self.__nowincline, \
+               self.__vbeili, self.__xtTriangle, self.__roc)
         return ret
 
 
