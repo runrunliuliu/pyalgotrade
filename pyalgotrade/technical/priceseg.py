@@ -23,6 +23,10 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__indicator = indicator.IndEventWindow()
 
+        self.__bars   = BarSeries
+
+        self.__prevmacd = None 
+
         self.__fix    = 1 
         self.__beili  = 0 
         self.__vbeili = 0 
@@ -241,29 +245,36 @@ class MacdSegEventWindow(technical.EventWindow):
         return res
     
     # Future Peek or Valley cross the line or NOT
-    def breakQSLine(self, tups, peek, valley, MVP, GDS):
-        x0 = tups[0]; y0 = tups[1]; x1 = tups[2]; y1 = tups[3]
-        start = self.__dtzq[x0]; end = self.__dtzq[x1]
-        qfit = qsLineFit.QsLineFit(start, y0, end, y1)
-        
-        cross = 0
-        index = []
-        index.extend(valley)
-        index.extend(peek)
-        for p in index:
-            x = self.__dtzq[p[0]]
-            y = qfit.compute(x)
-            if end < x:
-                diff = (y - p[1]) / p[1] 
-                if abs(diff) < 0.01:
-                    cross = 1
-                    MVP = MVP + 1 
-                    cnt = 0
-                    if p in GDS:
-                        cnt = GDS[p]
-                    cnt = cnt + 1
-                    GDS[p] = cnt
-        return (cross, MVP, GDS) 
+    def breakIncQSLine(self, dateTime, qsfit):
+        # 1: support
+        # 2: press
+        sup = set() 
+        prs = set() 
+        cnt = -1 
+        for qs in qsfit:
+            cnt = cnt + 1
+            x1 = qs.getX1()
+            above = 0
+            below = 0
+            for i in range(1, len(self.__bars)):
+                nbar = self.__bars[-1 * i]
+                ndt  = nbar.getDateTime()
+                nind = self.__dtzq[ndt]
+                if nbar.getClose() > qs.compute(nind) * 1.20:
+                    break
+                if nind == x1:
+                    break
+                if nbar.getClose() >= qs.compute(nind):
+                    above = above + 1
+                else:
+                    below = below + 1
+            prop = above / (above + below + 0.00000000000001)
+            # print dateTime, cnt, prop, qs.toString()
+            if prop > 0.8:
+                sup.add(cnt)
+            if prop < 0.5 and prop > 0.0:
+                prs.add(cnt)
+        return (sup, prs) 
 
     def scoreQSLine(self, flag, neighbors, lastvex):
         for point in neighbors:
@@ -276,29 +287,26 @@ class MacdSegEventWindow(technical.EventWindow):
             if lines is None:
                 continue
             destmp = []; inctmp = []
-            MVP = 0; GDS = dict() 
+            indexes = []  
+            indexes.extend(self.__fvalley)
+            indexes.extend(self.__fpeek)
             for tups in lines: 
                 if tups in self.__qsfilter:
                     continue
-                (cross, MVP, GDS) = self.breakQSLine(tups, self.__fpeek, self.__fvalley, MVP, GDS)
-                # if cross == 1:
-                # print ndate, tups
-
-                x0 = tups[0]; y0 = tups[1]; y1 = tups[3]
+                y0 = tups[1]; y1 = tups[3]
+                # x0 = tups[0]; 
+                # diff = self.__dtzq[ndate] - self.__dtzq[x0]
                 # 1. remove EXPIRE QUSHI Line 
                 if flag == 1 and y0 > nval * 0.95 and y1 > nval * 0.95:
                     if ndate in self.__nowdesline:
                         destmp = self.__nowdesline[ndate]
                     destmp.append(tups)
                     self.__nowdesline[ndate] = destmp
-                if flag == -1 and self.__dtzq[ndate] - self.__dtzq[x0] < 120 \
-                        and y0 < lastvex[1] \
-                        and y1 <= lastvex[1]:
+                if flag == -1 and y0 < lastvex[1] and y1 <= lastvex[1]:
                     if ndate in self.__nowincline:
                         inctmp = self.__nowincline[ndate]
                     inctmp.append(tups)
                     self.__nowincline[ndate] = inctmp
-            # print MVP, GDS
 
     # QuShi Fit to discard some useless lines
     def qsFit(self, tups, flag):
@@ -344,6 +352,17 @@ class MacdSegEventWindow(technical.EventWindow):
             tmp.append(tups)
             self.__incline[lastvex[0]] = tmp
 
+    def add2neighbor(self, item, flag):
+        fl = 0
+        val = item[1]
+        if flag == -1:
+            if val > self.__nowBar.getClose():
+                fl = 1
+        if flag == 1:
+            if val < self.__nowBar.getClose():
+                fl = 1
+        return fl
+
     # Long Time QuChi Line 
     def pairVetex(self, lists, flag):
         if len(lists) < 2:
@@ -352,16 +371,18 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__nowdesline = OrderedDict()
         if flag == -1:
             self.__nowincline = OrderedDict()
-
         neighbors = []
+        nneighbor = 0
         lastvex = lists[0]
         neighbors.append(lastvex)
         for i in range(1,len(lists)):
             item = lists[i] 
             date = item[0]; val = item[1]
             self.connectPoint(date, val, lastvex, flag) 
-            if i < 3:
+            fl = self.add2neighbor(item, flag)
+            if fl == 0 and nneighbor < 3:
                 neighbors.append(item)
+                nneighbor = nneighbor + 1
         # Score Desending and Ascending Line
         self.scoreQSLine(flag, neighbors, lastvex)
 
@@ -403,6 +424,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__indicator.onNewValue(dateTime, value)
 
+        self.__nowBar = value
         self.__datelow[dateTime]   = value.getLow()
         self.__datehigh[dateTime]  = value.getHigh()
         self.__dateclose[dateTime] = value.getClose()
@@ -463,12 +485,44 @@ class MacdSegEventWindow(technical.EventWindow):
         fts = self.__fts
         if len(incdiff) > 0:
             absdiff = np.abs(incdiff)
-            # if np.min(absdiff) < incline_t:
-            if np.min(absdiff) < incline_t and hline[0] < 0.01:
-                min_index = absdiff.argmin()
+            min_index = absdiff.argmin()
+            (sup, prs) = self.breakIncQSLine(dateTime, incqsfit)
+
+            (weakmacd, score) = self.scoreMACD(dateTime)
+            # print dateTime, np.min(absdiff), absdiff, min_index, sup, hline[0], fts[0][0], weakmacd
+            # print dateTime, hline[0], fts[0][0], weakmacd, score, self.__prevmacd
+            if np.min(absdiff) < incline_t \
+                    and min_index in sup \
+                    and weakmacd < 0.6 \
+                    and hline[0] < 0.01:
                 inc_pred  = incqsfit[min_index].compute(self.__dtzq[dateTime] + 1)
                 ret = (fts[0], inc_pred) 
+            self.__prevmacd = score
         return ret
+
+    def scoreMACD(self, dateTime):
+        score = 0
+        nDIF = self.__macd[-1] 
+        yDIF = self.__macd[-2]
+        nDEA = self.__macd.getSignal()[-1]
+        yDEA = self.__macd.getSignal()[-2]
+        # nHist = self.__macd.getHistogram()[-1]
+        # yHist = self.__macd.getHistogram()[-2]
+        cdiff = nDIF - yDIF 
+        cdea  = nDEA - yDEA 
+        dweak = 0.0
+        if nDIF < nDEA and cdiff < 0 and cdea < 0:
+            dweak = (cdiff * cdea) / (abs(nDIF) * abs(nDEA))
+
+        score = score + 1000 * dweak
+
+        # Weak
+        weakmacd = 0.0
+        if self.__prevmacd is not None:
+            weakmacd = score / (0.00001 + self.__prevmacd)
+        if self.__prevmacd < 0.000001 and score < 0.318:
+            weakmacd = 0.0
+        return (weakmacd, score) 
 
     # Score Instrument based on Current QUSHI
     def computeBarLinePosition(self, dateTime, bar):
