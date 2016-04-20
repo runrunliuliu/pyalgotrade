@@ -27,6 +27,9 @@ class QsLineFit(object):
 
         return cls(start, y0, end, y1, desc)
 
+    def getX1(self):
+        return self.__x1
+
     def compute(self, x):
         return x * self.__slope + self.__b
 
