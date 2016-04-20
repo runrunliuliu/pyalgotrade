@@ -178,10 +178,10 @@ class IndEventWindow(technical.EventWindow):
             if self.__mawins[i] > 90:
                 weight = 5
             score = score + weight * f2[i] * 1000 * boost
-        sline = None
-        sstr = None
-        pline = None
-        space = None 
+        sline = 'NULL' 
+        sstr  = 'NULL'
+        pline = 'NULL'
+        space = 'NULL'
         if supma is not None:
             sline = supma[1]
             sstr  = supma[3]
