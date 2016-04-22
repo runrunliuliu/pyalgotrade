@@ -265,6 +265,10 @@ class MacdSegEventWindow(technical.EventWindow):
                 nbar = self.__bars[-1 * i]
                 ndt  = nbar.getDateTime()
                 nind = self.__dtzq[ndt]
+                # ignor Bars effect if Its FAR AWAY from QUSHI Line
+                if nbar.getClose() > qs.compute(nind) * 1.20:
+                    continue
+
                 if nind == x1:
                     break
                 if nbar.getClose() >= qs.compute(nind):
