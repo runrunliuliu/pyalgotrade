@@ -27,6 +27,9 @@ class QsLineFit(object):
 
         return cls(start, y0, end, y1, desc)
 
+    def getWindows(self):
+        return self.__x1 - self.__x0
+
     def getX1(self):
         return self.__x1
 
