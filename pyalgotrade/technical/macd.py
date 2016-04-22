@@ -58,6 +58,9 @@ class MACD(dataseries.SequenceDataSeries):
         if flag == 1:
             dataSeries.getNewValueEvent().subscribe(self.onNewValue)
 
+        self.__fast = None 
+        self.__slow = None 
+
     def getSignal(self):
         """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the EMA over the MACD."""
         return self.__signal
@@ -65,6 +68,12 @@ class MACD(dataseries.SequenceDataSeries):
     def getHistogram(self):
         """Returns a :class:`pyalgotrade.dataseries.DataSeries` with the histogram (the difference between the MACD and the Signal)."""
         return self.__histogram
+
+    def getFast(self):
+        return self.__fast
+
+    def getSlow(self):
+        return self.__slow
 
     def onNewValue(self, dataSeries, dateTime, value):
         diff = None
@@ -81,7 +90,9 @@ class MACD(dataseries.SequenceDataSeries):
         else:
             self.__fastEMAWindow.onNewValue(dateTime, value)
             if self.__fastEMAWindow.windowFull():
-                diff = self.__fastEMAWindow.getValue() - self.__slowEMAWindow.getValue()
+                self.__fast = self.__fastEMAWindow.getValue()
+                self.__slow = self.__slowEMAWindow.getValue()
+                diff =  self.__fast - self.__slow
 
         # Make the first MACD value available as soon as the first signal value is available.
         # I'M FORCING THIS BEHAVIOUR ONLY TO MAKE THIS FITLER MATCH TA-Lib MACD VALUES.
