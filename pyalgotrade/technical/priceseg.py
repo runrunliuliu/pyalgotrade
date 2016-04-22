@@ -18,6 +18,7 @@ class MacdSegEventWindow(technical.EventWindow):
         assert(windows > 0)
         technical.EventWindow.__init__(self, windows, dtype=object)
         self.__windows = windows
+        self.__inst    = inst 
         self.__priceDS = BarSeries.getCloseDataSeries()
         self.__macd = macd.MACD(self.__priceDS, 12, 26, 9, flag=0)
 
@@ -25,7 +26,8 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__bars   = BarSeries
 
-        self.__prevmacd = None 
+        self.__prevmacd    = None 
+        self.__prevXTscore = None
 
         self.__fix    = 1 
         self.__beili  = 0 
@@ -67,6 +69,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__poshigh  = []
         self.__poshist_list = collections.ListDeque(3)
         self.__posdate_list = collections.ListDeque(3)
+        self.__poshigh_list = collections.ListDeque(3)
 
         self.__neghist  = []
         self.__negdate  = []
@@ -115,6 +118,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 else:
                     self.__poshist_list.append(self.__poshist)
                     self.__posdate_list.append(self.__posdate)
+                    self.__poshigh_list.append(self.__poshigh)
 
                     self.__poshist = []
                     self.__posdate = []
@@ -245,7 +249,8 @@ class MacdSegEventWindow(technical.EventWindow):
         return res
     
     # Future Peek or Valley cross the line or NOT
-    def breakIncQSLine(self, dateTime, qsfit):
+    def breakIncQSLine(self, dateTime, twoline):
+        qsfit = twoline[1]
         # 1: support
         # 2: press
         sup = set() 
@@ -260,8 +265,6 @@ class MacdSegEventWindow(technical.EventWindow):
                 nbar = self.__bars[-1 * i]
                 ndt  = nbar.getDateTime()
                 nind = self.__dtzq[ndt]
-                if nbar.getClose() > qs.compute(nind) * 1.20:
-                    break
                 if nind == x1:
                     break
                 if nbar.getClose() >= qs.compute(nind):
@@ -269,7 +272,6 @@ class MacdSegEventWindow(technical.EventWindow):
                 else:
                     below = below + 1
             prop = above / (above + below + 0.00000000000001)
-            # print dateTime, cnt, prop, qs.toString()
             if prop > 0.8:
                 sup.add(cnt)
             if prop < 0.5 and prop > 0.0:
@@ -459,11 +461,17 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__nowhist = hist
             if change == 1 or self.__beili == -1:
                 self.parseGD(dateTime, self.__nowgd, nwprice) 
+
             # VBeiLi Buy Point
             self.__vbeili = self.setVBeiLiBuyPoint(dateTime) 
-            twoline = self.computeBarLinePosition(dateTime, value)
-            hline   = self.computeHLinePosition(dateTime, value)
-            self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline)
+            twoline       = self.computeBarLinePosition(dateTime, value)
+            hline         = self.computeHLinePosition(dateTime, value)
+            (sup, prs)    = self.breakIncQSLine(dateTime, twoline)
+
+            self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
+
+            self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
+
             self.__roc = self.__fts[1] 
 
     def computeHLinePosition(self, dateTime, bar):
@@ -475,8 +483,50 @@ class MacdSegEventWindow(technical.EventWindow):
             hline = (tup[1], tup[2])
         return hline
 
+    # 颈线强势突破
+    def xtNeckLine(self, dateTime, twoline, hline, bar, now_val, now_dt):
+        # MACD零轴以上
+        if self.__direct == 1:
+            return
+        incqsfit = twoline[1]
+        nowx     = self.__dtzq[dateTime]
+        close    = bar.getClose()
+        maxscore = 0
+        for i in range(0, len(incqsfit) - 1):
+            qs = incqsfit[i]
+            # 短期趋势度得分，分数越高，当前的趋势越好
+            timediff = nowx - qs.getX1()
+            if timediff < 60: 
+                qscore = 1000 * qs.getSlope()
+                diff = (qs.compute(nowx) - close) / close
+                if qscore > 1.0 and diff < 0:
+                    if qscore > maxscore:
+                        maxscore = qscore
+        # 隔峰高点位置
+        peekhigh  = None
+        pmax_date = None
+        used_peek = None 
+        for i in range(1,len(self.__poshist_list)):
+            tmp = np.array(self.__poshist_list[ i * -1 ])
+            sumhist = np.sum(tmp)
+            if sumhist < 0.1:
+                continue
+            high = np.array(self.__poshigh_list[ i * -1 ])
+            pmax_date = self.__posdate_list[i * -1][high.argmax()]
+            used_peek = tmp
+            break
+        # 内峰, 必须要有一个波谷
+        # self.xtInnerPeek(dateTime)
+        if used_peek is not None:
+            peekhigh = self.__datehigh[pmax_date]
+            # print 'NeckLine:', dateTime, maxscore, maxdiff, self.__fts[0][0], now_dt, now_val, pmax_date, peekhigh, len(self.__poshigh)
+        return peekhigh
+
+    def xtInnerPeek(self, dateTime):
+        print 'InnerPeek:', dateTime, self.__poshist
+
     # Triangle XingTai 
-    def xtTriangle(self, dateTime, twoline, hline):
+    def xtTriangle(self, dateTime, twoline, hline, sup, prs):
         ret = None 
         incline_t = 0.01
         incdiff  = twoline[0]
@@ -486,43 +536,89 @@ class MacdSegEventWindow(technical.EventWindow):
         if len(incdiff) > 0:
             absdiff = np.abs(incdiff)
             min_index = absdiff.argmin()
-            (sup, prs) = self.breakIncQSLine(dateTime, incqsfit)
 
-            (weakmacd, score) = self.scoreMACD(dateTime)
-            # print dateTime, np.min(absdiff), absdiff, min_index, sup, hline[0], fts[0][0], weakmacd
-            # print dateTime, hline[0], fts[0][0], weakmacd, score, self.__prevmacd
+            (weakmacd, score, dcprice, gcprice) = self.scoreMACD(dateTime)
+            # print 'DEBUG:', dateTime, np.min(absdiff), hline[0], fts[0][0], score, weakmacd, dcprice, gcprice
+
+            # 均线动能不足,放入观察池
+            if self.__prevXTscore is not None:
+                reverse = (fts[0][0] - self.__prevXTscore[1]) / self.__prevXTscore[1]
+                timeused = self.__dtzq[dateTime] - self.__dtzq[self.__prevXTscore[0]] 
+                if self.__prevXTscore[1] < -500 \
+                        and reverse < -1 \
+                        and fts[0][0] > 0 \
+                        and timeused < 6 \
+                        and hline[0] < 0.01:
+                    # print 'REVERSE:', dateTime
+                    self.__prevXTscore = None
+
+            # 即将突破
             if np.min(absdiff) < incline_t \
                     and min_index in sup \
-                    and weakmacd < 0.6 \
                     and hline[0] < 0.01:
-                inc_pred  = incqsfit[min_index].compute(self.__dtzq[dateTime] + 1)
-                ret = (fts[0], inc_pred) 
+                if weakmacd < 0.6:
+                    inc_pred  = incqsfit[min_index].compute(self.__dtzq[dateTime] + 1)
+                    if fts[0][0] > 0:
+                        ret = (fts[0], inc_pred, dcprice, gcprice) 
+                    if fts[0][0] < 0:
+                        self.__prevXTscore = (dateTime, fts[0][0])
+                else:
+                    print 'drop_macd:', dateTime, self.__inst, score
             self.__prevmacd = score
         return ret
 
+    # MACD 计算方法
+    # nfast = (newval - fastval) * fastmulti + fastval 
+    # nslow = (newval - slowval) * slowmulti + slowval 
+    # ndiff = nfast - nslow
+    # nsig =  (ndiff - sigval) * sigmulti + sigval 
+    # sigmulti  = (2.0 / (9  + 1))
+    def fakeCross(self, dateTime, fastval, slowval, sigval):
+        fastmulti = (2.0 / (12 + 1))
+        slowmulti = (2.0 / (26 + 1))
+        fenzi = sigval + fastval * fastmulti - slowval * slowmulti - (fastval - slowval)
+        fenmu = fastmulti - slowmulti
+        fprice = fenzi / fenmu 
+        # print 'FakeMACD:', dateTime, fenzi, fenmu, nopen
+        return fprice 
+
     def scoreMACD(self, dateTime):
-        score = 0
+        score    = 0
+        weakmacd = 0.0
+        dcprice  = None 
+        gcprice  = None
+
+        nfast = self.__macd.getFast()
+        nslow = self.__macd.getSlow()
         nDIF = self.__macd[-1] 
         yDIF = self.__macd[-2]
         nDEA = self.__macd.getSignal()[-1]
         yDEA = self.__macd.getSignal()[-2]
-        # nHist = self.__macd.getHistogram()[-1]
+        nHist = self.__macd.getHistogram()[-1]
         # yHist = self.__macd.getHistogram()[-2]
         cdiff = nDIF - yDIF 
         cdea  = nDEA - yDEA 
         dweak = 0.0
+
+        # MACD-恶化收敛
         if nDIF < nDEA and cdiff < 0 and cdea < 0:
-            dweak = (cdiff * cdea) / (abs(nDIF) * abs(nDEA))
+            dweak = (cdiff * cdea) / (abs(yDIF) * abs(yDEA))
+            score = 1000 * dweak
+            if self.__prevmacd is not None:
+                weakmacd = score / (0.00001 + self.__prevmacd)
+                if self.__prevmacd < 0.000001 and score < 0.318:
+                    gcprice = self.fakeCross(dateTime, nfast, nslow, nDEA)
+                    weakmacd = 0.0
 
-        score = score + 1000 * dweak
+        # MACD－即将快速死叉，收盘或者盘中死叉化解, 决定是否买入
+        speedDIF = abs(cdiff / yDIF)
+        speedDEA = abs(cdea  / yDEA)
+        strength = speedDIF / speedDEA
+        if nDIF > nDEA and cdiff < 0 and cdea > 0 \
+                and (strength > 5 or nHist < 0.1):
+            dcprice = self.fakeCross(dateTime, nfast, nslow, nDEA)
 
-        # Weak
-        weakmacd = 0.0
-        if self.__prevmacd is not None:
-            weakmacd = score / (0.00001 + self.__prevmacd)
-        if self.__prevmacd < 0.000001 and score < 0.318:
-            weakmacd = 0.0
-        return (weakmacd, score) 
+        return (weakmacd, score, dcprice, gcprice) 
 
     # Score Instrument based on Current QUSHI
     def computeBarLinePosition(self, dateTime, bar):
@@ -555,6 +651,7 @@ class MacdSegEventWindow(technical.EventWindow):
             del self.__gd[key]
             self.__gd[val[0]] = val[1]
             self.__beili = -1
+            self.__gddt  = val[0]
 
     def setVBeiLiBuyPoint(self, dateTime):
         res = 0 
