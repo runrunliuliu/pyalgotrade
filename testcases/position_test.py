@@ -167,6 +167,9 @@ class TestStrategy(BaseTestStrategy):
         assert(len(position.getActiveOrders()) == 0)
         assert(position.getShares() != 0)
 
+    def getPosEntry(self):
+        return self.__posEntry
+
     def onBars(self, bars):
         dateTime = bars.getDateTime()
         # Check position entry.
@@ -176,12 +179,14 @@ class TestStrategy(BaseTestStrategy):
             self.__activePosition = meth(*args, **kwargs)
             self.positions.append(self.__activePosition)
 
+        # if len(self.positions) > 0:
+        #    print dateTime,self.positions[0].getEntryOrder().getId()
         # Check position exit.
         for meth, args, kwargs in strategy_test.get_by_datetime_or_date(self.__posExit, dateTime):
             if self.__activePosition is None:
                 raise Exception("A position was not entered")
-            meth(self.__activePosition, *args, **kwargs)
-            # self.__activePosition.exit(*args, **kwargs)
+            # meth(self.__activePosition, *args, **kwargs)
+            self.positions[0].exitMarket()
 
 
 class EnterAndExitStrategy(BaseTestStrategy):
@@ -274,9 +279,9 @@ class BaseTestCase(common.TestCase):
 
     def loadIntradayBarFeed(self):
         fromMonth = 1
-        toMonth = 1
+        toMonth = 1 
         fromDay = 3
-        toDay = 4 
+        toDay = 24 
         barFilter = csvfeed.USEquitiesRTH(us_equities_datetime(2011, fromMonth, fromDay, 00, 00), us_equities_datetime(2011, toMonth, toDay, 23, 59))
         barFeed = ninjatraderfeed.Feed(barfeed.Frequency.MINUTE)
         barFeed.setBarFilter(barFilter)
@@ -482,8 +487,10 @@ class LongPosTestCase(BaseTestCase):
         # 3/Jan/2011 205300 - Enter long
         # 3/Jan/2011 205400 - entry gets filled at 127.21
         # 3/Jan/2011 210000 - last bar
-
-        strat.addPosEntry(dt.localize(datetime.datetime(2011, 1, 3, 19, 53), pytz.utc), strat.enterLong, BaseTestCase.TestInstrument, 1, True)
+    
+        dtime = dt.localize(datetime.datetime(2011, 1, 3, 19, 53), pytz.utc)
+        strat.addPosEntry(dtime, strat.enterLong, BaseTestCase.TestInstrument, 1, True)
+        # strat.addPosExitMarket(dt.localize(datetime.datetime(2011, 1, 21, 20, 50), pytz.utc))
         strat.addPosExitMarket(dt.localize(datetime.datetime(2011, 1, 3, 20, 50), pytz.utc))
 
         strat.run()
