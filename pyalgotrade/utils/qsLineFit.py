@@ -1,7 +1,7 @@
 
 class QsLineFit(object):
 
-    def __init__(self, x0, y0, x1, y1, desc=''):
+    def __init__(self, x0, y0, x1, y1, desc='', key=''):
         self.__x0 = x0
         self.__y0 = y0
         self.__x1 = x1
@@ -13,19 +13,23 @@ class QsLineFit(object):
 
         self.__desc = desc
 
+        self.__key  = key
+
     @classmethod
     def initFromTuples(cls, tups, dtzq):
         x0 = tups[0]; start = dtzq[x0]
         y0 = tups[1] 
         x1 = tups[2]; end = dtzq[x1]
         y1 = tups[3]
-        
+
         desc = 'Start:' + x0.strftime('%Y-%m-%d') \
             + ' x0:'  + str(start) \
             + ' End:' + x1.strftime('%Y-%m-%d') \
             + ' x1:'  + str(end)
 
-        return cls(start, y0, end, y1, desc)
+        key = x0.strftime('%Y-%m-%d') + '|' + x1.strftime('%Y-%m-%d')
+
+        return cls(start, y0, end, y1, desc, key)
 
     def getWindows(self):
         return self.__x1 - self.__x0
@@ -38,6 +42,9 @@ class QsLineFit(object):
 
     def getSlope(self):
         return self.__slope / self.__y0
+
+    def getKey(self):
+        return self.__key
 
     def setDesc(self, startday, enday):
         self.__desc = 'Start:' + startday.strftime('%Y-%m-%d') \
