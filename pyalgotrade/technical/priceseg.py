@@ -563,7 +563,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 if weakmacd < 0.6:
                     inc_pred  = incqsfit[min_index].compute(self.__dtzq[dateTime] + 1)
                     if fts[0][0] > 0:
-                        ret = (fts[0], inc_pred, dcprice, gcprice) 
+                        ret = (fts[0], inc_pred, dcprice, gcprice, incqsfit[min_index]) 
                     if fts[0][0] < 0:
                         self.__prevXTscore = (dateTime, fts[0][0])
                 else:
@@ -673,7 +673,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__fvalley, self.__fpeek, \
                self.__desline, self.__incline, \
                self.__nowdesline, self.__nowincline, \
-               self.__vbeili, self.__xtTriangle, self.__roc)
+               self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq)
         return ret
 
 
