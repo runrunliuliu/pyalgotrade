@@ -47,6 +47,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__datelow   = {}
         self.__datehigh  = {}
         self.__dateclose = {}
+        self.__dateopen  = {}
 
         self.__fvalley = []
         self.__fpeek   = []
@@ -77,6 +78,9 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__neglow   = []
         self.__neghist_list = collections.ListDeque(3)
         self.__negdate_list = collections.ListDeque(3)
+
+        self.__dropout  = []
+        self.__observed = {}
 
         self.__prehist = None
         self.__preret  = None
@@ -434,6 +438,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__datelow[dateTime]   = value.getLow()
         self.__datehigh[dateTime]  = value.getHigh()
         self.__dateclose[dateTime] = value.getClose()
+        self.__dateopen[dateTime]  = value.getClose()
 
         self.__zq = self.__zq + 1
         self.__dtzq[dateTime] = self.__zq
@@ -473,10 +478,49 @@ class MacdSegEventWindow(technical.EventWindow):
             (sup, prs)    = self.breakIncQSLine(dateTime, twoline)
 
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
-
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
 
+            self.add2observed(dateTime, now_dt, value)
+
             self.__roc = self.__fts[1] 
+
+    def add2observed(self, dateTime, now_dt, value):
+        if self.__xtTriangle is not None:
+            boundup = self.computeBoundUp(dateTime, now_dt, value)
+            if boundup[0] == 1:
+                name = boundup[1] 
+                if name not in self.__observed: 
+                    val = [dateTime]
+                    self.__observed[name] = val 
+                    return
+        tmp = {}
+        for name,val in self.__observed.iteritems():
+            nob = len(val) 
+            if nob > 0 and nob < 4:
+                val.append(dateTime)
+                self.add2drop(dateTime, name)
+            if len(val) == 4:
+                print 'Handle OB:', dateTime, val 
+            else:
+                newval    = val
+                tmp[name] = newval
+        self.__observed = tmp
+
+    def add2drop(self, dateTime, name):
+        self.__dropout.append((dateTime, name))
+
+    # 1: 反弹至新高或者新高附近，需要观察后续3个Bar，包括T日的Bar
+    def computeBoundUp(self, dateTime, now_dt, bar):
+        ret = 0 
+        if self.__direct == -1:
+            begin   = self.__dateopen[self.__gddt]
+            nclose  = bar.getClose()
+            zhangfu = (nclose - begin) / begin
+            peekcl = self.__dateclose[now_dt]
+            diff   = (nclose - peekcl) / peekcl
+            if zhangfu > 0.10 and abs(diff) < 0.01:
+                ret = 1
+        return (ret, 'boundup')
 
     def computeHLinePosition(self, dateTime, bar):
         hline = None
@@ -673,7 +717,8 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__fvalley, self.__fpeek, \
                self.__desline, self.__incline, \
                self.__nowdesline, self.__nowincline, \
-               self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq)
+               self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
+               self.__dropout)
         return ret
 
 
