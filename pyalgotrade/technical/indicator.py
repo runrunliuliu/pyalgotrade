@@ -101,7 +101,7 @@ class IndEventWindow(technical.EventWindow):
             f2 = [None] * (len(self.__mawins))
         return f2
 
-    def MAclose(self, nma_dict, nowclose):
+    def MAposition(self, nma_dict, nowclose):
         f1 = []
         for i in self.__mawins:
             if i in nma_dict:
@@ -197,7 +197,7 @@ class IndEventWindow(technical.EventWindow):
         fts = []
         
         # 收盘价与均线关系
-        f1 = self.MAclose(nma_dict, nowclose)
+        f1 = self.MAposition(nma_dict, nowclose)
         # 均线运行方向
         f2 = self.MAdirect(nma_dict)
         # 量能变化 
