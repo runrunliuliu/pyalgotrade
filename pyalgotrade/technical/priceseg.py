@@ -64,6 +64,9 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__nowgd   = None
         self.__nowhist = None
 
+        self.__ftDes = set()
+        self.__ftInc = set()
+
         self.__posdate  = []
         self.__poshist  = []
         self.__posclose = []
@@ -477,12 +480,45 @@ class MacdSegEventWindow(technical.EventWindow):
             hline         = self.computeHLinePosition(dateTime, value)
             (sup, prs)    = self.breakIncQSLine(dateTime, twoline)
 
+            self.filter4Show(dateTime, twoline, value)
+
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
 
             self.add2observed(dateTime, now_dt, value)
 
             self.__roc = self.__fts[1] 
+
+    def filter4Show(self, dateTime, twoline, value):
+        def filter(diff, fit, flag):
+            keepin  = {} 
+            discard = set() 
+            for i in range(0, len(diff) - 1):
+                for j in range(i + 1, len(diff)):
+                    if abs(diff[i] - diff[j]) < 0.01:
+                        if (flag * diff[i]) < (flag * diff[j]):
+                            discard.add(fit[i].getKey())
+                        else:
+                            discard.add(fit[j].getKey())
+            for i in range(0, len(diff)):
+                fkey = fit[i].getKey()
+                if fkey in discard:
+                    continue
+                if abs(diff[i]) > 0.13:
+                    continue
+                if flag == 1 and diff[i] > 0.03:
+                    continue
+                if flag == -1 and diff[i] < -0.03:
+                    continue
+                keepin[fkey] = fit[i].compute(self.__dtzq[dateTime] + 1)
+            return keepin
+
+        incdiff  = twoline[0]
+        incqsfit = twoline[1]
+        self.__ftInc = filter(incdiff, incqsfit, 1)
+        desdiff  = twoline[2]
+        desqsfit = twoline[3]
+        self.__ftDes = filter(desdiff, desqsfit, -1)
 
     def add2observed(self, dateTime, now_dt, value):
         if self.__xtTriangle is not None:
@@ -718,7 +754,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__desline, self.__incline, \
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
-               self.__dropout)
+               self.__dropout, self.__ftDes, self.__ftInc)
         return ret
 
 
