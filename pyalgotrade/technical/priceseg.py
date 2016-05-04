@@ -213,11 +213,16 @@ class MacdSegEventWindow(technical.EventWindow):
 
         return (now_val, now_dt)
 
-    def clusterGD(self, sdf):
+    def clusterGD(self, dateTime, sdf):
         self.__hlcluster = []
         clusters = {}
         ncts = 0
-        for i in range(0, len(sdf)):
+        for i in range(0, len(sdf) + 1):
+            # BUG, LAST index might be missed
+            if i == len(sdf):
+                if ncts not in clusters:
+                    clusters[ncts] = [sdf[i-1]] 
+                break
             tmp = []
             if ncts in clusters:
                 tmp = clusters[ncts]
@@ -231,7 +236,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 clusters[ncts] = tmp 
             else:
                 ncts = ncts + 1
-        for i in range(0,ncts):
+        for i in range(0, ncts + 1):
             self.__hlcluster.append((i,np.mean(clusters[i]), np.median(clusters[i]), np.std(clusters[i]), len(clusters[i])))
 
     def filterGD(self, indexs, flag):
@@ -412,7 +417,7 @@ class MacdSegEventWindow(technical.EventWindow):
             index.append((k,v))
             sdf.append(v)
         index.append((ngd, nval))
-        self.clusterGD(np.sort(sdf))
+        self.clusterGD(dateTime, np.sort(sdf))
         for i in range(2,len(index)):
             now = index[-1 * i]
             pre = index[-1 * (i + 1)]
