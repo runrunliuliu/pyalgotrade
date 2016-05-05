@@ -87,6 +87,17 @@ class IndEventWindow(technical.EventWindow):
             lb2 = self.__vol[-1] / ma20
         return (lb1, lb2) 
 
+    # 短线空头排列
+    def MAdxShort(self, nma_dict, madirect): 
+        ret = 0
+        if len(nma_dict) > 3: 
+            m12 = nma_dict[5]  - nma_dict[10]
+            m23 = nma_dict[10] - nma_dict[20]
+            m34 = nma_dict[20] - nma_dict[30]
+            if m12 < 0 and m23 < 0 and m34 < 0 and madirect[2] < 0:
+                ret = 1
+        return ret
+
     def MAdirect(self, nma_dict):
         f2 = []
         if len(self.__mas) > 1:
@@ -208,12 +219,14 @@ class IndEventWindow(technical.EventWindow):
         
         score = self.MAscore(f1, f2)
         roc   = self.ROC(bars, dateTime)
+        short = self.MAdxShort(nma_dict, f2)
 
         self.__pf1 = f1
         self.__pf2 = f2
 
         fts.append(score)
         fts.append(roc)
+        fts.append(short)
         fts.extend(lb)
         fts.extend(bp)
 
