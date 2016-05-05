@@ -528,12 +528,15 @@ class MacdSegEventWindow(technical.EventWindow):
     def add2observed(self, dateTime, now_dt, value):
         if self.__xtTriangle is not None:
             boundup = self.computeBoundUp(dateTime, now_dt, value)
+            name = None
             if boundup[0] == 1:
                 name = boundup[1] 
-                if name not in self.__observed: 
-                    val = [dateTime]
-                    self.__observed[name] = val 
-                    return
+            if self.__fts[2] == 1:
+                name = 'MAshort'
+            if name is not None and name not in self.__observed: 
+                val = [dateTime]
+                self.__observed[name] = val 
+                return
         tmp = {}
         for name,val in self.__observed.iteritems():
             nob = len(val) 
