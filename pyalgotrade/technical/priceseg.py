@@ -531,8 +531,6 @@ class MacdSegEventWindow(technical.EventWindow):
             name = None
             if boundup[0] == 1:
                 name = boundup[1] 
-            if self.__fts[2] == 1:
-                name = 'MAshort'
             if name is not None and name not in self.__observed: 
                 val = [dateTime]
                 self.__observed[name] = val 
