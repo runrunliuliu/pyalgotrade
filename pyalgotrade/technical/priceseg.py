@@ -760,7 +760,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__desline, self.__incline, \
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
-               self.__dropout, self.__ftDes, self.__ftInc)
+               self.__dropout, self.__ftDes, self.__ftInc, self.__observed)
         return ret
 
 
