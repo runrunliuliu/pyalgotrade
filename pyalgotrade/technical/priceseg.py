@@ -33,8 +33,11 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__beili  = 0 
         self.__vbeili = 0 
 
+        self.__gfbeili = (-1, -1)
+
         self.__xtTriangle = None 
         self.__roc = None
+        self.__cxshort = None
 
         self.__vbused = set()
         
@@ -111,8 +114,10 @@ class MacdSegEventWindow(technical.EventWindow):
             if self.__prehist * hist < 0:
                 change = 1
                 if hist < 0:
-                    self.__neghist_list.append(self.__neghist)
-                    self.__negdate_list.append(self.__negdate)
+                    self.__poshist_list.append(self.__poshist)
+                    self.__posdate_list.append(self.__posdate)
+                    self.__poshigh_list.append(self.__poshigh)
+                   
                     self.__neghist = []
                     self.__negdate = []
                     self.__neglow  = []
@@ -123,9 +128,8 @@ class MacdSegEventWindow(technical.EventWindow):
                     self.__negclose.append(close)
                     ret = -1
                 else:
-                    self.__poshist_list.append(self.__poshist)
-                    self.__posdate_list.append(self.__posdate)
-                    self.__poshigh_list.append(self.__poshigh)
+                    self.__neghist_list.append(self.__neghist)
+                    self.__negdate_list.append(self.__negdate)
 
                     self.__poshist = []
                     self.__posdate = []
@@ -210,6 +214,8 @@ class MacdSegEventWindow(technical.EventWindow):
            
             # Find BeiLi point
             self.findBeiLi(dateTime, ret)
+            # Find GeFeng BeiLi 
+            self.__gfbeili = self.findGFBeiLi(dateTime, ret)
 
         return (now_val, now_dt)
 
@@ -485,14 +491,48 @@ class MacdSegEventWindow(technical.EventWindow):
             hline         = self.computeHLinePosition(dateTime, value)
             (sup, prs)    = self.breakIncQSLine(dateTime, twoline)
 
-            self.filter4Show(dateTime, twoline, value)
-
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
 
             self.add2observed(dateTime, now_dt, value)
 
-            self.__roc = self.__fts[1] 
+            self.__roc     = self.__fts[1] 
+            self.__cxshort = self.__fts[3]
+            nDIF = self.__macd[-1] 
+            yDIF = self.__macd[-2]
+            nDEA = self.__macd.getSignal()[-1]
+            yDEA = self.__macd.getSignal()[-2]
+            cDIF = 0
+            cDEA = 0
+            if nDIF is not None and yDIF is not None:
+                cDIF = "{:.4f}".format(nDIF - yDIF)
+                cDEA = "{:.4f}".format(nDEA - yDEA)
+            self.__cxshort = (cDIF, cDEA) + self.__cxshort + self.__gfbeili
+
+            self.filter4Show(dateTime, twoline, value)
+
+    def findGFBeiLi(self, dateTime, flag):
+        nfast = self.__macd.getFast()
+        nslow = self.__macd.getSlow()
+        nDEA = self.__macd.getSignal()[-1]
+        ret = (-1, -1)
+        # 顶背离有效概率比较高
+        if flag == 1:
+            if len(self.__poshist_list) > 1: 
+                gf1high = np.array(self.__poshigh_list[-1])
+                nowhigh = np.array(self.__poshigh)
+                gf = np.array(self.__poshist_list[-1])
+                nw = np.array(self.__poshist)
+                
+                price_rate  = nowhigh.max() / gf1high.max()
+                hist_rate = gf.max() / nw.max()
+                if price_rate > 0.90 and hist_rate > 2.0:
+                    dcprice = self.fakeCross(dateTime, nfast, nslow, nDEA)
+                    dcprice = "{:.4f}".format(dcprice)
+                    price_rate = (1.0 if price_rate < 1.0 else price_rate)
+                    ratio   = "{:.4f}".format(hist_rate / price_rate)
+                    ret = (dcprice, ratio) 
+        return ret
 
     def filter4Show(self, dateTime, twoline, value):
         def filter(diff, fit, flag):
@@ -760,7 +800,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__desline, self.__incline, \
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
-               self.__dropout, self.__ftDes, self.__ftInc, self.__observed)
+               self.__dropout, self.__ftDes, self.__ftInc, self.__observed, self.__cxshort)
         return ret
 
 

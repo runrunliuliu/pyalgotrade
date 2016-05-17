@@ -98,6 +98,28 @@ class IndEventWindow(technical.EventWindow):
                 ret = 1
         return ret
 
+    # 长线空头排列
+    def MAcxShort(self, dateTime, f1, f2, bars):
+        ret  = 0 
+        bear = 0
+        
+        # 收盘价连续三日低于年线进入熊市
+        if f2[-1] is not None:
+            t3  = bars[-3].getClose()
+            t2  = bars[-2].getClose()
+            t1  = bars[-1].getClose()
+            mas = self.__mas
+            if 250 in mas[-1] and 250 in mas[-2] and 250 in mas[-3] and \
+                    t1 < mas[-1][250] and t2 < mas[-2][250] and t3 < mas[-3][250]:
+                bear = 1
+
+        if f2[-1] is not None and f2[-1] < 0 and f1[-1] < -0.03:
+            nf2   = np.asarray(f2)
+            count = (nf2 < 0).sum()
+            if count == len(f2):
+                ret = 1
+        return (bear, ret)
+
     def MAdirect(self, nma_dict):
         f2 = []
         if len(self.__mas) > 1:
@@ -216,21 +238,47 @@ class IndEventWindow(technical.EventWindow):
         # 价格变化
         bp = self.changePrice(dateTime, bars)
         # K线分形
+        kl = self.KLine(dateTime, bars)
         
         score = self.MAscore(f1, f2)
         roc   = self.ROC(bars, dateTime)
-        short = self.MAdxShort(nma_dict, f2)
+
+        dxshort = self.MAdxShort(nma_dict, f2)
+        cxshort = self.MAcxShort(dateTime, f1, f2, bars)
+        cxshort = cxshort + kl
 
         self.__pf1 = f1
         self.__pf2 = f2
 
         fts.append(score)
         fts.append(roc)
-        fts.append(short)
+        fts.append(dxshort)
+        fts.append(cxshort)
         fts.extend(lb)
         fts.extend(bp)
 
         return fts
+
+    def KLine(self, dateTime, bars):
+        mubei = 0
+        yby   = 0
+        if len(bars) > 1:
+            ybar = bars[-2]
+            nbar = bars[-1]
+            # 放量墓碑线
+            solid = (nbar.getClose() - nbar.getOpen()) / nbar.getOpen()
+            uline = (nbar.getHigh() - nbar.getOpen()) / nbar.getOpen()
+            dline = (nbar.getClose() - nbar.getLow()) / nbar.getLow()
+            zhenf = (nbar.getHigh() - nbar.getLow()) / nbar.getLow()
+            if solid < 0 and abs(solid) < 0.02 and zhenf > 0.03:
+                mubei = (abs(uline) / (abs(uline) + abs(solid)))
+            # 放量阴包阳
+            yx = ybar.getClose() - ybar.getOpen()
+            kp = (nbar.getOpen() - ybar.getClose()) / ybar.getClose()
+            if solid < 0 and yx > 0 and kp > 0 and abs(solid) > 0.02 and (uline < 0.01 or dline < 0.01):
+                yby = solid 
+    
+        return (mubei, yby)
 
     def ROC(self, bars, dateTime):
         ret = None
