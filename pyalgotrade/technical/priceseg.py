@@ -551,9 +551,9 @@ class MacdSegEventWindow(technical.EventWindow):
                     continue
                 if abs(diff[i]) > 0.13:
                     continue
-                if flag == 1 and diff[i] > 0.03:
+                if flag == 1 and diff[i] > 0.08:
                     continue
-                if flag == -1 and diff[i] < -0.03:
+                if flag == -1 and diff[i] < -0.08:
                     continue
                 keepin[fkey] = fit[i].compute(self.__dtzq[dateTime] + 1)
             return keepin
