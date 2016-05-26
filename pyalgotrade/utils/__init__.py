@@ -70,4 +70,5 @@ def getWinRate(keys, win, lose):
             rate = 1.0
         winrate.append(rate)
     return winrate
+
 #
