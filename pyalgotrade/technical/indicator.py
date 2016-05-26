@@ -102,7 +102,6 @@ class IndEventWindow(technical.EventWindow):
     def MAcxShort(self, dateTime, f1, f2, bars):
         ret  = 0 
         bear = 0
-        
         # 收盘价连续三日低于年线进入熊市
         if f2[-1] is not None:
             t3  = bars[-3].getClose()
@@ -112,7 +111,6 @@ class IndEventWindow(technical.EventWindow):
             if 250 in mas[-1] and 250 in mas[-2] and 250 in mas[-3] and \
                     t1 < mas[-1][250] and t2 < mas[-2][250] and t3 < mas[-3][250]:
                 bear = 1
-
         if f2[-1] is not None and f2[-1] < 0 and f1[-1] < -0.03:
             nf2   = np.asarray(f2)
             count = (nf2 < 0).sum()
@@ -250,10 +248,17 @@ class IndEventWindow(technical.EventWindow):
         self.__pf1 = f1
         self.__pf2 = f2
 
+        ma = (1024,1024)
+        if f2[-1] is not None:
+            dma250 = "{:.4f}".format(f2[-1])
+            pma250 = "{:.4f}".format(f1[-1])
+            ma = (dma250, pma250)
+
         fts.append(score)
         fts.append(roc)
         fts.append(dxshort)
         fts.append(cxshort)
+        fts.append(ma)
         fts.extend(lb)
         fts.extend(bp)
 
@@ -278,6 +283,8 @@ class IndEventWindow(technical.EventWindow):
             if solid < 0 and yx > 0 and kp > 0 and abs(solid) > 0.02 and (uline < 0.01 or dline < 0.01):
                 yby = solid 
     
+        mubei = "{:.4f}".format(mubei)
+        yby   = "{:.4f}".format(yby)
         return (mubei, yby)
 
     def ROC(self, bars, dateTime):
