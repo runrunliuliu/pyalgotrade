@@ -211,13 +211,97 @@ class MacdSegEventWindow(technical.EventWindow):
                 now = np.array(self.__neglow)
                 now_val = now.min()
                 now_dt  = self.__negdate[now.argmin()]
-           
             # Find BeiLi point
             self.findBeiLi(dateTime, ret)
             # Find GeFeng BeiLi 
             self.__gfbeili = self.findGFBeiLi(dateTime, ret)
 
         return (now_val, now_dt)
+
+    # 当前Bar所处的趋势状态,日K线最近的2峰2谷
+    # ---------------------------------------------------
+    # 1. 趋势向下
+    # 101 峰和谷连线皆slope < -0.001, slope(峰) >> slope(谷), 下收敛三角
+    # 102 峰和谷连线皆slope < -0.001, slope(峰) << slope(谷), 下扩张三角
+    # 103 峰和谷连线皆slope < -0.001, slope(峰) ~ slope(谷), 下平行通道
+    # 104 峰连线abs(slope) < 0.001, 谷连线slope<-0.001, 下扩张三角II
+    # 105 谷连线abs(slope) < 0.001, 峰连线slope<-0.001, 下支撑三角
+    # 2. 趋势盘整
+    # 201 峰和谷连线皆abs(slope) < 0.001, 横盘矩形整理
+    # 202 峰连线slope < -0.001, 谷连线slope > 0.001, 收敛三角整理区 
+    # 3. 趋势向上
+    # 301 峰和谷连线皆slope > 0.001, slope(峰) << slope(谷), 上收敛三角
+    # 302 峰和谷连线皆slope > 0.001, slope(峰) >> slope(谷), 上扩张三角
+    # 303 峰和谷连线皆slope > 0.001, slope(峰) ~ slope(谷), 上平行通道
+    # 304 谷连线abs(slope) < 0.001, 峰连线slope > 0.001, 上扩张三角II
+    # 305 峰连线abs(slope) < 0.001, 谷连线slope > 0.001, 上支撑三角
+    #
+    def figureQS(self, dateTime):
+        xingtai, vret, vscore, nvpos, pret, pscore, nppos, slope = (-1.0,) * 8 
+        if len(self.__fvalley) < 2 or len(self.__fpeek) < 2:
+            return (xingtai, vret, vscore, nvpos, pret, pscore, nppos, slope)
+        def compute(index, dateTime):
+            x0 = index[1][0]
+            y0 = index[1][1]
+            x1 = index[0][0]
+            y1 = index[0][1]
+            start = self.__dtzq[x0]
+            end   = self.__dtzq[x1]
+            qfit = qsLineFit.QsLineFit(start, y0, end, y1)
+            qfit.setDesc(x0, x1)
+            position = qfit.compute(self.__dtzq[dateTime])
+            nextpos  = qfit.compute(self.__dtzq[dateTime] + 1)
+
+            high  = (position / self.__datehigh[dateTime]) - 1.0
+            low   = (position / self.__datelow[dateTime]) - 1.0
+            close = (position / self.__dateclose[dateTime]) - 1.0
+
+            (ret, score) = utils.positionScore(high, low, close)
+
+            return (y0, y1, qfit.getSlope(), position, nextpos, ret, score)
+
+        (v0, v1, vslope, vpos, nvpos, vret, vscore) = compute(self.__fvalley, dateTime)
+        (p0, p1, pslope, ppos, nppos, pret, pscore) = compute(self.__fpeek, dateTime)
+        pdv = abs(pslope) / (abs(vslope) + 0.0000000001)
+        vdp = abs(vslope) / (abs(pslope) + 0.0000000001)
+
+        pyz = 0.0005
+        nyz = -0.0005
+        if vslope < nyz and pslope < nyz and pdv > 1.01:
+            xingtai = 101
+        if vslope < nyz and pslope < nyz and vdp > 1.01:
+            xingtai = 102
+        if vslope < nyz and pslope < nyz and abs(vdp - 1.0) < 0.01 and abs(pdv - 1.0) < 0.01:
+            xingtai = 103
+        if abs(pslope) < pyz and vslope < nyz:
+            xingtai = 104
+        if abs(vslope) < pyz and pslope < nyz:
+            xingtai = 105
+        if abs(vslope) < pyz and abs(pslope) < pyz:
+            xingtai = 201
+        if vslope > pyz and pslope < nyz:
+            xingtai = 202
+        if vslope > pyz and pslope > pyz and vdp > 1.01:
+            xingtai = 301
+        if vslope > pyz and pslope > pyz and pdv > 1.01:
+            xingtai = 302
+        if vslope > pyz and pslope > pyz and abs(vdp - 1.0) < 0.01 and abs(pdv - 1.0) < 0.01:
+            xingtai = 303
+        if abs(vslope) < pyz and pslope > pyz:
+            xingtai = 304
+        if abs(pslope) < pyz and vslope > pyz:
+            xingtai = 305
+
+        vscore = "{:.4f}".format(vscore)
+        pscore = "{:.4f}".format(pscore)
+
+        nvpos = "{:.2f}".format(nvpos)
+        nppos = "{:.2f}".format(nppos)
+
+        slope = "{:.4f}".format(vslope + pslope)
+
+        # print 'DEBUG', dateTime, xingtai, vret, vscore, nvpos, pret, pscore, nppos, vslope, pslope 
+        return (xingtai, vret, vscore, nvpos, pret, pscore, nppos, slope)
 
     def clusterGD(self, dateTime, sdf):
         self.__hlcluster = []
@@ -266,6 +350,39 @@ class MacdSegEventWindow(technical.EventWindow):
             cnt = cnt + 1
         return res
     
+    def pressDesQSLine(self, dateTime, twoline):
+        qsfit = twoline[3]
+        desdiff = []
+        prs = set() 
+        cnt = -1 
+        for qs in qsfit:
+            diff = 0 
+            cnt  = cnt + 1
+            x1 = qs.getX1()
+            above = 0
+            below = 0
+            for i in range(1, len(self.__bars)):
+                nbar = self.__bars[-1 * i]
+                ndt  = nbar.getDateTime()
+                nind = self.__dtzq[ndt]
+                if i == 1:
+                    high = nbar.getHigh()
+                    diff = (qs.compute(nind) - high) / high
+                # ignor Bars effect if Its FAR AWAY from QUSHI Line
+                if nbar.getClose() < qs.compute(nind) * 0.80:
+                    continue
+                if nind == x1:
+                    break
+                if nbar.getClose() <= qs.compute(nind):
+                    below = below + 1
+                else:
+                    above = above + 1
+            desdiff.append(diff)
+            prop = below / (above + below + 0.00000000000001)
+            if abs(diff) < 0.02:
+                prs.add((cnt, prop))
+        return (desdiff, prs) 
+
     # Future Peek or Valley cross the line or NOT
     def breakIncQSLine(self, dateTime, twoline):
         qsfit = twoline[1]
@@ -490,6 +607,10 @@ class MacdSegEventWindow(technical.EventWindow):
             twoline       = self.computeBarLinePosition(dateTime, value)
             hline         = self.computeHLinePosition(dateTime, value)
             (sup, prs)    = self.breakIncQSLine(dateTime, twoline)
+            (ndiff, npres) = self.pressDesQSLine(dateTime, twoline)
+
+            # 获取当前的整体的趋势
+            qsxingtai = self.figureQS(dateTime)
 
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
@@ -498,6 +619,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
             self.__roc     = self.__fts[1] 
             self.__cxshort = self.__fts[3]
+            mafeature      = self.__fts[4]
             nDIF = self.__macd[-1] 
             yDIF = self.__macd[-2]
             nDEA = self.__macd.getSignal()[-1]
@@ -507,7 +629,7 @@ class MacdSegEventWindow(technical.EventWindow):
             if nDIF is not None and yDIF is not None:
                 cDIF = "{:.4f}".format(nDIF - yDIF)
                 cDEA = "{:.4f}".format(nDEA - yDEA)
-            self.__cxshort = (cDIF, cDEA) + self.__cxshort + self.__gfbeili
+            self.__cxshort = (cDIF, cDEA) + self.__cxshort + self.__gfbeili + qsxingtai + mafeature
 
             self.filter4Show(dateTime, twoline, value)
 
