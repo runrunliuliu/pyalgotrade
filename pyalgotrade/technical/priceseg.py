@@ -88,6 +88,8 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__dropout  = []
         self.__observed = {}
 
+        self.__qsxt    = []
+
         self.__prehist = None
         self.__preret  = None
 
@@ -300,7 +302,12 @@ class MacdSegEventWindow(technical.EventWindow):
 
         slope = "{:.4f}".format(vslope + pslope)
 
-        # print 'DEBUG', dateTime, xingtai, vret, vscore, nvpos, pret, pscore, nppos, vslope, pslope 
+        if len(self.__qsxt) == 0:
+            self.__qsxt.append(xingtai)
+        else:
+            if self.__qsxt[-1] != xingtai:
+                self.__qsxt.append(xingtai)
+        # print 'DEBUG', dateTime, xingtai, vret, vscore, nvpos, pret, pscore, nppos, vslope, pslope
         return (xingtai, vret, vscore, nvpos, pret, pscore, nppos, slope)
 
     def clusterGD(self, dateTime, sdf):
@@ -629,7 +636,12 @@ class MacdSegEventWindow(technical.EventWindow):
             if nDIF is not None and yDIF is not None:
                 cDIF = "{:.4f}".format(nDIF - yDIF)
                 cDEA = "{:.4f}".format(nDEA - yDEA)
-            self.__cxshort = (cDIF, cDEA) + self.__cxshort + self.__gfbeili + qsxingtai + mafeature
+
+            prext = 1024 
+            if len(self.__qsxt) > 1:
+                prext = self.__qsxt[-2]
+
+            self.__cxshort = (cDIF, cDEA) + self.__cxshort + self.__gfbeili + qsxingtai + mafeature + (prext,)
 
             self.filter4Show(dateTime, twoline, value)
 
