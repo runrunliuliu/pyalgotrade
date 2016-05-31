@@ -66,6 +66,8 @@ class IndEventWindow(technical.EventWindow):
         self.__mavol = ma.SMAEventWindow(20)
         self.__mas   = collections.ListDeque(10)
         self.__vol   = collections.ListDeque(20)
+        
+        self.__madirect  = collections.ListDeque(3)
 
         self.__pf1 = None
         self.__pf2 = None
@@ -111,10 +113,24 @@ class IndEventWindow(technical.EventWindow):
             if 250 in mas[-1] and 250 in mas[-2] and 250 in mas[-3] and \
                     t1 < mas[-1][250] and t2 < mas[-2][250] and t3 < mas[-3][250]:
                 bear = 1
-        if f2[-1] is not None and f2[-1] < 0 and f1[-1] < -0.03:
+
+        # MA WORSE计算，极端的清仓
+        # 1. 均线皆拐头朝下
+        # 2. MA60连续三日拐头< -0.001 
+        # 3. MA20当日拐头 <- -0.001
+        if f2[-1] is not None and f2[-1] < 0 and f1[-1] < -0.03 and \
+                self.__madirect[-1] is not None and \
+                self.__madirect[-2] is not None and \
+                self.__madirect[-3] is not None:
+            ma60  = [self.__madirect[-1][4], self.__madirect[-2][4], self.__madirect[-3][4]]
+            nma60 = np.asarray(ma60)
+            cnt60 = (nma60 < -0.001).sum()
+            
+            dma20 = f2[2]
+
             nf2   = np.asarray(f2)
             count = (nf2 < 0).sum()
-            if count == len(f2):
+            if count == len(f2) and cnt60 == 3 and dma20 < -0.001:
                 ret = 1
         return (bear, ret)
 
@@ -235,24 +251,31 @@ class IndEventWindow(technical.EventWindow):
         lb = self.boostVol(dateTime, self.__mavol.getValue())
         # 价格变化
         bp = self.changePrice(dateTime, bars)
-        # K线分形
-        kl = self.KLine(dateTime, bars)
+        # K线分形, MOVE TO K-LINE MODULE
+        # kl = self.KLine(dateTime, bars)
         
         score = self.MAscore(f1, f2)
         roc   = self.ROC(bars, dateTime)
 
         dxshort = self.MAdxShort(nma_dict, f2)
         cxshort = self.MAcxShort(dateTime, f1, f2, bars)
-        cxshort = cxshort + kl
-
-        self.__pf1 = f1
-        self.__pf2 = f2
 
         ma = (1024,1024)
         if f2[-1] is not None:
             dma250 = "{:.4f}".format(f2[-1])
             pma250 = "{:.4f}".format(f1[-1])
             ma = (dma250, pma250)
+
+        wsma5 = 0
+        if f2[0] is not None and self.__pf2[0] is not None:
+            if f2[0] < -0.01 and abs(f2[0] / self.__pf2[0]) > 2:
+                wsma5 = 1
+            if f2[0] < -0.02:
+                wsma5 = 1
+        cxshort = cxshort + (wsma5,0) 
+
+        # if cxshort[1] == 1:
+        #    print dateTime, cxshort[1], nma_dict[5], nma_dict[10] 
 
         fts.append(score)
         fts.append(roc)
@@ -261,6 +284,11 @@ class IndEventWindow(technical.EventWindow):
         fts.append(ma)
         fts.extend(lb)
         fts.extend(bp)
+        
+        self.__pf1 = f1
+        self.__pf2 = f2
+
+        self.__madirect.append(f2)
 
         return fts
 
