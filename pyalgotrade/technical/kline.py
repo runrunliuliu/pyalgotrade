@@ -53,8 +53,8 @@ class KLineEventWindow(technical.EventWindow):
             if ncl > nop:
                 up = ncl
                 dn = nop
-            shying = (nhi - up) / (nhi - nlw) 
-            xaying = (dn - nlw) / (nhi - nlw)
+            shying = (nhi - up) / (nhi - nlw + 0.00000001) 
+            xaying = (dn - nlw) / (nhi - nlw + 0.00000001)
 
             # 相比昨日
             last = values[-2].getClose()
