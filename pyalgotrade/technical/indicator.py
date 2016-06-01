@@ -23,6 +23,7 @@ from pyalgotrade import dataseries
 from pyalgotrade.utils import collections
 from pyalgotrade.dataseries import bards
 from pyalgotrade.technical import ma
+from pyalgotrade.technical import kline 
 from array import array
 import numpy as np
 
@@ -66,6 +67,7 @@ class IndEventWindow(technical.EventWindow):
         self.__mavol = ma.SMAEventWindow(20)
         self.__mas   = collections.ListDeque(10)
         self.__vol   = collections.ListDeque(20)
+        self.__kline = kline.KLineEventWindow(7) 
         
         self.__madirect  = collections.ListDeque(3)
 
@@ -272,16 +274,15 @@ class IndEventWindow(technical.EventWindow):
                 wsma5 = 1
             if f2[0] < -0.02:
                 wsma5 = 1
-        cxshort = cxshort + (wsma5,0) 
 
-        # if cxshort[1] == 1:
-        #    print dateTime, cxshort[1], nma_dict[5], nma_dict[10] 
+        cxshort = cxshort + (wsma5,0) 
 
         fts.append(score)
         fts.append(roc)
         fts.append(dxshort)
         fts.append(cxshort)
         fts.append(ma)
+        fts.append(self.__kline.getValue())
         fts.extend(lb)
         fts.extend(bp)
         
@@ -345,6 +346,8 @@ class IndEventWindow(technical.EventWindow):
                 ma_dict[i] = self.__maevents[i].getValue()
         self.__mas.append(ma_dict) 
         self.__vol.append(value.getVolume())
+
+        self.__kline.onNewValue(dateTime, value)
 
         # collection MA features
         self.__fts.extend(self.MAfeature(bars, dateTime))
