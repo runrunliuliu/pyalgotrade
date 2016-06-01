@@ -627,6 +627,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__roc     = self.__fts[1] 
             self.__cxshort = self.__fts[3]
             mafeature      = self.__fts[4]
+            klines         = self.__fts[5]
             nDIF = self.__macd[-1] 
             yDIF = self.__macd[-2]
             nDEA = self.__macd.getSignal()[-1]
@@ -640,8 +641,18 @@ class MacdSegEventWindow(technical.EventWindow):
             prext = 1024 
             if len(self.__qsxt) > 1:
                 prext = self.__qsxt[-2]
-
-            self.__cxshort = (cDIF, cDEA) + self.__cxshort + self.__gfbeili + qsxingtai + mafeature + (prext,)
+            
+            # 非上升趋势的跳空低开,视为趋势的恶化，空仓
+            tkdk = 1024
+            tkdf = 1024
+            if klines[0] < 0.0 and self.__direct == 1:
+                tkdk = "{:.4f}".format(klines[0])
+                tkdf = "{:.4f}".format(klines[1])
+        
+            self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
+                self.__gfbeili + qsxingtai + \
+                mafeature + (prext,) + \
+                (tkdk,tkdf)
 
             self.filter4Show(dateTime, twoline, value)
 
