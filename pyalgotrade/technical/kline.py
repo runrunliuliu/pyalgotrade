@@ -68,8 +68,7 @@ class KLineEventWindow(technical.EventWindow):
                 self.__tkdk = jump 
             else:
                 self.__tkdk = 1024 
-
-            if jump < -0.005 and shying < 0.05 and xaying < 0.05 and diefu < -0.015:
+            if jump < -0.005 and shying < 0.08 and xaying < 0.05 and diefu < -0.015:
                 self.__tkdk = jump
                 self.__tkdf = diefu
 
