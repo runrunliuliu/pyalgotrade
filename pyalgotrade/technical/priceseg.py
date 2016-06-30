@@ -96,7 +96,13 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__direct = None
         self.__gdval  = None
         self.__gddt   = None
-    
+
+        self.__QUSHI   = ('NULL', 0.0)
+        self.__chaodie = 0
+        self.__qScore  = collections.ListDeque(5)
+        self.__MAscore5  = ma.SMAEventWindow(5)
+        self.__MAscore10 = ma.SMAEventWindow(10)
+
     def addHist(self, hist, dateTime, close, low, high):
         ret    = 1
         change = 0 
@@ -648,13 +654,17 @@ class MacdSegEventWindow(technical.EventWindow):
             if klines[0] < 0.0 and self.__direct == 1:
                 tkdk = "{:.4f}".format(klines[0])
                 tkdf = "{:.4f}".format(klines[1])
-        
+
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
-                (tkdk,tkdf)
+                (tkdk,tkdf) + self.__QUSHI
 
             self.filter4Show(dateTime, twoline, value)
+
+    def baodie(self, dateTime, klines, hline):
+        if self.__direct == 1 and klines[2] == 1:
+            print dateTime, 'baodie', hline
 
     def findGFBeiLi(self, dateTime, flag):
         nfast = self.__macd.getFast()
@@ -812,8 +822,12 @@ class MacdSegEventWindow(technical.EventWindow):
             absdiff = np.abs(incdiff)
             min_index = absdiff.argmin()
 
+            # SCORE MACD
             (weakmacd, score, dcprice, gcprice) = self.scoreMACD(dateTime)
             # print 'DEBUG:', dateTime, np.min(absdiff), hline[0], fts[0][0], score, weakmacd, dcprice, gcprice
+
+            # SCORE QUSHI
+            self.__QUSHI = self.scoreQUSHI(dateTime, twoline, sup, prs, weakmacd, fts[0][0])
 
             # 均线动能不足,放入观察池
             if self.__prevXTscore is not None:
@@ -857,6 +871,85 @@ class MacdSegEventWindow(technical.EventWindow):
         # print 'FakeMACD:', dateTime, fenzi, fenmu, nopen
         return fprice 
 
+    # 整体趋势线的评估
+    # 1. 上升趋势的支持度
+    # 2. 下降趋势的压力度
+    # 3. incscore > 0: 至少收盘在一个趋势线之上，且sum > 0
+    def scoreQUSHI(self, dateTime, twoline, sup, prs, macdscore, mascore):
+
+        self.__MAscore5.onNewValue(dateTime, mascore)
+        self.__MAscore10.onNewValue(dateTime, mascore)
+        mascore5  = self.__MAscore5.getValue()
+        mascore10 = self.__MAscore10.getValue()
+
+        incdiff  = np.array(twoline[0])
+        incqsfit = twoline[1]
+
+        desdiff  = np.array(twoline[2])
+        desqsfit = twoline[3]
+
+        threshold = 0.10
+        if self.__inst[0:2] == 'ZS':
+            threshold = 0.05
+
+        def score(diff, qsfit, line):
+            ss = 0.0
+            ind = np.where(abs(diff) < threshold)[0]
+            for i in ind:
+                if i in line:
+                    tmp = -1 * qsfit[i].getSlope() / diff[i]
+                    ss  = ss + tmp
+            return ss 
+       
+        incscore = score(incdiff, incqsfit, sup)
+        desscore = score(desdiff, desqsfit, prs)
+
+        # action
+        # 0  == HOLD
+        # 1  <  BUY
+        # -1 > SELL
+        upguai  = 0
+        action  = 0 
+        if macdscore > 0.6 and mascore < 0.0:
+            action = action - 1 
+            if mascore < -1000:
+                self.__chaodie = 1
+            if mascore < -2000:
+                self.__chaodie = 1
+
+        if incscore < 1.0 and incscore > 0.10 and mascore > 50.0 and macdscore < 0.6:
+            action = action + 1 
+        if mascore > 2000 and incscore >= 0.0 and macdscore < 0.6:
+            action = action + 1
+        
+        # PREVIOUS ACTION
+        if len(self.__qScore) > 0:
+            if self.__qScore[-1][5] == 'SELL' and (mascore < -61.8 or macdscore > 0.6):
+                action = action - 1
+            
+            prevMA5  = self.__qScore[-1][6]
+            prevMA10 = self.__qScore[-1][7]
+            if mascore5 > prevMA5 and mascore10 > prevMA10:
+                upguai = 1
+                if self.__chaodie == 1:
+                    action = action + 1
+                    self.__chaodie = 0
+            if prevMA5 > prevMA10 and mascore5 < mascore10:
+                upguai = -1
+
+        state = 'HOLD'
+        if action >= 1:
+            state = 'BUY'
+        if action <= -1:
+            state = 'SELL'
+
+        tmp = (incscore, desscore, macdscore, mascore, action, state, mascore5, mascore10, upguai)
+        self.__qScore.append(tmp)
+
+        mascore = "{:.4f}".format(mascore)
+        return (mascore, state)
+        # print 'DEBUG:', dateTime, self.__inst, incscore, desscore, macdscore, mascore, action, state, self.__chaodie, upguai
+
     def scoreMACD(self, dateTime):
         score    = 0
         weakmacd = 0.0
@@ -899,19 +992,35 @@ class MacdSegEventWindow(technical.EventWindow):
     def computeBarLinePosition(self, dateTime, bar):
         incdiff = []; incqsfit = []
         desdiff = []; desqsfit = []
+
+        incdiff_high = []
+        incdiff_low  = []
+        desdiff_high = []
+        desdiff_low  = []
+
         close = bar.getClose()
+        high  = bar.getHigh()
+        low   = bar.getLow()
 
         for k,val in self.__nowincline.iteritems():
             for v in val:
                 qsfit = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
-                incdiff.append((qsfit.compute(self.__dtzq[dateTime]) - close) / close)
                 incqsfit.append(qsfit)
+
+                incdiff.append((qsfit.compute(self.__dtzq[dateTime]) - close) / close)
+                incdiff_high.append((qsfit.compute(self.__dtzq[dateTime]) - high) / high)
+                incdiff_low.append((qsfit.compute(self.__dtzq[dateTime]) - low) / low)
+
         for k,val in self.__nowdesline.iteritems():
             for v in val:
                 qsfit = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
-                desdiff.append((qsfit.compute(self.__dtzq[dateTime]) - close) / close)
                 desqsfit.append(qsfit)
-        return (incdiff, incqsfit, desdiff, desqsfit)
+
+                desdiff.append((qsfit.compute(self.__dtzq[dateTime]) - close) / close)
+                desdiff_high.append((qsfit.compute(self.__dtzq[dateTime]) - high) / high)
+                desdiff_low.append((qsfit.compute(self.__dtzq[dateTime]) - low) / low)
+
+        return (incdiff, incqsfit, desdiff, desqsfit, incdiff_high, incdiff_low, desdiff_high, desdiff_low)
 
     def updateGD(self, now_dt):
         item = None
