@@ -34,7 +34,26 @@ class KLineEventWindow(technical.EventWindow):
         # or 跳空幅度> 0.005, 相比昨日跌幅比较大 > 0.015，光头阴线，几乎没有上下影
         self.__tkdk = 1024 
         self.__tkdf = 1024 
+        self.__bdie = 1024
 
+    def baodie(self, dateTime, diefu, zhenfu):
+        mins = diefu
+        if diefu > zhenfu:
+            mins = zhenfu 
+        if mins < -0.04:
+            self.__bdie = 1
+        else:
+            self.__bdie = 1024
+
+    def tkdk(self, dateTime, jump, diefu, shying, xaying):
+        if jump < -0.02 and diefu < 0.0:
+            self.__tkdk = jump 
+        else:
+            self.__tkdk = 1024 
+        if jump < -0.005 and shying < 0.08 and xaying < 0.05 and diefu < -0.015:
+            self.__tkdk = jump
+            self.__tkdf = diefu
+        
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
         if value is not None and self.windowFull():
@@ -42,7 +61,6 @@ class KLineEventWindow(technical.EventWindow):
             self.__tkdf = 1024 
 
             values = self.getValues()
-
             # 当日K线形态
             nop = values[-1].getOpen()
             ncl = values[-1].getClose() 
@@ -55,22 +73,16 @@ class KLineEventWindow(technical.EventWindow):
                 dn = nop
             shying = (nhi - up) / (nhi - nlw + 0.00000001) 
             xaying = (dn - nlw) / (nhi - nlw + 0.00000001)
-
+            zhenfu = (ncl - nop) / (nop + 0.000000001)
             # 相比昨日
             last = values[-2].getClose()
             if values[-2].getClose() > values[-2].getOpen():
                 last = values[-2].getOpen()
             jump = ((values[-1].getOpen() - last) / last)
-
             diefu = (values[-1].getClose() - values[-2].getClose()) / values[-2].getClose()
 
-            if jump < -0.02 and diefu < 0.0:
-                self.__tkdk = jump 
-            else:
-                self.__tkdk = 1024 
-            if jump < -0.005 and shying < 0.08 and xaying < 0.05 and diefu < -0.015:
-                self.__tkdk = jump
-                self.__tkdf = diefu
+            self.tkdk(dateTime,jump, diefu, shying, xaying) 
+            self.baodie(dateTime, diefu, zhenfu)
 
     def getValue(self):
-        return (self.__tkdk, self.__tkdf) 
+        return (self.__tkdk, self.__tkdf, self.__bdie) 
