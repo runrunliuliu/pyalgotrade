@@ -937,11 +937,11 @@ class MacdSegEventWindow(technical.EventWindow):
             if prevMA5 > prevMA10 and mascore5 < mascore10:
                 upguai = -1
 
-        state = 'HOLD'
+        state = 0 
         if action >= 1:
-            state = 'BUY'
+            state = 1 
         if action <= -1:
-            state = 'SELL'
+            state = -1 
 
         tmp = (incscore, desscore, macdscore, mascore, action, state, mascore5, mascore10, upguai)
         self.__qScore.append(tmp)
