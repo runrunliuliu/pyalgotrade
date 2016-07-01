@@ -658,7 +658,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
-                (tkdk,tkdf) + self.__QUSHI
+                (tkdk,tkdf)
 
             self.filter4Show(dateTime, twoline, value)
 
@@ -1054,7 +1054,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__desline, self.__incline, \
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
-               self.__dropout, self.__ftDes, self.__ftInc, self.__observed, self.__cxshort)
+               self.__dropout, self.__ftDes, self.__ftInc, self.__observed, self.__cxshort, self.__QUSHI)
         return ret
 
 
