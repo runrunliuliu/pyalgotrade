@@ -97,7 +97,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__gdval  = None
         self.__gddt   = None
 
-        self.__QUSHI   = ('NULL', 0.0)
+        self.__QUSHI   = (-1, 0.0)
         self.__chaodie = 0
         self.__qScore  = collections.ListDeque(5)
         self.__MAscore5  = ma.SMAEventWindow(5)
