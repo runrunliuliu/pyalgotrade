@@ -919,7 +919,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         if incscore < 1.0 and incscore > 0.10 and mascore > 50.0 and macdscore < 0.6:
             action = action + 1 
-        if mascore > 2000 and incscore >= 0.0 and macdscore < 0.6:
+        if mascore > 2000 and incscore > 0.00 and macdscore < 0.6:
             action = action + 1
         
         # PREVIOUS ACTION
@@ -947,8 +947,10 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__qScore.append(tmp)
 
         mascore = "{:.4f}".format(mascore)
-        return (mascore, state)
+
         # print 'DEBUG:', dateTime, self.__inst, incscore, desscore, macdscore, mascore, action, state, self.__chaodie, upguai
+
+        return (mascore, state)
 
     def scoreMACD(self, dateTime):
         score    = 0
