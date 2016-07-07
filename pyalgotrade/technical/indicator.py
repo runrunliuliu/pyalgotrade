@@ -25,6 +25,7 @@ from pyalgotrade.dataseries import bards
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import kline 
 from array import array
+from pyalgotrade.barfeed import indfeed
 import numpy as np
 
 
@@ -58,13 +59,14 @@ def get_low_high_values(barWrapper, bars):
 
 class IndEventWindow(technical.EventWindow):
 
-    def __init__(self, windows=250, useAdjustedValues=False):
+    def __init__(self, inst, windows=250, useAdjustedValues=False):
         technical.EventWindow.__init__(self, windows, dtype=object)
         self.__barWrapper = BarWrapper(useAdjustedValues)
        
         self.__mawins   = [5, 10, 20, 30, 60, 90, 120, 250]
         self.__maevents = {} 
-        self.__mavol = ma.SMAEventWindow(20)
+        self.__mavol5  = ma.SMAEventWindow(5)
+        self.__mavol10 = ma.SMAEventWindow(10)
         self.__mas   = collections.ListDeque(10)
         self.__vol   = collections.ListDeque(20)
         self.__kline = kline.KLineEventWindow(7) 
@@ -80,16 +82,24 @@ class IndEventWindow(technical.EventWindow):
 
         self.__fts  = []
 
-    def boostVol(self, dt, ma20):
-        lb1 = None 
-        lb2 = None
+        self.__inst = inst
+
+        self.__dt = indfeed.Feed()
+        self.__dt.addBarsFromCSV('dt',"./data/dtboard.csv.out")
+
+    def boostVol(self, dt, ma5, ma20):
+        lb1 = -1 
+        lb2 = -1 
+        lb3 = -1 
         if len(self.__vol) > 1:
             yvol = self.__vol[-2]
             nvol = self.__vol[-1]
             lb1  =  nvol / yvol
+        if ma5 is not None:
+            lb2 = self.__vol[-1] / ma5
         if ma20 is not None:
-            lb2 = self.__vol[-1] / ma20
-        return (lb1, lb2) 
+            lb3 = self.__vol[-1] / ma20
+        return (lb1, lb2, lb3) 
 
     # 短线空头排列
     def MAdxShort(self, nma_dict, madirect): 
@@ -250,7 +260,7 @@ class IndEventWindow(technical.EventWindow):
         # 均线运行方向
         f2 = self.MAdirect(nma_dict)
         # 量能变化 
-        lb = self.boostVol(dateTime, self.__mavol.getValue())
+        lb = self.boostVol(dateTime, self.__mavol5.getValue(), self.__mavol10.getValue())
         # 价格变化
         bp = self.changePrice(dateTime, bars)
         # K线分形, MOVE TO K-LINE MODULE
@@ -277,14 +287,18 @@ class IndEventWindow(technical.EventWindow):
 
         cxshort = cxshort + (wsma5,0) 
 
+        # dtboard
+        dt = self.dtboard(dateTime, lb)
+
         fts.append(score)
         fts.append(roc)
         fts.append(dxshort)
         fts.append(cxshort)
         fts.append(ma)
         fts.append(self.__kline.getValue())
-        fts.extend(lb)
-        fts.extend(bp)
+        fts.append(lb)
+        fts.append(bp)
+        fts.append(dt)
         
         self.__pf1 = f1
         self.__pf2 = f2
@@ -331,6 +345,18 @@ class IndEventWindow(technical.EventWindow):
             ret = (roc1, roc2, roc3)
         return ret
 
+    def dtboard(self, dateTime, lb):
+        ret = (0,)
+        keydate = dateTime.strftime('%Y-%m-%d')
+        inst    = self.__inst[2:]
+        (code,indval) = self.__dt.getMatch(inst, keydate)
+        if code is not None and indval['rate'] > 1.0 and \
+                lb[0] < 2.0 and \
+                lb[1] < 1.5 and lb[1] > 0 and \
+                lb[2] < 1.2 and lb[2] > 0:
+            ret = (1,)            
+        return ret
+
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
         bars = self.getValues()
@@ -338,7 +364,9 @@ class IndEventWindow(technical.EventWindow):
         for i in self.__mawins:
             self.__maevents[i].onNewValue(dateTime, value.getClose())
 
-        self.__mavol.onNewValue(dateTime, value.getVolume())
+        # Volume
+        self.__mavol5.onNewValue(dateTime, value.getVolume())
+        self.__mavol10.onNewValue(dateTime, value.getVolume())
 
         ma_dict = {}
         for i in self.__mawins:
@@ -350,7 +378,8 @@ class IndEventWindow(technical.EventWindow):
         self.__kline.onNewValue(dateTime, value)
 
         # collection MA features
-        self.__fts.extend(self.MAfeature(bars, dateTime))
+        fts = self.MAfeature(bars, dateTime)
+        self.__fts.extend(fts)
 
     def getValue(self):
         ret = self.__fts 
