@@ -22,7 +22,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__priceDS = BarSeries.getCloseDataSeries()
         self.__macd = macd.MACD(self.__priceDS, 12, 26, 9, flag=0)
 
-        self.__indicator = indicator.IndEventWindow()
+        self.__indicator = indicator.IndEventWindow(inst)
 
         self.__bars   = BarSeries
 
@@ -98,6 +98,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__gddt   = None
 
         self.__QUSHI   = (-1, 0.0)
+        self.__DTBORAD = None
         self.__chaodie = 0
         self.__qScore  = collections.ListDeque(5)
         self.__MAscore5  = ma.SMAEventWindow(5)
@@ -827,7 +828,8 @@ class MacdSegEventWindow(technical.EventWindow):
             # print 'DEBUG:', dateTime, np.min(absdiff), hline[0], fts[0][0], score, weakmacd, dcprice, gcprice
 
             # SCORE QUSHI
-            self.__QUSHI = self.scoreQUSHI(dateTime, twoline, sup, prs, weakmacd, fts[0][0])
+            self.__QUSHI   = self.scoreQUSHI(dateTime, twoline, sup, prs, weakmacd, fts[0][0])
+            self.__DTBORAD = self.scoreDT(dateTime, weakmacd, fts[0][0], fts[8])
 
             # 均线动能不足,放入观察池
             if self.__prevXTscore is not None:
@@ -870,6 +872,13 @@ class MacdSegEventWindow(technical.EventWindow):
         fprice = fenzi / fenmu 
         # print 'FakeMACD:', dateTime, fenzi, fenmu, nopen
         return fprice 
+
+    def scoreDT(self, dateTime, weakmacd, mascore, dt):
+        ret = None 
+        if weakmacd < 0.6 and mascore > 100.0 and dt[0] == 1:
+            # print 'DEBUG:', dateTime, mascore, dt
+            ret = (1.0, mascore)
+        return ret
 
     # 整体趋势线的评估
     # 1. 上升趋势的支持度
@@ -1056,7 +1065,8 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__desline, self.__incline, \
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
-               self.__dropout, self.__ftDes, self.__ftInc, self.__observed, self.__cxshort, self.__QUSHI)
+               self.__dropout, self.__ftDes, self.__ftInc, self.__observed, \
+               self.__cxshort, self.__QUSHI, self.__DTBORAD)
         return ret
 
 
