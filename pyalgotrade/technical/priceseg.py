@@ -90,6 +90,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__qsxt    = []
 
+        self.__preqs   = None
         self.__prehist = None
         self.__preret  = None
 
@@ -160,7 +161,6 @@ class MacdSegEventWindow(technical.EventWindow):
                     self.__posdate.append(dateTime)
                     self.__poshigh.append(high)
                     self.__posclose.append(close)
-        self.__prehist = hist 
         return (ret, change)
 
     # Find BeiLi
@@ -588,7 +588,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__zq = self.__zq + 1
         self.__dtzq[dateTime] = self.__zq
 
-        self.__fts = self.__indicator.getValue()
+        (self.__fts, self.__mas) = self.__indicator.getValue()
         change        = 0
         self.__beili  = 0 
         self.__vbeili = 0 
@@ -626,7 +626,13 @@ class MacdSegEventWindow(technical.EventWindow):
             # 获取当前的整体的趋势
             qsxingtai = self.figureQS(dateTime)
 
+            # 上升三角形态
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
+
+            # HIST趋势判定及与均线的关系
+            self.qsHistMAs(dateTime, hist, value)
+
+            # 颈线形态
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
 
             self.add2observed(dateTime, now_dt, value)
@@ -655,13 +661,15 @@ class MacdSegEventWindow(technical.EventWindow):
             if klines[0] < 0.0 and self.__direct == 1:
                 tkdk = "{:.4f}".format(klines[0])
                 tkdf = "{:.4f}".format(klines[1])
-
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
                 (tkdk,tkdf)
 
             self.filter4Show(dateTime, twoline, value)
+
+            # Keep Record
+            self.__prehist = hist 
 
     def baodie(self, dateTime, klines, hline):
         if self.__direct == 1 and klines[2] == 1:
@@ -774,20 +782,6 @@ class MacdSegEventWindow(technical.EventWindow):
         # MACD零轴以上
         if self.__direct == 1:
             return
-        incqsfit = twoline[1]
-        nowx     = self.__dtzq[dateTime]
-        close    = bar.getClose()
-        maxscore = 0
-        for i in range(0, len(incqsfit) - 1):
-            qs = incqsfit[i]
-            # 短期趋势度得分，分数越高，当前的趋势越好
-            timediff = nowx - qs.getX1()
-            if timediff < 60: 
-                qscore = 1000 * qs.getSlope()
-                diff = (qs.compute(nowx) - close) / close
-                if qscore > 1.0 and diff < 0:
-                    if qscore > maxscore:
-                        maxscore = qscore
         # 隔峰高点位置
         peekhigh  = None
         pmax_date = None
@@ -810,6 +804,40 @@ class MacdSegEventWindow(technical.EventWindow):
 
     def xtInnerPeek(self, dateTime):
         print 'InnerPeek:', dateTime, self.__poshist
+
+    def qsHistMAs(self, dateTime, hist, value):
+        qs = 0
+        gd = None
+        if self.__prehist is not None:
+            if hist < self.__prehist:
+                qs = -1
+            else:
+                qs = 1
+            if self.__preqs is None:
+                self.__preqs = qs
+            else:
+                if self.__preqs * qs < 0:
+                    gd = dateTime
+                    self.__preqs = qs
+        def PosMA(value, mas):
+            up = (100, -1)
+            dn = (100, -1)
+            wins = [5, 10, 20, 30, 60, 90, 120, 250]
+            hi = value.getHigh()
+            lw = value.getLow()
+            for w in wins:
+                if w in mas:
+                    high = abs((hi - mas[w]) / hi)
+                    low  = abs((lw - mas[w]) / lw) 
+                    if high <= up[0]:
+                        up = (high, w)
+                    if low <= dn[0]:
+                        dn = (low, w)
+            return (up, dn)
+
+        (up, dn) = PosMA(value, self.__mas)
+
+        # print dateTime, self.__preqs, qs, gd, up, dn 
 
     # Triangle XingTai 
     def xtTriangle(self, dateTime, twoline, hline, sup, prs):
