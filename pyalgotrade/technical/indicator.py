@@ -250,6 +250,31 @@ class IndEventWindow(technical.EventWindow):
         ret = (score, sline, sstr, pline, space, oddma) 
         return ret 
 
+    def MAattack(self, dateTime, f1, f2, dxshort, cxshort, nma_dict, wsma5):
+        # [5, 10, 20, 30, 60, 90, 120, 250]
+        ret = -1 
+        if dxshort == 1 or cxshort[1] == 1 or wsma5 == 1:
+            return ret
+        def worse(ind, diff): 
+            ret = 0
+            if diff is not None and abs(diff) < 0.08 and \
+                    self.__madirect[-1] is not None and \
+                    self.__madirect[-2] is not None and \
+                    self.__madirect[-3] is not None:
+                ma  = [self.__madirect[-1][ind], self.__madirect[-2][ind], self.__madirect[-3][ind]]
+                nma = np.asarray(ma)
+                print nma
+                cnt = (nma < -0.001).sum()
+                if cnt == 3:
+                    ret = 1
+            return ret
+
+        ma60  = worse(4, f1[4])
+        ma90  = worse(5, f1[5])
+        ma120 = worse(6, f1[6])
+        ma250 = worse(7, f1[7])
+        print dateTime, ma60, ma90, ma120, ma250
+
     def MAfeature(self, bars, dateTime):
         nma_dict = self.__mas[-1]
         nowclose = bars[-1].getClose()
@@ -265,7 +290,7 @@ class IndEventWindow(technical.EventWindow):
         bp = self.changePrice(dateTime, bars)
         # K线分形, MOVE TO K-LINE MODULE
         # kl = self.KLine(dateTime, bars)
-        
+       
         score = self.MAscore(f1, f2)
         roc   = self.ROC(bars, dateTime)
 
@@ -284,8 +309,10 @@ class IndEventWindow(technical.EventWindow):
                 wsma5 = 1
             if f2[0] < -0.02:
                 wsma5 = 1
-
         cxshort = cxshort + (wsma5,0) 
+
+        # 计算MA系统的短期攻击度
+        # attack = self.MAattack(dateTime, f1, f2, dxshort, cxshort, nma_dict, wsma5)
 
         # dtboard
         dt = self.dtboard(dateTime, lb)
@@ -384,7 +411,7 @@ class IndEventWindow(technical.EventWindow):
     def getValue(self):
         ret = self.__fts 
         self.__fts = []
-        return ret
+        return (ret, self.__mas[-1])
 
 
 class Indicator(technical.EventBasedFilter):
