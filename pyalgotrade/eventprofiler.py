@@ -288,7 +288,7 @@ def plot(profilerResults):
     plt.show()
 
 
-def printStats(profilerResults, base=1.0):
+def printStats(profilerResults, base=1.0, plot=False):
     tab = PrettyTable(['T日', '平均值', '方差', '最大值', '最小值', '中值', '胜率'])
     tab.float_format = '.4'
     tday = ''
@@ -332,7 +332,7 @@ def printStats(profilerResults, base=1.0):
 
     # plots
     datalist = []
-    if len(winnday) > 0:
+    if len(winnday) > 0 and plot is True:
         data1 = dict()
         data1['day']   = winnday
         data1['winday']   = np.zeros(len(winnday)) + 1
