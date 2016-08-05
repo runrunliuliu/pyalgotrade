@@ -94,12 +94,14 @@ class DSResampler(object):
         elif self.__range.belongs(dateTime):
             self.__grouper.addValue(value)
         else:
+            self.__grouper.upDateTime(self.__range.getBeginning())
             self.appendWithDateTime(self.__grouper.getDateTime(), self.__grouper.getGrouped())
             self.__range = resamplebase.build_range(dateTime, self.__frequency)
             self.__grouper = self.buildGrouper(self.__range, value, self.__frequency)
 
     def pushLast(self):
         if self.__grouper is not None:
+            self.__grouper.upDateTime(self.__range.getBeginning())
             self.appendWithDateTime(self.__grouper.getDateTime(), self.__grouper.getGrouped())
             self.__grouper = None
             self.__range = None
