@@ -38,7 +38,7 @@ import datetime
 # The csv Date column must have the following format: YYYY-MM-DD
 
 def parse_date(date, freq):
-    if freq == bar.Frequency.DAY:
+    if freq == bar.Frequency.DAY or freq == bar.Frequency.WEEK or bar.Frequency.MONTH:
         year = int(date[0:4])
         month = int(date[5:7])
         day = int(date[8:10])
@@ -118,7 +118,7 @@ class Feed(csvfeed.BarFeed):
         if isinstance(timezone, int):
             raise Exception("timezone as an int parameter is not supported anymore. Please use a pytz timezone instead.")
 
-        if frequency not in [bar.Frequency.DAY, bar.Frequency.WEEK, bar.Frequency.MINUTE]:
+        if frequency not in [bar.Frequency.DAY, bar.Frequency.WEEK, bar.Frequency.MINUTE, bar.Frequency.MONTH]:
             raise Exception("Invalid frequency.")
 
         csvfeed.BarFeed.__init__(self, frequency, maxLen)
