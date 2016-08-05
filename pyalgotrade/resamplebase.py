@@ -63,6 +63,25 @@ class IntraDayRange(TimeRange):
         return self.__end
 
 
+class WeekRange(TimeRange):
+    def __init__(self, dateTime):
+        self.__begin = dateTime 
+        self.__week  = dateTime.isocalendar()[1]
+
+    def belongs(self, dateTime):
+        ret = False
+        if dateTime.isocalendar()[1] == self.__week:
+            self.__end = dateTime
+            ret = True
+        return ret
+
+    def getBeginning(self):
+        return self.__begin
+
+    def getEnding(self):
+        return self.__end
+
+
 class DayRange(TimeRange):
     def __init__(self, dateTime):
         self.__begin = datetime.datetime(dateTime.year, dateTime.month, dateTime.day)
@@ -82,6 +101,7 @@ class DayRange(TimeRange):
 
 class MonthRange(TimeRange):
     def __init__(self, dateTime):
+        self.__head  = dateTime 
         self.__begin = datetime.datetime(dateTime.year, dateTime.month, 1)
 
         # Calculate the ending date.
@@ -95,10 +115,18 @@ class MonthRange(TimeRange):
             self.__end = dt.localize(self.__end, dateTime.tzinfo)
 
     def belongs(self, dateTime):
-        return dateTime >= self.__begin and dateTime < self.__end
+        ret = False
+        if dateTime >= self.__begin and dateTime < self.__end:
+            ret = True
+            if self.__head is None:
+                self.__head = dateTime
+        return ret
 
     def getBeginning(self):
-        return self.__begin
+        if self.__head is None:
+            return self.__begin
+        else:
+            return self.__head
 
     def getEnding(self):
         return self.__end
@@ -113,6 +141,8 @@ def is_valid_frequency(frequency):
     elif frequency == bar.Frequency.DAY:
         ret = True
     elif frequency == bar.Frequency.MONTH:
+        ret = True
+    elif frequency == bar.Frequency.WEEK:
         ret = True
     else:
         ret = False
@@ -129,6 +159,8 @@ def build_range(dateTime, frequency):
         ret = DayRange(dateTime)
     elif frequency == bar.Frequency.MONTH:
         ret = MonthRange(dateTime)
+    elif frequency == bar.Frequency.WEEK:
+        ret = WeekRange(dateTime)
     else:
         raise Exception("Unsupported frequency")
     return ret
@@ -142,6 +174,9 @@ class Grouper(object):
 
     def getDateTime(self):
         return self.__groupDateTime
+    
+    def upDateTime(self, dateTime):
+        self.__groupDateTime = dateTime
 
     @abc.abstractmethod
     def addValue(self, value):
