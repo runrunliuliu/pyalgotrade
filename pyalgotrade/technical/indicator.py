@@ -71,7 +71,9 @@ class IndEventWindow(technical.EventWindow):
         self.__vol   = collections.ListDeque(20)
         self.__kline = kline.KLineEventWindow(7) 
         
-        self.__madirect  = collections.ListDeque(3)
+        self.__madirect   = collections.ListDeque(3)
+        self.__maposition = collections.ListDeque(3)
+        self.__mascore = collections.ListDeque(5)
 
         self.__pf1 = None
         self.__pf2 = None
@@ -329,8 +331,9 @@ class IndEventWindow(technical.EventWindow):
         
         self.__pf1 = f1
         self.__pf2 = f2
-
         self.__madirect.append(f2)
+        self.__maposition.append(f1)
+        self.__mascore.append(score)
 
         return fts
 
@@ -407,6 +410,15 @@ class IndEventWindow(technical.EventWindow):
         # collection MA features
         fts = self.MAfeature(bars, dateTime)
         self.__fts.extend(fts)
+
+    def getMAscore(self):
+        return self.__mascore
+
+    def getMAdirect(self):
+        return self.__madirect
+
+    def getMAPosition(self):
+        return self.__maposition
 
     def getValue(self):
         ret = self.__fts 
