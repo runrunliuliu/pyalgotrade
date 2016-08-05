@@ -308,6 +308,10 @@ def printStats(profilerResults, base=1.0, plot=False):
         pos = len(posvec)
         neg = len(negvec)
 
+        maxind = np.argmax(values)
+        
+        print t, values[maxind], dtimes[maxind], insts[maxind]
+
         # Get Hist plot
         if profilerResults.mapPos(t) == 2:
             if neg > 0:
