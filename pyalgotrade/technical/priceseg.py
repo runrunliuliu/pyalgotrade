@@ -1,4 +1,5 @@
 from pyalgotrade import technical
+from pyalgotrade import bar
 from pyalgotrade import dataseries
 from pyalgotrade.utils import collections
 from pyalgotrade.utils import qsLineFit 
@@ -6,10 +7,12 @@ from pyalgotrade.dataseries import bards
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import macd
 from pyalgotrade.technical import indicator 
+from pyalgotrade.technical import sar 
 from array import array
 from utils import utils
 from collections import OrderedDict
 import numpy as np
+import pyalgotrade.talibext.indicator as ta
 
 
 class MacdSegEventWindow(technical.EventWindow):
@@ -22,9 +25,22 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__priceDS = BarSeries.getCloseDataSeries()
         self.__macd = macd.MACD(self.__priceDS, 12, 26, 9, flag=0)
 
-        self.__indicator = indicator.IndEventWindow(inst)
+        self.__mapma = {
+            5: 0,
+            10: 1,
+            20: 2,
+            30: 3,
+            60: 4,
+            90: 5,
+            120:6,
+            250:7 
+        }
 
-        self.__bars   = BarSeries
+        self.__indicator = indicator.IndEventWindow(inst)
+        self.__sar = sar.SAREventWindow(8)
+
+        self.__bars = BarSeries
+        self.__period = None
 
         self.__prevmacd    = None 
         self.__prevXTscore = None
@@ -38,12 +54,14 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__xtTriangle = None 
         self.__roc = None
         self.__cxshort = None
+        self.__NBS = None
 
         self.__vbused = set()
         
         # Record Trading Days FOR ZHOUQI theory
         self.__zq   = 0
-        self.__dtzq = OrderedDict() 
+        self.__dtzq  = OrderedDict() 
+        self.__dtmas = OrderedDict()
 
         self.__qsfilter  = set() 
         self.__qsfit     = {}
@@ -70,6 +88,38 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__ftDes = set()
         self.__ftInc = set()
 
+        self.__LongPeriod = collections.ListDeque(5)
+
+        self.__now_zhicheng = []
+        self.__now_tupo     = []
+        self.__now_zuli     = []
+        
+        self.__hist_zhicheng = collections.ListDeque(5)
+        self.__hist_tupo     = collections.ListDeque(5)
+        self.__hist_zuli     = collections.ListDeque(5)
+
+        self.__inchist  = []
+        self.__incdate  = []
+        self.__inchigh  = []
+        self.__inclow   = []
+        self.__incclose = []
+        self.__inchist_list = collections.ListDeque(5)
+        self.__incdate_list = collections.ListDeque(5)
+        self.__inchigh_list = collections.ListDeque(5)
+        self.__inclow_list  = collections.ListDeque(5)
+        self.__incclose_list  = collections.ListDeque(5)
+
+        self.__deshist  = []
+        self.__desdate  = []
+        self.__deshigh  = []
+        self.__deslow   = []
+        self.__desclose = []
+        self.__deshist_list  = collections.ListDeque(5)
+        self.__desdate_list  = collections.ListDeque(5)
+        self.__deshigh_list  = collections.ListDeque(5)
+        self.__deslow_list   = collections.ListDeque(5)
+        self.__desclose_list = collections.ListDeque(5)
+        
         self.__posdate  = []
         self.__poshist  = []
         self.__posclose = []
@@ -90,6 +140,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__qsxt    = []
 
+        self.__preval  = None
         self.__preqs   = None
         self.__prehist = None
         self.__preret  = None
@@ -573,22 +624,33 @@ class MacdSegEventWindow(technical.EventWindow):
         if self.__direct == -1 or self.__beili == -1:
             self.pairVetex(self.__fvalley, -1)
 
+    def setPeriod(self, value):
+        period = 'day'
+        if value.getFrequency() == bar.Frequency.WEEK:
+            period = 'week'
+        if value.getFrequency() == bar.Frequency.MONTH:
+            period = 'month'
+        return period
+
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
         self.__macd.onNewValue(self.__priceDS, dateTime, value.getClose())
 
         self.__indicator.onNewValue(dateTime, value)
+        self.__sar.onNewValue(dateTime, value)
 
+        self.__period = self.setPeriod(value)
         self.__nowBar = value
         self.__datelow[dateTime]   = value.getLow()
         self.__datehigh[dateTime]  = value.getHigh()
         self.__dateclose[dateTime] = value.getClose()
-        self.__dateopen[dateTime]  = value.getClose()
+        self.__dateopen[dateTime]  = value.getOpen()
 
         self.__zq = self.__zq + 1
         self.__dtzq[dateTime] = self.__zq
 
         (self.__fts, self.__mas) = self.__indicator.getValue()
+        self.__dtmas[dateTime] = self.__mas
         change        = 0
         self.__beili  = 0 
         self.__vbeili = 0 
@@ -630,7 +692,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
 
             # HIST趋势判定及与均线的关系
-            self.qsHistMAs(dateTime, hist, value)
+            (qsgd, qshist) = self.qsHistMAs(dateTime, hist, value)
 
             # 颈线形态
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
@@ -668,8 +730,48 @@ class MacdSegEventWindow(technical.EventWindow):
 
             self.filter4Show(dateTime, twoline, value)
 
+            # 长周期指标
+            (lret, sarval) = self.LongPeriod(dateTime, value)
+            
+            buy = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval)
+            self.__NBS = (buy, self.__indicator.getMAscore()[-1][0])
+
             # Keep Record
             self.__prehist = hist 
+            self.__preval  = value
+
+    def LongPeriod(self, dateTime, value):
+        madirect   = self.__indicator.getMAdirect() 
+        mascore    = self.__indicator.getMAscore()
+        sarval     = self.__sar.getValue()
+        # 结合SAR的复杂进场指标，T日指标和T+1日指标(预测)
+        # --------- 趋势反转 ----------------
+        # 反转信号: SAR绿翻红 or macd下跌变上升 or ....
+        # 辅助验证指标: 
+        # 1. MA score > 0 or 大幅增加
+        # 2. MAs形态较好, 长期均线朝上或者下行曲率微弱
+        # 3. 收盘价距离均线, 长期均线在收盘价之下, 短期均线5,10,20距离接近
+        # 4. 持续上涨则平量，近期涨幅(周线、月线)不能过大
+        # 介入时机: 日线突破前期平台，再回踩动作形成时介入
+        # [5, 10, 20, 30, 60, 90, 120, 250]
+        # output:
+        # 1. ret, 月周线上-1, 0, 1三种状态，1买入观察, 0持有, -1卖出观察
+        # 2. press, 压力位，月周发出买入观察信号，则T＋1交易过程中必须突破压力位 
+        # 3. support, 支撑位, 月周发出卖出观察信号，则T＋1交易过程中跌破支撑位位 
+        ret = 0
+        if len(mascore) > 1 and mascore[-1][0] > 100 and abs(mascore[-1][0] / mascore[-2][0]) > 0.618:
+            ret = 1
+            if self.__period == 'month':
+                for i in range(3, 8):  
+                    if len(madirect) > i and madirect[i] is not None and madirect[i] < 0:
+                        ret = -1
+                        break
+            if self.__period == 'week':
+                for i in range(4, 8):  
+                    if len(madirect) > i and madirect[i] is not None and madirect[i] < 0:
+                        ret = -1
+                        break
+        return (ret, sarval)
 
     def baodie(self, dateTime, klines, hline):
         if self.__direct == 1 and klines[2] == 1:
@@ -805,39 +907,268 @@ class MacdSegEventWindow(technical.EventWindow):
     def xtInnerPeek(self, dateTime):
         print 'InnerPeek:', dateTime, self.__poshist
 
+    def NBuySignal(self, dateTime, qsgd, qshist, lret, sarval):
+        madirect  = self.__indicator.getMAdirect() 
+        buy = 0
+        # 天级别买点
+        if self.__period == 'day' \
+                and len(self.__hist_tupo) > 0 \
+                and len(self.__desdate_list) > 0 \
+                and qsgd is not None and qshist == 1:
+
+            numtp = len(self.__hist_tupo[-1])
+            if numtp == 0:
+                return buy 
+
+            pdbars = len(self.__desdate_list[-1])
+            upbars = len(self.__incdate_list[-1])
+
+            now_zuli = self.__now_zuli[-1]
+            now_zhch = self.__now_zhicheng[-1]
+            if numtp > 3:
+                nzuli = -1            
+                if now_zuli[0] != -1:
+                    mapindex  = self.__mapma[now_zuli[0]]
+                    nzuli     = madirect[-1][mapindex]
+                else:
+                    nzuli = 0
+                if nzuli >= 0 or (nzuli < 0 and abs(nzuli) < 0.0005) \
+                        and now_zhch[0] != -1:
+                    # print dateTime, self.__hist_zhicheng[-2]
+                    # print dateTime, now_zuli, now_zhch, self.__hist_tupo[-1]
+                    buy = 1
+        # 周级别买点
+        if self.__period == 'week' and qshist == 1 and lret == 1:
+            upbars = len(self.__now_zuli)
+            if sarval[3] > 0.40:
+                return buy
+            zuli = self.__now_zuli[-1]
+            zhch = self.__now_zhicheng[-1]
+            if zuli[0] == -1 and zhch[0] > -1:
+                mapindex  = self.__mapma[zhch[0]]
+                if madirect[-1][mapindex] is not None and madirect[-1][mapindex] > 0:
+                    buy = 1
+        # 月级别买点
+        if self.__period == 'month' and len(self.__desdate_list) > 0 and lret == 1:
+            dnbars = -1
+            upbars = -1
+            if qshist == 1:
+                dnbars = len(self.__desdate_list[-1])
+                upbars = len(self.__now_zuli)
+            if qshist == -1:
+                dnbars = len(self.__now_zuli)
+                upbars = len(self.__incdate_list[-1])
+            zuli   = self.__now_zuli[-1]
+            zhch   = self.__now_zhicheng[-1]
+            if zuli[0] == -1 and zhch[0] > -1 and qshist == 1:
+                mapindex  = self.__mapma[zhch[0]]
+                if madirect[-1][mapindex] is not None and madirect[-1][mapindex] > 0 \
+                        and (madirect[-1][0] - madirect[-2][0]) > 0:
+                    buy = 1
+        return buy
+
     def qsHistMAs(self, dateTime, hist, value):
+        op = value.getOpen()
+        cl = value.getClose()
+        hi = value.getHigh()
         qs = 0
         gd = None
         if self.__prehist is not None:
             if hist < self.__prehist:
                 qs = -1
+                self.__deshist.append(hist)
+                self.__desdate.append(dateTime)
+                self.__deshigh.append(value.getHigh())
+                self.__deslow.append(value.getLow())
+                self.__desclose.append(value.getClose())
             else:
                 qs = 1
+                self.__incdate.append(dateTime)
+                self.__inchist.append(hist)
+                self.__inchigh.append(value.getHigh())
+                self.__inclow.append(value.getLow())
+                self.__incclose.append(value.getClose())
             if self.__preqs is None:
                 self.__preqs = qs
             else:
                 if self.__preqs * qs < 0:
                     gd = dateTime
                     self.__preqs = qs
-        def PosMA(value, mas):
-            up = (100, -1)
-            dn = (100, -1)
-            wins = [5, 10, 20, 30, 60, 90, 120, 250]
-            hi = value.getHigh()
-            lw = value.getLow()
+        if gd is not None:
+            self.__hist_zhicheng.append(self.__now_zhicheng)
+            self.__hist_zuli.append(self.__now_zuli)
+
+            self.__now_zhicheng = []
+            self.__now_zuli     = []
+            if qs == -1:
+                self.__desdate  = [self.__incdate[-1]] + self.__desdate
+                self.__deshist  = [self.__prehist] + self.__deshist
+                self.__deshigh  = [self.__inchigh[-1]] + self.__deshigh
+                self.__deslow   = [self.__inclow[-1]] + self.__deslow
+                self.__desclose = [self.__incclose[-1]] + self.__desclose
+
+                self.__inchist_list.append(self.__inchist)
+                self.__incdate_list.append(self.__incdate)
+                self.__inchigh_list.append(self.__inchigh)
+                self.__inclow_list.append(self.__inclow)
+                self.__incclose_list.append(self.__incclose)
+
+                (tp, zl, zc) = self.MASumPosition(dateTime, self.__incdate, self.__inchigh, self.__incclose, self.__inclow, 1) 
+                self.__hist_tupo.append(tp)
+
+                (zl, zc) = self.MAIterPosition(dateTime, value)
+                self.__now_zhicheng.append(zc)
+                self.__now_zuli.append(zl)
+
+                self.__now_tupo  = []
+                self.__inchist   = []
+                self.__incdate   = []
+                self.__inchigh   = []
+                self.__inclow    = []
+                self.__incclose  = []
+            if qs == 1:
+                self.__incdate  = [self.__desdate[-1]] + self.__incdate
+                self.__inchist  = [self.__prehist] + self.__inchist
+                self.__inchigh  = [self.__deshigh[-1]] + self.__inchigh
+                self.__inclow   = [self.__deslow[-1]] + self.__inclow
+                self.__incclose = [self.__desclose[-1]] + self.__incclose
+
+                self.__deshist_list.append(self.__deshist)
+                self.__desdate_list.append(self.__desdate)
+                self.__deshigh_list.append(self.__deshigh)
+                self.__deslow_list.append(self.__deslow)
+                self.__desclose_list.append(self.__desclose)
+
+                (tp, zl, zc) = self.MASumPosition(dateTime, self.__desdate, self.__deshigh, self.__desclose, self.__deslow, -1) 
+
+                (zl, zc) = self.MAIterPosition(dateTime, value)
+                self.__now_zhicheng.append(zc)
+                self.__now_zuli.append(zl)
+
+                self.__deshist  = []
+                self.__desdate  = []
+                self.__deshigh  = []
+                self.__deslow   = []
+                self.__desclose = []
+        else:
+            (zl, zc) = self.MAIterPosition(dateTime, value)
+            self.__now_zhicheng.append(zc)
+            self.__now_zuli.append(zl)
+
+        diff = 0.01
+        if self.__period == 'month':
+            diff = 0.03
+        if self.__period == 'week':
+            diff = 0.02
+        if len(self.__inchist_list) > 1 and len(self.__deshist_list) > 1:
+            peek1 = -1; peek2 = -1
+            if len(self.__fpeek) > 1:
+                peek1 = self.__fpeek[0][1]
+                peek2 = self.__fpeek[1][1]
+
+            # valley1 = -1; valley2 = -1
+            # if len(self.__fvalley) > 1:
+            #     valley1 = self.__fvalley[0][1]
+            #     valley2 = self.__fvalley[1][1]
+            def get(vals, func):
+                v1 = func(vals[-1])
+                v2 = func(vals[-2])
+                return (v1, v2)
+            (ih1, ih2) = get(self.__inchigh_list, max)
+            (dl1, dl2) = get(self.__deslow_list, min)
+            # 突破
+            TP = []
+            # 压制
+            YZ = 1024
+            # 阻力线
+            ZL = 1024
+            for t in [ih1, ih2, peek1, peek2]:
+                if op < t and cl > t:
+                    TP.append(t)
+                if ( (hi < t and (hi - t) / hi > -1 * diff) or hi > t) and cl < t and t < YZ:
+                    YZ = t
+                if (t - hi) / hi > diff and t < ZL:
+                    ZL = t 
+
+        return (gd, qs)
+        # print dateTime, TP, YZ, ZL 
+        # print dateTime, self.__inchigh_list[-1], self.__incdate_list[-1] 
+ 
+    def MAIterPosition(self, dateTime, value):
+
+        zlhold = 0.03
+        zchold = 0.01
+        if self.__period == 'week':
+            zlhold = 0.06
+            zchold = 0.02
+        if self.__period == 'month':
+            zlhold = 0.09
+            zchold = 0.05
+
+        wins = [5, 10, 20, 30, 60, 90, 120, 250]
+        # 压力MA、支撑MA
+        ZULI     = (-1, +1024) 
+        ZHICHENG = (-1, -1024)
+       
+        high  = value.getHigh()
+        low   = value.getLow()
+        close = value.getClose()
+        mas = self.__dtmas[dateTime]
+        for w in wins:
+            if w in mas:
+                if (high > mas[w] and close < mas[w]) or (high < mas[w] and abs((high - mas[w]) / high) < zlhold): 
+                    if mas[w] < ZULI[1]:
+                        ZULI = (w, mas[w])
+                if ((low < mas[w] and close > mas[w]) \
+                        or ((low - mas[w]) / low > 0 and (low - mas[w]) / low < zchold)):
+                    if mas[w] > ZHICHENG[1]:
+                        ZHICHENG = (w, mas[w])
+        return (ZULI, ZHICHENG)
+           
+    def MASumPosition(self, dateTime, qsdt, qshigh, qsclose, qslow, qs):
+        high_date      = qsdt[np.argmax(qshigh)]
+        close_max_date = qsdt[np.argmax(qsclose)]
+        
+        low_date       = qsdt[np.argmin(qslow)]
+        close_min_date = qsdt[np.argmin(qsclose)]
+
+        wins = [5, 10, 20, 30, 60, 90, 120, 250]
+        # 突破、阻力、支撑
+        tpmas = [] 
+        zlmas = []
+        zcmas = []
+        if qs == 1:
+            bg = qsdt[0]
+            ed = qsdt[-1]
+            himas = self.__dtmas[high_date]
+            clmas = self.__dtmas[close_max_date]
+            bgmas = self.__dtmas[bg]
+            edmas = self.__dtmas[ed]
+            bgval = min(self.__dateopen[bg], self.__dateclose[bg])
+            edval = max(self.__dateopen[ed], self.__dateclose[ed])
             for w in wins:
-                if w in mas:
-                    high = abs((hi - mas[w]) / hi)
-                    low  = abs((lw - mas[w]) / lw) 
-                    if high <= up[0]:
-                        up = (high, w)
-                    if low <= dn[0]:
-                        dn = (low, w)
-            return (up, dn)
-
-        (up, dn) = PosMA(value, self.__mas)
-
-        # print dateTime, self.__preqs, qs, gd, up, dn 
+                if w in bgmas:
+                    if bgval < bgmas[w] and edval > edmas[w]:
+                        tpmas.append(w)
+                hhigh  = self.__datehigh[high_date]
+                hclose = self.__dateclose[high_date] 
+                if w in himas and w in clmas:
+                    if ((hhigh > himas[w] and hclose < himas[w]) \
+                            or ((hhigh - himas[w]) / hhigh) < -0.01) \
+                            and self.__dateclose[close_max_date] < clmas[w]:
+                        zlmas.append(w)
+        if qs == -1:
+            clmas = self.__dtmas[close_min_date]
+            lwmas = self.__dtmas[low_date]
+            for w in wins:
+                low   = self.__datelow[low_date]
+                close = self.__dateclose[low_date] 
+                if w in lwmas and w in clmas:
+                    if ((low < lwmas[w] and close > lwmas[w]) \
+                            or ((low - lwmas[w]) / low > 0 and (low - lwmas[w]) / low < 0.01)) \
+                            and self.__dateclose[close_min_date] > clmas[w]:
+                        zcmas.append(w)
+        return (tpmas, zlmas, zcmas)
 
     # Triangle XingTai 
     def xtTriangle(self, dateTime, twoline, hline, sup, prs):
@@ -1094,7 +1425,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
                self.__dropout, self.__ftDes, self.__ftInc, self.__observed, \
-               self.__cxshort, self.__QUSHI, self.__DTBORAD)
+               self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS)
         return ret
 
 
