@@ -24,13 +24,14 @@ from pyalgotrade import dispatcher
 from pyalgotrade.dataseries import resampled
 
 
-datetime_format = "%Y-%m-%d %H:%M:%S"
+datetime_format  = "%Y-%m-%d %H:%M:%S"
+datetime_format2 = "%Y-%m-%d"
 
 
 class CSVFileWriter(object):
     def __init__(self, csvFile):
         self.__file = open(csvFile, "w")
-        self.__writeLine("Date Time", "Open", "High", "Low", "Close", "Volume", "Adj Close")
+        self.__writeLine("Date", "Open", "High", "Low", "Close", "Volume", "Adj Close")
 
     def __writeLine(self, *values):
         line = ",".join([str(value) for value in values])
@@ -41,7 +42,7 @@ class CSVFileWriter(object):
         adjClose = bar_.getAdjClose()
         if adjClose is None:
             adjClose = ""
-        dateTime = bar_.getDateTime().strftime(datetime_format)
+        dateTime = bar_.getDateTime().strftime(datetime_format2)
         self.__writeLine(
             dateTime,
             bar_.getOpen(),
