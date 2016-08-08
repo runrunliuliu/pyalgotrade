@@ -908,35 +908,83 @@ class MacdSegEventWindow(technical.EventWindow):
         print 'InnerPeek:', dateTime, self.__poshist
 
     def NBuySignal(self, dateTime, qsgd, qshist, lret, sarval):
-        madirect  = self.__indicator.getMAdirect() 
+        madirect   = self.__indicator.getMAdirect() 
+        maposition = self.__indicator.getMAPosition() 
         buy = 0
         # 天级别买点
         if self.__period == 'day' \
                 and len(self.__hist_tupo) > 0 \
                 and len(self.__desdate_list) > 0 \
+                and len(self.__incdate_list) > 1 \
                 and qsgd is not None and qshist == 1:
 
-            numtp = len(self.__hist_tupo[-1])
+            valid    = []
+            numtp    = len(self.__hist_tupo[-1])
+            pdbars   = len(self.__desdate_list[-1])
+            upbars   = len(self.__incdate_list[-1])
+            now_zuli = self.__now_zuli[-1]
+            now_zhch = self.__now_zhicheng[-1]
+
             if numtp == 0:
                 return buy 
 
-            pdbars = len(self.__desdate_list[-1])
-            upbars = len(self.__incdate_list[-1])
+            # 支撑线周期级别在突破线之上
+            valid_1 = 1
+            set_tupo = set(self.__hist_tupo[-1])
+            for tp in self.__hist_tupo[-1]:
+                if now_zhch[0] > tp:
+                    valid_1 = 0
+                    break
 
-            now_zuli = self.__now_zuli[-1]
-            now_zhch = self.__now_zhicheng[-1]
-            if numtp > 3:
-                nzuli = -1            
-                if now_zuli[0] != -1:
-                    mapindex  = self.__mapma[now_zuli[0]]
-                    nzuli     = madirect[-1][mapindex]
-                else:
-                    nzuli = 0
-                if nzuli >= 0 or (nzuli < 0 and abs(nzuli) < 0.0005) \
-                        and now_zhch[0] != -1:
-                    # print dateTime, self.__hist_zhicheng[-2]
-                    # print dateTime, now_zuli, now_zhch, self.__hist_tupo[-1]
-                    buy = 1
+            # 距离最近的突破线如果在bar之上，不能拐头朝下
+            valid_2 = 1
+            closest = (-1, -1, -1024, 1) 
+            for tp in self.__hist_tupo[-1]:
+                ind = self.__mapma[tp]
+                pos = maposition[-1][ind] 
+                if pos < -0.03 and pos > closest[2]:
+                    closest = (tp, ind, pos, madirect[-1][ind])
+            if closest[-1] < -0.005:
+                valid_2 = 0
+            
+            # 突破必须3根以上均线或者1根但周期大于等于5
+            valid_3 = 0
+            if numtp >= 3:
+                valid_3 = 1
+            else:
+                if numtp == 1 and (5 in set_tupo):
+                    valid_3 = 1
+
+            # 当前无阻力线或者阻力线的下行趋势较小
+            valid_4 = 0
+            nzuli = 0            
+            if now_zuli[0] != -1:
+                mapindex = self.__mapma[now_zuli[0]]
+                nzuli    = madirect[-1][mapindex]
+            if nzuli is not None \
+                    and (nzuli >= 0 or (nzuli < 0 and abs(nzuli) < 0.0005)) \
+                    and now_zhch[0] != -1:
+                valid_4 = 1
+
+            # 前升浪的突破线皆拐头朝上
+            valid_5 = 1
+            for tp in self.__hist_tupo[-1]:
+                ind    = self.__mapma[tp]
+                direct = madirect[-1][ind] 
+                if direct is None:
+                    valid_5 = 0
+                    continue
+                if direct < -0.01:
+                    valid_5 = -1 
+                    break
+                if direct < -0.0005:
+                    valid_5 = 0
+                    break
+
+            valid = [valid_1, valid_2, valid_3, valid_4, valid_5]
+            # print dateTime, now_zuli, nzuli, now_zhch, self.__hist_tupo[-1], upbars, valid, closest
+            if sum(valid) >= 4:
+                buy = 1
         # 周级别买点
         if self.__period == 'week' and qshist == 1 and lret == 1:
             upbars = len(self.__now_zuli)
