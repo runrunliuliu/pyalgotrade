@@ -41,6 +41,7 @@ setup(
         'pyalgotrade.feed',
         'pyalgotrade.optimizer',
         'pyalgotrade.plots',
+        'pyalgotrade.signals',
         'pyalgotrade.stratanalyzer',
         'pyalgotrade.strategy',
         'pyalgotrade.talibext',
