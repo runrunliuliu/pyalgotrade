@@ -13,6 +13,7 @@ from utils import utils
 from collections import OrderedDict
 import numpy as np
 import pyalgotrade.talibext.indicator as ta
+from pyalgotrade.signals import mavalid 
 
 
 class MacdSegEventWindow(technical.EventWindow):
@@ -733,7 +734,7 @@ class MacdSegEventWindow(technical.EventWindow):
             # 长周期指标
             (lret, sarval) = self.LongPeriod(dateTime, value)
             
-            buy = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval)
+            buy = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval, value)
             self.__NBS = (buy, self.__indicator.getMAscore()[-1][0])
 
             # Keep Record
@@ -907,7 +908,7 @@ class MacdSegEventWindow(technical.EventWindow):
     def xtInnerPeek(self, dateTime):
         print 'InnerPeek:', dateTime, self.__poshist
 
-    def NBuySignal(self, dateTime, qsgd, qshist, lret, sarval):
+    def NBuySignal(self, dateTime, qsgd, qshist, lret, sarval, value):
         madirect   = self.__indicator.getMAdirect() 
         maposition = self.__indicator.getMAPosition() 
         buy = 0
@@ -918,72 +919,30 @@ class MacdSegEventWindow(technical.EventWindow):
                 and len(self.__incdate_list) > 1 \
                 and qsgd is not None and qshist == 1:
 
-            valid    = []
-            numtp    = len(self.__hist_tupo[-1])
+            tupo     = self.__hist_tupo
+            zhicheng = self.__now_zhicheng
+            zuli     = self.__now_zuli
+            upclose  = self.__incclose_list
+            downlow  = self.__desclose_list 
+
+            numtp    = len(tupo[-1])
             pdbars   = len(self.__desdate_list[-1])
             upbars   = len(self.__incdate_list[-1])
-            now_zuli = self.__now_zuli[-1]
-            now_zhch = self.__now_zhicheng[-1]
 
             if numtp == 0:
                 return buy 
 
-            # 支撑线周期级别在突破线之上
-            valid_1 = 1
-            set_tupo = set(self.__hist_tupo[-1])
-            for tp in self.__hist_tupo[-1]:
-                if now_zhch[0] > tp:
-                    valid_1 = 0
-                    break
+            valid    = []
+            masigs  = mavalid.MAvalid()
+            valid_1 = masigs.SPtimeperiod(tupo, zhicheng) 
+            valid_2 = masigs.TPabovebar(tupo, maposition, madirect)
+            valid_3 = masigs.TPnumber(tupo)
+            valid_4 = masigs.ZLdirect(zuli, zhicheng, madirect)
+            valid_5 = masigs.PrevIncDirect(tupo, madirect)
+            valid_6 = masigs.GravityMoveUp(upclose, downlow, value)
 
-            # 距离最近的突破线如果在bar之上，不能拐头朝下
-            valid_2 = 1
-            closest = (-1, -1, -1024, 1) 
-            for tp in self.__hist_tupo[-1]:
-                ind = self.__mapma[tp]
-                pos = maposition[-1][ind] 
-                if pos < -0.03 and pos > closest[2]:
-                    closest = (tp, ind, pos, madirect[-1][ind])
-            if closest[-1] < -0.005:
-                valid_2 = 0
-            
-            # 突破必须3根以上均线或者1根但周期大于等于5
-            valid_3 = 0
-            if numtp >= 3:
-                valid_3 = 1
-            else:
-                if numtp == 1 and (5 in set_tupo):
-                    valid_3 = 1
-
-            # 当前无阻力线或者阻力线的下行趋势较小
-            valid_4 = 0
-            nzuli = 0            
-            if now_zuli[0] != -1:
-                mapindex = self.__mapma[now_zuli[0]]
-                nzuli    = madirect[-1][mapindex]
-            if nzuli is not None \
-                    and (nzuli >= 0 or (nzuli < 0 and abs(nzuli) < 0.0005)) \
-                    and now_zhch[0] != -1:
-                valid_4 = 1
-
-            # 前升浪的突破线皆拐头朝上
-            valid_5 = 1
-            for tp in self.__hist_tupo[-1]:
-                ind    = self.__mapma[tp]
-                direct = madirect[-1][ind] 
-                if direct is None:
-                    valid_5 = 0
-                    continue
-                if direct < -0.01:
-                    valid_5 = -1 
-                    break
-                if direct < -0.0005:
-                    valid_5 = 0
-                    break
-
-            valid = [valid_1, valid_2, valid_3, valid_4, valid_5]
-            # print dateTime, now_zuli, nzuli, now_zhch, self.__hist_tupo[-1], upbars, valid, closest
-            if sum(valid) >= 4:
+            valid = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6]
+            if sum(valid) >= 5:
                 buy = 1
         # 周级别买点
         if self.__period == 'week' and qshist == 1 and lret == 1:
