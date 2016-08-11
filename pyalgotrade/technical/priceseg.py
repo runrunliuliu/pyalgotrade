@@ -943,7 +943,8 @@ class MacdSegEventWindow(technical.EventWindow):
             valid_6 = masigs.GravityMoveUp(upclose, uphigh, downlow, value)
 
             valid = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6]
-            if sum(valid) >= 5:
+            if sum(valid) >= 5 and (upbars + pdbars) >= 7:
+                # print dateTime, valid, upbars, pdbars, zuli
                 buy = 1
         # 周级别买点
         if self.__period == 'week' and qshist == 1 and lret == 1:
