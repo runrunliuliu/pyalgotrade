@@ -88,13 +88,14 @@ class MAvalid(object):
     # 重心必须上移:
     # 1. 下降浪的低点高于上升浪的起点
     # 2. 突破点的收盘价高于上升浪的终点 
-    def GravityMoveUp(self, upclose, downlow, bar):
+    def GravityMoveUp(self, upclose, uphigh, downlow, bar):
         valid_6 = 0
         dnlow0 = np.min(downlow[-1])
         dnlow1 = np.min(downlow[-2])
         upclose1 = np.max(upclose[-1])
+        uphigh1  = np.max(uphigh[-1])
 
-        if dnlow1 > dnlow0 or bar.getClose() < upclose1:
+        if dnlow1 > dnlow0 or uphigh1 > bar.getHigh() or bar.getClose() < upclose1:
             valid_6 = -1
             return valid_6
         if dnlow1 < dnlow0 and bar.getClose() > upclose1:
