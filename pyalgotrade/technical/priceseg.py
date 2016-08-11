@@ -923,6 +923,7 @@ class MacdSegEventWindow(technical.EventWindow):
             zhicheng = self.__now_zhicheng
             zuli     = self.__now_zuli
             upclose  = self.__incclose_list
+            uphigh   = self.__inchigh_list
             downlow  = self.__desclose_list 
 
             numtp    = len(tupo[-1])
@@ -939,7 +940,7 @@ class MacdSegEventWindow(technical.EventWindow):
             valid_3 = masigs.TPnumber(tupo)
             valid_4 = masigs.ZLdirect(zuli, zhicheng, madirect)
             valid_5 = masigs.PrevIncDirect(tupo, madirect)
-            valid_6 = masigs.GravityMoveUp(upclose, downlow, value)
+            valid_6 = masigs.GravityMoveUp(upclose, uphigh, downlow, value)
 
             valid = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6]
             if sum(valid) >= 5:
