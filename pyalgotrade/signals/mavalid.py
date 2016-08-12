@@ -102,4 +102,22 @@ class MAvalid(object):
             valid_6 = 1
 
         return valid_6
+
+    # 均线的平滑度
+    # ma5, ma10, ma20的均线拐头力度
+    # ma5, ma10, ma20的均线间距
+    def SmoothMA(self, dateTime, madirect, maposition):
+        valid_7 = -1
+        mp  = maposition[-1]
+        md0 = madirect[-1]
+
+        mpdiff1 = mp[1] - mp[0]
+        mpdiff2 = mp[2] - mp[1]
+        mprate  = mpdiff1 / mpdiff2
+
+        if mpdiff1 > 0 and mpdiff2 > 0 \
+                and (mprate < 1.618 or mprate > 0.618) \
+                and (md0[0] > md0[2] and md0[1] > md0[2]):
+            valid_7 = 1
+        return valid_7
 # 
