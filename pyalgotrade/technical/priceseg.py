@@ -922,9 +922,11 @@ class MacdSegEventWindow(technical.EventWindow):
             tupo     = self.__hist_tupo
             zhicheng = self.__now_zhicheng
             zuli     = self.__now_zuli
+            nowtp    = self.__now_tupo
             upclose  = self.__incclose_list
             uphigh   = self.__inchigh_list
-            downlow  = self.__desclose_list 
+            downlow  = self.__deslow_list 
+            downhigh = self.__deshigh_list 
 
             numtp    = len(tupo[-1])
             pdbars   = len(self.__desdate_list[-1])
@@ -940,10 +942,11 @@ class MacdSegEventWindow(technical.EventWindow):
             valid_3 = masigs.TPnumber(tupo)
             valid_4 = masigs.ZLdirect(zuli, zhicheng, madirect)
             valid_5 = masigs.PrevIncDirect(tupo, madirect)
-            valid_6 = masigs.GravityMoveUp(upclose, uphigh, downlow, value)
+            valid_6 = masigs.GravityMoveUp(dateTime, upclose, uphigh, downlow, downhigh, value)
             valid_7 = masigs.SmoothMA(dateTime, madirect, maposition)
+            valid_8 = masigs.NowTuPo(dateTime, nowtp, madirect)
 
-            valid = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_7]
+            valid = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_7, valid_8]
             if sum(valid) >= 6 and (upbars + pdbars) >= 7 and upbars >= 3:
                 # print dateTime, valid, upbars, pdbars, zuli
                 buy = 1
@@ -1008,6 +1011,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__hist_zhicheng.append(self.__now_zhicheng)
             self.__hist_zuli.append(self.__now_zuli)
 
+            self.__now_tupo  = []
             self.__now_zhicheng = []
             self.__now_zuli     = []
             if qs == -1:
@@ -1026,11 +1030,11 @@ class MacdSegEventWindow(technical.EventWindow):
                 (tp, zl, zc) = self.MASumPosition(dateTime, self.__incdate, self.__inchigh, self.__incclose, self.__inclow, 1) 
                 self.__hist_tupo.append(tp)
 
-                (zl, zc) = self.MAIterPosition(dateTime, value)
+                (zl, zc, tupo) = self.MAIterPosition(dateTime, value)
                 self.__now_zhicheng.append(zc)
                 self.__now_zuli.append(zl)
+                self.__now_tupo.append(tupo)
 
-                self.__now_tupo  = []
                 self.__inchist   = []
                 self.__incdate   = []
                 self.__inchigh   = []
@@ -1051,9 +1055,10 @@ class MacdSegEventWindow(technical.EventWindow):
 
                 (tp, zl, zc) = self.MASumPosition(dateTime, self.__desdate, self.__deshigh, self.__desclose, self.__deslow, -1) 
 
-                (zl, zc) = self.MAIterPosition(dateTime, value)
+                (zl, zc, tupo) = self.MAIterPosition(dateTime, value)
                 self.__now_zhicheng.append(zc)
                 self.__now_zuli.append(zl)
+                self.__now_tupo.append(tupo)
 
                 self.__deshist  = []
                 self.__desdate  = []
@@ -1061,9 +1066,10 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__deslow   = []
                 self.__desclose = []
         else:
-            (zl, zc) = self.MAIterPosition(dateTime, value)
+            (zl, zc, tupo) = self.MAIterPosition(dateTime, value)
             self.__now_zhicheng.append(zc)
             self.__now_zuli.append(zl)
+            self.__now_tupo.append(tupo)
 
         diff = 0.01
         if self.__period == 'month':
@@ -1119,7 +1125,9 @@ class MacdSegEventWindow(technical.EventWindow):
         # 压力MA、支撑MA
         ZULI     = (-1, +1024) 
         ZHICHENG = (-1, -1024)
+        TUPO     = (-1, -1024)
        
+        opens = value.getOpen()
         high  = value.getHigh()
         low   = value.getLow()
         close = value.getClose()
@@ -1133,7 +1141,10 @@ class MacdSegEventWindow(technical.EventWindow):
                         or ((low - mas[w]) / low > 0 and (low - mas[w]) / low < zchold)):
                     if mas[w] > ZHICHENG[1]:
                         ZHICHENG = (w, mas[w])
-        return (ZULI, ZHICHENG)
+                if opens < mas[w] and close > mas[w] and mas[w] > TUPO[1]:
+                    TUPO = (w, mas[w])
+
+        return (ZULI, ZHICHENG, TUPO)
            
     def MASumPosition(self, dateTime, qsdt, qshigh, qsclose, qslow, qs):
         high_date      = qsdt[np.argmax(qshigh)]
