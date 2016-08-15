@@ -88,17 +88,19 @@ class MAvalid(object):
     # 重心必须上移:
     # 1. 下降浪的低点高于上升浪的起点
     # 2. 突破点的收盘价高于上升浪的终点 
-    def GravityMoveUp(self, upclose, uphigh, downlow, bar):
+    def GravityMoveUp(self, dateTime, upclose, uphigh, downlow, downhigh, bar):
         valid_6 = 0
-        dnlow0 = np.min(downlow[-1])
-        dnlow1 = np.min(downlow[-2])
+        dnhigh0 = np.max(downhigh[-1])
+        dnlow0  = np.min(downlow[-1])
+        dnlow1  = np.min(downlow[-2])
         upclose1 = np.max(upclose[-1])
         uphigh1  = np.max(uphigh[-1])
 
-        if dnlow1 > dnlow0 or uphigh1 > bar.getHigh() or bar.getClose() < upclose1:
+        if dnlow1 > dnlow0 or uphigh1 > bar.getHigh() or bar.getClose() <= upclose1 \
+                or bar.getClose() <= dnhigh0:
             valid_6 = -1
             return valid_6
-        if dnlow1 < dnlow0 and bar.getClose() > upclose1:
+        if dnlow1 < dnlow0 and bar.getClose() > uphigh1:
             valid_6 = 1
 
         return valid_6
@@ -120,4 +122,15 @@ class MAvalid(object):
                 and (md0[0] > md0[2] and md0[1] > md0[2]):
             valid_7 = 1
         return valid_7
+
+    # 过滤信号，如果突破下行趋势的60，90，120，250
+    # 放弃买入
+    def NowTuPo(self, dateTime, ntp, madirect):
+        valid_8 = 0
+        tp = ntp[-1]
+        if tp[0] >= 60:
+            ind = self.__mapma[tp[0]]
+            if madirect[-1][ind] < 0:
+                valid_8 = -1
+        return valid_8
 # 
