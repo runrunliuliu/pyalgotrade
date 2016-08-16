@@ -946,10 +946,10 @@ class MacdSegEventWindow(technical.EventWindow):
             valid_7 = masigs.SmoothMA(dateTime, madirect, maposition)
             valid_8 = masigs.NowTuPo(dateTime, nowtp, madirect)
 
-            # valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_7, valid_8]
-            # nvalid = 6
-            valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_8]
-            nvalid = 5 
+            valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_7, valid_8]
+            nvalid = 6
+            # valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_8]
+            # nvalid = 5 
 
             if sum(valid) >= nvalid and (upbars + pdbars) >= 7 \
                     and upbars >= 3 \
