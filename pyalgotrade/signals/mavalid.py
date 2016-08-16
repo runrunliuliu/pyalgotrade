@@ -40,14 +40,16 @@ class MAvalid(object):
     
     # 突破必须3根以上均线或者1根但周期大于等于5
     def TPnumber(self, tupo):
-        numtp    = len(tupo[-1])
-        set_tupo = set(tupo[-1])
-        valid_3 = 0
-        if numtp >= 3:
-            valid_3 = 1
-        else:
-            if numtp == 1 and (5 in set_tupo):
-                valid_3 = 1
+        valid_3  = 1 
+        # numtp    = len(tupo[-1])
+        # set_tupo = set(tupo[-1])
+        # if numtp >= 3:
+        #     valid_3 = 1
+        # else:
+        #     if numtp == 1 and (5 in set_tupo):
+        #         valid_3 = 1
+        #     if numtp == 0:
+        #         valid_3 = 1
         return valid_3
 
     # 当前无阻力线或者阻力线的下行趋势较小
