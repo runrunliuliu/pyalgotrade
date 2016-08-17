@@ -914,7 +914,6 @@ class MacdSegEventWindow(technical.EventWindow):
         buy = 0
         # 天级别买点
         if self.__period == 'day' \
-                and len(self.__hist_tupo) > 0 \
                 and len(self.__desdate_list) > 0 \
                 and len(self.__incdate_list) > 1 \
                 and qsgd is not None and qshist == 1:
@@ -928,13 +927,9 @@ class MacdSegEventWindow(technical.EventWindow):
             downlow  = self.__deslow_list 
             downhigh = self.__deshigh_list 
 
-            numtp    = len(tupo[-1])
             pdbars   = len(self.__desdate_list[-1])
             upbars   = len(self.__incdate_list[-1])
-
-            if numtp == 0:
-                return buy 
-
+            
             valid    = []
             masigs  = mavalid.MAvalid()
             valid_1 = masigs.SPtimeperiod(tupo, zhicheng) 
@@ -945,12 +940,13 @@ class MacdSegEventWindow(technical.EventWindow):
             valid_6 = masigs.GravityMoveUp(dateTime, upclose, uphigh, downlow, downhigh, value)
             valid_7 = masigs.SmoothMA(dateTime, madirect, maposition)
             valid_8 = masigs.NowTuPo(dateTime, nowtp, madirect)
+            valid_9 = masigs.MABULL(dateTime, madirect, maposition)
 
-            valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_7, valid_8]
+            valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_7, valid_8, valid_9]
             nvalid = 6
             # valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_8]
             # nvalid = 5 
-
+            # print dateTime, valid, upbars, pdbars, zuli, zhicheng
             if sum(valid) >= nvalid and (upbars + pdbars) >= 7 \
                     and upbars >= 3 \
                     and (sarval[1] == 1 and sarval[2] == 1):
