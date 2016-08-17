@@ -71,6 +71,10 @@ class MAvalid(object):
         valid_5    = 1
         arr_direct = []
         worse = 0
+        # 突破线为空
+        if len(tupo[-1]) == 0:
+            return valid_5
+
         for tp in tupo[-1]:
             ind = self.__mapma[tp]
             d0  = madirect[-1][ind]
@@ -95,14 +99,18 @@ class MAvalid(object):
         dnhigh0 = np.max(downhigh[-1])
         dnlow0  = np.min(downlow[-1])
         dnlow1  = np.min(downlow[-2])
-        upclose1 = np.max(upclose[-1])
-        uphigh1  = np.max(uphigh[-1])
 
-        if dnlow1 > dnlow0 or uphigh1 > bar.getHigh() or bar.getClose() <= upclose1 \
+        upclose0 = np.max(upclose[-1])
+        uphigh0  = np.max(uphigh[-1])
+        uphigh1  = np.max(uphigh[-2])
+
+        if (dnlow1 > dnlow0 and uphigh1 > uphigh0)\
+                or bar.getHigh() < uphigh0 \
+                or bar.getClose() <= upclose0 \
                 or bar.getClose() <= dnhigh0:
             valid_6 = -1
             return valid_6
-        if dnlow1 < dnlow0 and bar.getClose() > uphigh1:
+        if dnlow1 < dnlow0 and bar.getClose() > uphigh0:
             valid_6 = 1
 
         return valid_6
@@ -135,4 +143,29 @@ class MAvalid(object):
             if madirect[-1][ind] < 0:
                 valid_8 = -1
         return valid_8
+
+    # 均线多头排列
+    def MABULL(self, dateTime, madirect, maposition):
+        valid_9 = 0
+        # 均线方向
+        np_mad = np.asarray(madirect[-1])
+        gtz = np.where(np_mad > 0)
+        if len(gtz[0]) == len(np_mad):
+            if np.max(np_mad[6:8]) > 0.001 and np.min(np_mad[0:6]) > 0.001:
+                valid_9 = valid_9 + 1
+        else:
+            if np.min(np_mad) < -0.002:
+                valid_9 = valid_9 - 1
+
+        # 均线位置
+        np_map = np.asarray(maposition[-1])
+        diff = [] 
+        if np_map[4] is not None:
+            diff = np_map[0:4] - np_map[1:5]
+            if np.max(diff) > 0:
+                valid_9 = valid_9 - 1
+            else:
+                valid_9 = valid_9 + 1
+
+        return valid_9
 # 
