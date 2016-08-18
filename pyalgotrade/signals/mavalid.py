@@ -168,16 +168,19 @@ class MAvalid(object):
                 valid_9 = valid_9 + 1
         return valid_9
 
-    # 调整期间MA5不能新高
+    # 调整期间MA5-MA10间距必须缩小
     def MA5Down(self, dateTime, downmas):
         valid_10 = 0
         if len(downmas) > 1: 
-            start_ma5 = downmas[-1][0][5]
-            end_ma5   = downmas[-1][-1][5]
-            ratio = end_ma5 / start_ma5
-            if ratio > 1.001:
+            d1 = downmas[-1][0][5] - downmas[-1][0][10]
+            d2 = downmas[-1][-1][5] - downmas[-1][-1][10]
+            if d2 / d1 < 0.168:
+                vaild_10 = 1 
+            if d2 / d1 > 1.168:
+                valid_10 = -4
+            elif d2 / d1 > 1.0:
+                valid_10 = -2
+            elif d2 / d1 > 0.8:
                 valid_10 = -1
-            else:
-                valid_10 = 0
         return valid_10
 # 
