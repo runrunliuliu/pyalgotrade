@@ -920,6 +920,7 @@ class MacdSegEventWindow(technical.EventWindow):
         if self.__period == 'day' \
                 and len(self.__desdate_list) > 0 \
                 and len(self.__incdate_list) > 1 \
+                and self.__macd.getHistogram()[-1] > 0 \
                 and qsgd is not None and qshist == 1:
 
             tupo     = self.__hist_tupo
