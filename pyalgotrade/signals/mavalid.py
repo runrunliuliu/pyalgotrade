@@ -154,7 +154,7 @@ class MAvalid(object):
             if np.max(np_mad[6:8]) > 0.001 and np.min(np_mad[0:6]) > 0.001:
                 valid_9 = valid_9 + 1
         else:
-            if np.min(np_mad) < -0.002:
+            if np.min(np_mad) < -0.002 or np_mad[-1] < 0:
                 valid_9 = valid_9 - 1
 
         # 均线位置
@@ -166,6 +166,18 @@ class MAvalid(object):
                 valid_9 = valid_9 - 1
             else:
                 valid_9 = valid_9 + 1
-
         return valid_9
+
+    # 调整期间MA5不能新高
+    def MA5Down(self, dateTime, downmas):
+        valid_10 = 0
+        if len(downmas) > 1: 
+            start_ma5 = downmas[-1][0][5]
+            end_ma5   = downmas[-1][-1][5]
+            ratio = end_ma5 / start_ma5
+            if ratio > 1.001:
+                valid_10 = -1
+            else:
+                valid_10 = 0
+        return valid_10
 # 
