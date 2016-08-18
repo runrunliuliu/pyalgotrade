@@ -104,22 +104,26 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__inchigh  = []
         self.__inclow   = []
         self.__incclose = []
+        self.__incmas   = []
         self.__inchist_list = collections.ListDeque(5)
         self.__incdate_list = collections.ListDeque(5)
         self.__inchigh_list = collections.ListDeque(5)
         self.__inclow_list  = collections.ListDeque(5)
         self.__incclose_list  = collections.ListDeque(5)
+        self.__incmas_list    = collections.ListDeque(5)
 
         self.__deshist  = []
         self.__desdate  = []
         self.__deshigh  = []
         self.__deslow   = []
         self.__desclose = []
+        self.__desmas   = []
         self.__deshist_list  = collections.ListDeque(5)
         self.__desdate_list  = collections.ListDeque(5)
         self.__deshigh_list  = collections.ListDeque(5)
         self.__deslow_list   = collections.ListDeque(5)
         self.__desclose_list = collections.ListDeque(5)
+        self.__desmas_list   = collections.ListDeque(5)
         
         self.__posdate  = []
         self.__poshist  = []
@@ -926,28 +930,33 @@ class MacdSegEventWindow(technical.EventWindow):
             uphigh   = self.__inchigh_list
             downlow  = self.__deslow_list 
             downhigh = self.__deshigh_list 
+            downmas  = self.__desmas_list
 
             pdbars   = len(self.__desdate_list[-1])
             upbars   = len(self.__incdate_list[-1])
             
             valid    = []
             masigs  = mavalid.MAvalid()
-            valid_1 = masigs.SPtimeperiod(tupo, zhicheng) 
-            valid_2 = masigs.TPabovebar(tupo, maposition, madirect)
-            valid_3 = masigs.TPnumber(tupo)
-            valid_4 = masigs.ZLdirect(zuli, zhicheng, madirect)
-            valid_5 = masigs.PrevIncDirect(tupo, madirect)
-            valid_6 = masigs.GravityMoveUp(dateTime, upclose, uphigh, downlow, downhigh, value)
-            valid_7 = masigs.SmoothMA(dateTime, madirect, maposition)
-            valid_8 = masigs.NowTuPo(dateTime, nowtp, madirect)
-            valid_9 = masigs.MABULL(dateTime, madirect, maposition)
 
-            valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_7, valid_8, valid_9]
+            valid_1  = masigs.SPtimeperiod(tupo, zhicheng) 
+            valid_2  = masigs.TPabovebar(tupo, maposition, madirect)
+            valid_3  = masigs.TPnumber(tupo)
+            valid_4  = masigs.ZLdirect(zuli, zhicheng, madirect)
+            valid_5  = masigs.PrevIncDirect(tupo, madirect)
+            valid_6  = masigs.GravityMoveUp(dateTime, upclose, uphigh, downlow, downhigh, value)
+            valid_7  = masigs.SmoothMA(dateTime, madirect, maposition)
+            valid_8  = masigs.NowTuPo(dateTime, nowtp, madirect)
+            valid_9  = masigs.MABULL(dateTime, madirect, maposition)
+            valid_10 = masigs.MA5Down(dateTime, downmas)
+
+            valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, \
+                      valid_6, valid_7, valid_8, valid_9, valid_10]
             nvalid = 6
             # valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_8]
             # nvalid = 5 
             # print dateTime, valid, upbars, pdbars, zuli, zhicheng
             if sum(valid) >= nvalid and (upbars + pdbars) >= 7 \
+                    and upbars >= 3 \
                     and (sarval[1] == 1 and sarval[2] == 1):
                 # print dateTime, valid, upbars, pdbars, zuli
                 buy = 1
@@ -996,6 +1005,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__deshigh.append(value.getHigh())
                 self.__deslow.append(value.getLow())
                 self.__desclose.append(value.getClose())
+                self.__desmas.append(self.__mas)
             else:
                 qs = 1
                 self.__incdate.append(dateTime)
@@ -1003,6 +1013,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__inchigh.append(value.getHigh())
                 self.__inclow.append(value.getLow())
                 self.__incclose.append(value.getClose())
+                self.__incmas.append(self.__mas)
             if self.__preqs is None:
                 self.__preqs = qs
             else:
@@ -1013,21 +1024,24 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__hist_zhicheng.append(self.__now_zhicheng)
             self.__hist_zuli.append(self.__now_zuli)
 
-            self.__now_tupo  = []
+            self.__now_tupo     = []
             self.__now_zhicheng = []
             self.__now_zuli     = []
+
             if qs == -1:
                 self.__desdate  = [self.__incdate[-1]] + self.__desdate
                 self.__deshist  = [self.__prehist] + self.__deshist
                 self.__deshigh  = [self.__inchigh[-1]] + self.__deshigh
                 self.__deslow   = [self.__inclow[-1]] + self.__deslow
                 self.__desclose = [self.__incclose[-1]] + self.__desclose
+                self.__desmas   = [self.__incmas[-1]] + self.__desmas
 
                 self.__inchist_list.append(self.__inchist)
                 self.__incdate_list.append(self.__incdate)
                 self.__inchigh_list.append(self.__inchigh)
                 self.__inclow_list.append(self.__inclow)
                 self.__incclose_list.append(self.__incclose)
+                self.__incmas_list.append(self.__incmas)
 
                 (tp, zl, zc) = self.MASumPosition(dateTime, self.__incdate, self.__inchigh, self.__incclose, self.__inclow, 1) 
                 self.__hist_tupo.append(tp)
@@ -1042,18 +1056,21 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__inchigh   = []
                 self.__inclow    = []
                 self.__incclose  = []
+                self.__incmas    = []
             if qs == 1:
                 self.__incdate  = [self.__desdate[-1]] + self.__incdate
                 self.__inchist  = [self.__prehist] + self.__inchist
                 self.__inchigh  = [self.__deshigh[-1]] + self.__inchigh
                 self.__inclow   = [self.__deslow[-1]] + self.__inclow
                 self.__incclose = [self.__desclose[-1]] + self.__incclose
+                self.__incmas   = [self.__desmas[-1]] + self.__incmas
 
                 self.__deshist_list.append(self.__deshist)
                 self.__desdate_list.append(self.__desdate)
                 self.__deshigh_list.append(self.__deshigh)
                 self.__deslow_list.append(self.__deslow)
                 self.__desclose_list.append(self.__desclose)
+                self.__desmas_list.append(self.__desmas)
 
                 (tp, zl, zc) = self.MASumPosition(dateTime, self.__desdate, self.__deshigh, self.__desclose, self.__deslow, -1) 
 
@@ -1067,6 +1084,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__deshigh  = []
                 self.__deslow   = []
                 self.__desclose = []
+                self.__desmas   = []
         else:
             (zl, zc, tupo) = self.MAIterPosition(dateTime, value)
             self.__now_zhicheng.append(zc)
