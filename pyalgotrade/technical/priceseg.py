@@ -956,7 +956,7 @@ class MacdSegEventWindow(technical.EventWindow):
             # valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_8]
             # nvalid = 5 
             # print dateTime, valid, upbars, pdbars, zuli, zhicheng
-            if sum(valid) >= nvalid and (upbars + pdbars) >= 7 \
+            if sum(valid) >= nvalid and (upbars + pdbars) >= 13 \
                     and upbars >= 3 \
                     and (sarval[1] == 1 and sarval[2] == 1):
                 # print dateTime, valid, upbars, pdbars, zuli
