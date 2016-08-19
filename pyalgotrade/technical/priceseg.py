@@ -14,6 +14,7 @@ from collections import OrderedDict
 import numpy as np
 import pyalgotrade.talibext.indicator as ta
 from pyalgotrade.signals import mavalid 
+from pyalgotrade.signals import macdvalid 
 
 
 class MacdSegEventWindow(technical.EventWindow):
@@ -697,7 +698,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
 
             # HIST趋势判定及与均线的关系
-            (qsgd, qshist) = self.qsHistMAs(dateTime, hist, value)
+            (qsgd, qshist, tprice) = self.qsHistMAs(dateTime, hist, value)
 
             # 颈线形态
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
@@ -708,6 +709,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__cxshort = self.__fts[3]
             mafeature      = self.__fts[4]
             klines         = self.__fts[5]
+            magd           = self.__fts[9]
             nDIF = self.__macd[-1] 
             yDIF = self.__macd[-2]
             nDEA = self.__macd.getSignal()[-1]
@@ -721,7 +723,12 @@ class MacdSegEventWindow(technical.EventWindow):
             prext = 1024 
             if len(self.__qsxt) > 1:
                 prext = self.__qsxt[-2]
-            
+ 
+            # 长周期指标
+            (lret, sarval) = self.LongPeriod(dateTime, value)
+            (buy, tprice, maval) = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval, value, tprice, magd)
+            self.__NBS = (buy, self.__indicator.getMAscore()[-1][0], tprice, maval)
+           
             # 非上升趋势的跳空低开,视为趋势的恶化，空仓
             tkdk = 1024
             tkdf = 1024
@@ -731,15 +738,9 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
-                (tkdk,tkdf)
+                (tkdk,tkdf) + (maval,)
 
             self.filter4Show(dateTime, twoline, value)
-
-            # 长周期指标
-            (lret, sarval) = self.LongPeriod(dateTime, value)
-            
-            buy = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval, value)
-            self.__NBS = (buy, self.__indicator.getMAscore()[-1][0])
 
             # Keep Record
             self.__prehist = hist 
@@ -912,7 +913,7 @@ class MacdSegEventWindow(technical.EventWindow):
     def xtInnerPeek(self, dateTime):
         print 'InnerPeek:', dateTime, self.__poshist
 
-    def NBuySignal(self, dateTime, qsgd, qshist, lret, sarval, value):
+    def NBuySignal(self, dateTime, qsgd, qshist, lret, sarval, value, tprice, magd):
         madirect   = self.__indicator.getMAdirect() 
         maposition = self.__indicator.getMAPosition() 
         buy = 0
@@ -927,6 +928,7 @@ class MacdSegEventWindow(technical.EventWindow):
             zhicheng = self.__now_zhicheng
             zuli     = self.__now_zuli
             nowtp    = self.__now_tupo
+            uphist   = self.__inchist_list
             upclose  = self.__incclose_list
             uphigh   = self.__inchigh_list
             downlow  = self.__deslow_list 
@@ -938,6 +940,9 @@ class MacdSegEventWindow(technical.EventWindow):
             
             valid    = []
             masigs  = mavalid.MAvalid()
+            macdsig = macdvalid.MACDvalid()
+
+            histratio = macdsig.HistRaTio(dateTime, self.__inchist, uphist)
 
             valid_1  = masigs.SPtimeperiod(tupo, zhicheng) 
             valid_2  = masigs.TPabovebar(tupo, maposition, madirect)
@@ -953,15 +958,14 @@ class MacdSegEventWindow(technical.EventWindow):
             valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, \
                       valid_6, valid_7, valid_8, valid_9, valid_10]
             nvalid = 6
-            # valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, valid_6, valid_8]
-            # nvalid = 5 
             # print dateTime, valid, upbars, pdbars, zuli, zhicheng
             if sum(valid) >= nvalid and (upbars + pdbars) >= 13 \
                     and upbars >= 3 \
+                    and histratio > 0 \
                     and (sarval[1] == 1 and sarval[2] == 1):
                 # print dateTime, valid, upbars, pdbars, zuli
+                # print dateTime, valid, tprice, magd[20]
                 buy = 1
-
         # 周级别买点
         if self.__period == 'week' and qshist == 1 and lret == 1:
             upbars = len(self.__now_zuli)
@@ -990,12 +994,15 @@ class MacdSegEventWindow(technical.EventWindow):
                 if madirect[-1][mapindex] is not None and madirect[-1][mapindex] > 0 \
                         and (madirect[-1][0] - madirect[-2][0]) > 0:
                     buy = 1
-        return buy
+
+        ma20val = 1024
+        if magd[20] is not None:
+            ma20val = magd[20]
+        return (buy, tprice, ma20val)
 
     def qsHistMAs(self, dateTime, hist, value):
         op = value.getOpen()
         cl = value.getClose()
-        hi = value.getHigh()
         qs = 0
         gd = None
         if self.__prehist is not None:
@@ -1092,43 +1099,28 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__now_zuli.append(zl)
             self.__now_tupo.append(tupo)
 
-        diff = 0.01
-        if self.__period == 'month':
-            diff = 0.03
-        if self.__period == 'week':
-            diff = 0.02
+        # 突破
+        TP = []
         if len(self.__inchist_list) > 1 and len(self.__deshist_list) > 1:
             peek1 = -1; peek2 = -1
             if len(self.__fpeek) > 1:
                 peek1 = self.__fpeek[0][1]
                 peek2 = self.__fpeek[1][1]
-
-            # valley1 = -1; valley2 = -1
-            # if len(self.__fvalley) > 1:
-            #     valley1 = self.__fvalley[0][1]
-            #     valley2 = self.__fvalley[1][1]
             def get(vals, func):
                 v1 = func(vals[-1])
                 v2 = func(vals[-2])
                 return (v1, v2)
             (ih1, ih2) = get(self.__inchigh_list, max)
             (dl1, dl2) = get(self.__deslow_list, min)
-            # 突破
-            TP = []
-            # 压制
-            YZ = 1024
-            # 阻力线
-            ZL = 1024
             for t in [ih1, ih2, peek1, peek2]:
                 if op < t and cl > t:
                     TP.append(t)
-                if ( (hi < t and (hi - t) / hi > -1 * diff) or hi > t) and cl < t and t < YZ:
-                    YZ = t
-                if (t - hi) / hi > diff and t < ZL:
-                    ZL = t 
-
-        return (gd, qs)
-        # print dateTime, TP, YZ, ZL 
+        tprice = -1
+        if len(TP) > 0:
+            tprice = np.max(TP)
+        else:
+            tprice = op 
+        return (gd, qs, tprice)
         # print dateTime, self.__inchigh_list[-1], self.__incdate_list[-1] 
  
     def MAIterPosition(self, dateTime, value):
