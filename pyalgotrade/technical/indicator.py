@@ -65,6 +65,7 @@ class IndEventWindow(technical.EventWindow):
        
         self.__mawins   = [5, 10, 20, 30, 60, 90, 120, 250]
         self.__maevents = {} 
+        self.__mafirstv  = {}
         self.__mavol5  = ma.SMAEventWindow(5)
         self.__mavol10 = ma.SMAEventWindow(10)
         self.__mas   = collections.ListDeque(10)
@@ -277,6 +278,10 @@ class IndEventWindow(technical.EventWindow):
         ma250 = worse(7, f1[7])
         print dateTime, ma60, ma90, ma120, ma250
 
+    # MA发生变化的临界值
+    def MAGD(self, dateTime):
+        return self.__mafirstv
+
     def MAfeature(self, bars, dateTime):
         nma_dict = self.__mas[-1]
         nowclose = bars[-1].getClose()
@@ -319,6 +324,9 @@ class IndEventWindow(technical.EventWindow):
         # dtboard
         dt = self.dtboard(dateTime, lb)
 
+        # Compute MA Guai DIAN
+        magd = self.MAGD(dateTime)
+
         fts.append(score)
         fts.append(roc)
         fts.append(dxshort)
@@ -328,6 +336,7 @@ class IndEventWindow(technical.EventWindow):
         fts.append(lb)
         fts.append(bp)
         fts.append(dt)
+        fts.append(magd)
         
         self.__pf1 = f1
         self.__pf2 = f2
@@ -393,6 +402,7 @@ class IndEventWindow(technical.EventWindow):
 
         for i in self.__mawins:
             self.__maevents[i].onNewValue(dateTime, value.getClose())
+            self.__mafirstv[i] = self.__maevents[i].getFirstValue()
 
         # Volume
         self.__mavol5.onNewValue(dateTime, value.getVolume())
