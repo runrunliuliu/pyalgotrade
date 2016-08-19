@@ -63,6 +63,12 @@ class SMAEventWindow(technical.EventWindow):
     def getValue(self):
         return self.__value
 
+    def getFirstValue(self):
+        ret = None
+        if self.windowFull():
+            ret = self.getValues()[0]
+        return ret
+
 
 class SMA(technical.EventBasedFilter):
     """Simple Moving Average filter.
