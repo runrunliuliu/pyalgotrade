@@ -53,6 +53,9 @@ class KLineEventWindow(technical.EventWindow):
         if jump < -0.005 and shying < 0.08 and xaying < 0.05 and diefu < -0.015:
             self.__tkdk = jump
             self.__tkdf = diefu
+
+    def CTXT(self, dateTime):
+        print 'ok'
         
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
