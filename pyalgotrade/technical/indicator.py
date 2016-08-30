@@ -385,15 +385,12 @@ class IndEventWindow(technical.EventWindow):
         return ret
 
     def dtboard(self, dateTime, lb):
-        ret = (0,)
+        ret = (None,) + lb
         keydate = dateTime.strftime('%Y-%m-%d')
         inst    = self.__inst[2:]
         (code,indval) = self.__dt.getMatch(inst, keydate)
-        if code is not None and indval['rate'] > 1.0 and \
-                lb[0] < 2.0 and \
-                lb[1] < 1.5 and lb[1] > 0 and \
-                lb[2] < 1.2 and lb[2] > 0:
-            ret = (1,)            
+        if code is not None:
+            ret = (indval['rate'], lb[0], lb[1], lb[2])
         return ret
 
     def onNewValue(self, dateTime, value):
