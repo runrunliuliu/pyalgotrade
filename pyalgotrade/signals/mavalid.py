@@ -104,6 +104,10 @@ class MAvalid(object):
         uphigh0  = np.max(uphigh[-1])
         uphigh1  = np.max(uphigh[-2])
 
+        if dnlow1 > dnlow0:
+            valid_6 = -10
+            return valid_6
+
         if (dnlow1 > dnlow0 and uphigh1 > uphigh0)\
                 or bar.getHigh() < uphigh0 \
                 or bar.getClose() <= upclose0 \
