@@ -174,13 +174,14 @@ class MAvalid(object):
         if len(downmas) > 1: 
             d1 = downmas[-1][0][5] - downmas[-1][0][10]
             d2 = downmas[-1][-1][5] - downmas[-1][-1][10]
-            if d2 / d1 < 0.168:
-                vaild_10 = 1 
-            if d2 / d1 > 1.168:
+            rate = d2 / d1
+            if rate < 0.168:
+                valid_10 = 1 
+            if rate > 1.168:
                 valid_10 = -4
-            elif d2 / d1 > 1.0:
+            if rate > 1.0 and rate < 1.168:
                 valid_10 = -2
-            elif d2 / d1 > 0.8:
+            if rate > 0.8 and rate < 1.0:
                 valid_10 = -1
         return valid_10
 # 
