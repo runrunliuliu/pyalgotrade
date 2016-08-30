@@ -737,7 +737,7 @@ class MacdSegEventWindow(technical.EventWindow):
             (buy, tprice, maval) = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval, value, tprice, magd)
            
             dtsignal = self.DTsignal(dateTime, value, self.__fts[0][0], self.__fts[8])
-            if dtsignal is not None:
+            if dtsignal is not None and dtsignal[1] > 0:
                 self.__NBS = (buy + dtsignal[1] * 10, dtsignal[0], tprice, maval)
 
             # 波段点
