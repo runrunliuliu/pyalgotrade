@@ -15,7 +15,7 @@ class DTvalid(object):
         if rate is None:
             flag = 3
         else:
-            if rate < 1.5 and rate > 0.80:
+            if rate < 2.0 and rate > 0.80:
                 flag = 1
             else:
                 flag = 2
@@ -47,13 +47,18 @@ class DTvalid(object):
         (rdesmax, rdesmed, desmean) = stats(desvols, nvol)
 
         rmax = min([rincmax, rdesmax])
+        
+        if len(incvols) > len(desvols):
+            incmean = np.mean(incvols[-1 * len(desvols):])
+
+        # print dateTime, incmean, desmean, lb, rmax, rincmax, rdesmax
 
         if incmean / desmean < 1.0:
             return flag
 
         if lb < 1.0 and rmax < 1.1:
             flag = 1
-        if lb > 1.0 and lb < 3.0 and rmax < 1.1:
+        if lb > 1.0 and lb < 3.0 and rmax < 2.0:
             flag = 2
         if lb > 3.0 and lb20 > 3.0 and lb5 > 2.0 and rmax > 3.0:
             flag = 3
@@ -64,7 +69,8 @@ class DTvalid(object):
         ret = 0
         mflag = self.money(dt[0])
         vflag = self.volume(dateTime, dt, incvols, desvols)
-
+        
+        # print dateTime, dt[0], mflag, vflag
         if mflag == 1 and vflag == 1:
             ret = 11
         if mflag == 1 and vflag == 2:
