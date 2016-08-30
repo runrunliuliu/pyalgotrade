@@ -15,6 +15,8 @@ import numpy as np
 import pyalgotrade.talibext.indicator as ta
 from pyalgotrade.signals import mavalid 
 from pyalgotrade.signals import macdvalid 
+from pyalgotrade.signals import bdvalid 
+from pyalgotrade.signals import dtvalid 
 
 
 class MacdSegEventWindow(technical.EventWindow):
@@ -96,16 +98,21 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__now_tupo     = []
         self.__now_zuli     = []
         
+        self.__tupo_list  = collections.ListDeque(5)
+        self.__tupo = []
+
         self.__hist_zhicheng = collections.ListDeque(5)
         self.__hist_tupo     = collections.ListDeque(5)
         self.__hist_zuli     = collections.ListDeque(5)
 
+        self.__incvol   = []
         self.__inchist  = []
         self.__incdate  = []
         self.__inchigh  = []
         self.__inclow   = []
         self.__incclose = []
         self.__incmas   = []
+        self.__incvol_list = collections.ListDeque(5)
         self.__inchist_list = collections.ListDeque(5)
         self.__incdate_list = collections.ListDeque(5)
         self.__inchigh_list = collections.ListDeque(5)
@@ -113,12 +120,14 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__incclose_list  = collections.ListDeque(5)
         self.__incmas_list    = collections.ListDeque(5)
 
+        self.__desvol   = []
         self.__deshist  = []
         self.__desdate  = []
         self.__deshigh  = []
         self.__deslow   = []
         self.__desclose = []
         self.__desmas   = []
+        self.__desvol_list   = collections.ListDeque(5)
         self.__deshist_list  = collections.ListDeque(5)
         self.__desdate_list  = collections.ListDeque(5)
         self.__deshigh_list  = collections.ListDeque(5)
@@ -719,16 +728,21 @@ class MacdSegEventWindow(technical.EventWindow):
             if nDIF is not None and yDIF is not None:
                 cDIF = "{:.4f}".format(nDIF - yDIF)
                 cDEA = "{:.4f}".format(nDEA - yDEA)
-
             prext = 1024 
             if len(self.__qsxt) > 1:
                 prext = self.__qsxt[-2]
  
-            # 长周期指标
+            # 长周期指标 + dtboard
             (lret, sarval) = self.LongPeriod(dateTime, value)
             (buy, tprice, maval) = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval, value, tprice, magd)
-            self.__NBS = (buy, self.__indicator.getMAscore()[-1][0], tprice, maval)
            
+            dtsignal = self.DTsignal(dateTime, value, self.__fts[0][0], self.__fts[8])
+            if dtsignal is not None:
+                self.__NBS = (buy + dtsignal[1] * 10, dtsignal[0], tprice, maval)
+
+            # 波段点
+            self.BDsignal(dateTime, qshist, change)
+
             # 非上升趋势的跳空低开,视为趋势的恶化，空仓
             tkdk = 1024
             tkdf = 1024
@@ -745,6 +759,22 @@ class MacdSegEventWindow(technical.EventWindow):
             # Keep Record
             self.__prehist = hist 
             self.__preval  = value
+
+    def DTsignal(self, dateTime, nbar, mascore, dt):
+        ret = None
+        d = dtvalid.DTvalid(nbar)
+        if len(self.__incvol_list) > 1 and len(self.__desvol_list) > 1:
+
+            incvols = self.__incvol_list[-1] 
+            desvols = self.__desvol_list[-1]
+
+            ret = d.status(dateTime, mascore, dt, incvols, desvols)
+        return ret 
+
+    def BDsignal(self, dateTime, qshist, change):
+        bd = bdvalid.BDvalid(self.__direct, qshist, change, self.__dtzq)
+        bd.bupStatus(dateTime, self.__nowgd, self.__fpeek, self.__fvalley, self.__datelow, self.__datehigh)
+        # print dateTime, self.__direct, self.__nowgd, self.__fpeek[-1], self.__fvalley[-1]
 
     def LongPeriod(self, dateTime, value):
         madirect   = self.__indicator.getMAdirect() 
@@ -920,15 +950,16 @@ class MacdSegEventWindow(technical.EventWindow):
         # 天级别买点
         if self.__period == 'day' \
                 and len(self.__desdate_list) > 0 \
+                and len(self.__tupo_list) > 0 \
                 and len(self.__incdate_list) > 1 \
                 and self.__macd.getHistogram()[-1] > 0 \
-                and qsgd is not None and qshist == 1:
+                and qshist == 1:
 
             tupo     = self.__hist_tupo
             zhicheng = self.__now_zhicheng
             zuli     = self.__now_zuli
             nowtp    = self.__now_tupo
-            uphist   = self.__inchist_list
+            # uphist   = self.__inchist_list
             upclose  = self.__incclose_list
             uphigh   = self.__inchigh_list
             downlow  = self.__deslow_list 
@@ -942,7 +973,7 @@ class MacdSegEventWindow(technical.EventWindow):
             masigs  = mavalid.MAvalid()
             macdsig = macdvalid.MACDvalid()
 
-            histratio = macdsig.HistRaTio(dateTime, self.__inchist, uphist)
+            histratio = macdsig.HistRaTio(dateTime, self.__inchist, self.__tupo_list)
 
             valid_1  = masigs.SPtimeperiod(tupo, zhicheng) 
             valid_2  = masigs.TPabovebar(tupo, maposition, madirect)
@@ -950,51 +981,19 @@ class MacdSegEventWindow(technical.EventWindow):
             valid_4  = masigs.ZLdirect(zuli, zhicheng, madirect)
             valid_5  = masigs.PrevIncDirect(tupo, madirect)
             valid_6  = masigs.GravityMoveUp(dateTime, upclose, uphigh, downlow, downhigh, value)
-            valid_7  = masigs.SmoothMA(dateTime, madirect, maposition)
             valid_8  = masigs.NowTuPo(dateTime, nowtp, madirect)
             valid_9  = masigs.MABULL(dateTime, madirect, maposition)
             valid_10 = masigs.MA5Down(dateTime, downmas)
 
             valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, \
-                      valid_6, valid_7, valid_8, valid_9, valid_10]
+                      valid_6, valid_8, valid_9, valid_10]
             nvalid = 6
-            # print dateTime, valid, upbars, pdbars, zuli, zhicheng
+            # print dateTime, valid, upbars, pdbars, zuli, zhicheng, histratio
             if sum(valid) >= nvalid and (upbars + pdbars) >= 13 \
                     and upbars >= 3 \
-                    and histratio > 0 \
-                    and (sarval[1] == 1 and sarval[2] == 1):
-                # print dateTime, valid, upbars, pdbars, zuli
-                # print dateTime, valid, tprice, magd[20]
+                    and tprice > 0 \
+                    and histratio > 0: 
                 buy = 1
-        # 周级别买点
-        if self.__period == 'week' and qshist == 1 and lret == 1:
-            upbars = len(self.__now_zuli)
-            if sarval[3] > 0.40:
-                return buy
-            zuli = self.__now_zuli[-1]
-            zhch = self.__now_zhicheng[-1]
-            if zuli[0] == -1 and zhch[0] > -1:
-                mapindex  = self.__mapma[zhch[0]]
-                if madirect[-1][mapindex] is not None and madirect[-1][mapindex] > 0:
-                    buy = 1
-        # 月级别买点
-        if self.__period == 'month' and len(self.__desdate_list) > 0 and lret == 1:
-            dnbars = -1
-            upbars = -1
-            if qshist == 1:
-                dnbars = len(self.__desdate_list[-1])
-                upbars = len(self.__now_zuli)
-            if qshist == -1:
-                dnbars = len(self.__now_zuli)
-                upbars = len(self.__incdate_list[-1])
-            zuli   = self.__now_zuli[-1]
-            zhch   = self.__now_zhicheng[-1]
-            if zuli[0] == -1 and zhch[0] > -1 and qshist == 1:
-                mapindex  = self.__mapma[zhch[0]]
-                if madirect[-1][mapindex] is not None and madirect[-1][mapindex] > 0 \
-                        and (madirect[-1][0] - madirect[-2][0]) > 0:
-                    buy = 1
-
         ma20val = 1024
         if magd[20] is not None:
             ma20val = magd[20]
@@ -1008,6 +1007,7 @@ class MacdSegEventWindow(technical.EventWindow):
         if self.__prehist is not None:
             if hist < self.__prehist:
                 qs = -1
+                self.__desvol.append(value.getVolume())
                 self.__deshist.append(hist)
                 self.__desdate.append(dateTime)
                 self.__deshigh.append(value.getHigh())
@@ -1016,6 +1016,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__desmas.append(self.__mas)
             else:
                 qs = 1
+                self.__incvol.append(value.getVolume())
                 self.__incdate.append(dateTime)
                 self.__inchist.append(hist)
                 self.__inchigh.append(value.getHigh())
@@ -1044,6 +1045,8 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__desclose = [self.__incclose[-1]] + self.__desclose
                 self.__desmas   = [self.__incmas[-1]] + self.__desmas
 
+                self.__tupo_list.append(self.__tupo)
+                self.__incvol_list.append(self.__incvol)
                 self.__inchist_list.append(self.__inchist)
                 self.__incdate_list.append(self.__incdate)
                 self.__inchigh_list.append(self.__inchigh)
@@ -1059,6 +1062,8 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__now_zuli.append(zl)
                 self.__now_tupo.append(tupo)
 
+                self.__tupo      = []
+                self.__incvol    = []
                 self.__inchist   = []
                 self.__incdate   = []
                 self.__inchigh   = []
@@ -1073,6 +1078,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__incclose = [self.__desclose[-1]] + self.__incclose
                 self.__incmas   = [self.__desmas[-1]] + self.__incmas
 
+                self.__desvol_list.append(self.__desvol)
                 self.__deshist_list.append(self.__deshist)
                 self.__desdate_list.append(self.__desdate)
                 self.__deshigh_list.append(self.__deshigh)
@@ -1087,6 +1093,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__now_zuli.append(zl)
                 self.__now_tupo.append(tupo)
 
+                self.__desvol   = []
                 self.__deshist  = []
                 self.__desdate  = []
                 self.__deshigh  = []
@@ -1118,8 +1125,8 @@ class MacdSegEventWindow(technical.EventWindow):
         tprice = -1
         if len(TP) > 0:
             tprice = np.max(TP)
-        else:
-            tprice = op 
+            if qs == 1 and hist > 0:
+                self.__tupo.append((tprice, hist, value.getVolume()))
         return (gd, qs, tprice)
         # print dateTime, self.__inchigh_list[-1], self.__incdate_list[-1] 
  
@@ -1222,7 +1229,6 @@ class MacdSegEventWindow(technical.EventWindow):
 
             # SCORE QUSHI
             self.__QUSHI   = self.scoreQUSHI(dateTime, twoline, sup, prs, weakmacd, fts[0][0])
-            self.__DTBORAD = self.scoreDT(dateTime, weakmacd, fts[0][0], fts[8])
 
             # 均线动能不足,放入观察池
             if self.__prevXTscore is not None:
