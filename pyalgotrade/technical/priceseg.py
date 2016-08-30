@@ -707,7 +707,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__xtTriangle = self.xtTriangle(dateTime, twoline, hline, sup, prs)
 
             # HIST趋势判定及与均线的关系
-            (qsgd, qshist, tprice) = self.qsHistMAs(dateTime, hist, value)
+            (qsgd, qshist, tprice, qsHistZuli) = self.qsHistMAs(dateTime, hist, value)
 
             # 颈线形态
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
@@ -737,8 +737,10 @@ class MacdSegEventWindow(technical.EventWindow):
             (buy, tprice, maval) = self.NBuySignal(dateTime, qsgd, qshist, lret, sarval, value, tprice, magd)
            
             dtsignal = self.DTsignal(dateTime, value, self.__fts[0][0], self.__fts[8])
-            if dtsignal is not None and dtsignal[1] > 0:
+            if dtsignal is not None and dtsignal[1] > 0 and len(qsHistZuli) == 0:
                 self.__NBS = (buy + dtsignal[1] * 10, dtsignal[0], tprice, maval)
+            else:
+                self.__NBS = None
 
             # 波段点
             self.BDsignal(dateTime, qshist, change)
@@ -989,7 +991,7 @@ class MacdSegEventWindow(technical.EventWindow):
                       valid_6, valid_8, valid_9, valid_10]
             nvalid = 6
             # print dateTime, valid, upbars, pdbars, zuli, zhicheng, histratio
-            if sum(valid) >= nvalid and (upbars + pdbars) >= 13 \
+            if sum(valid) >= nvalid and (upbars + pdbars) >= 7 \
                     and upbars >= 3 \
                     and tprice > 0 \
                     and histratio > 0: 
@@ -1002,6 +1004,7 @@ class MacdSegEventWindow(technical.EventWindow):
     def qsHistMAs(self, dateTime, hist, value):
         op = value.getOpen()
         cl = value.getClose()
+        hi = value.getHigh()
         qs = 0
         gd = None
         if self.__prehist is not None:
@@ -1108,6 +1111,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         # 突破
         TP = []
+        ZL = []
         if len(self.__inchist_list) > 1 and len(self.__deshist_list) > 1:
             peek1 = -1; peek2 = -1
             if len(self.__fpeek) > 1:
@@ -1122,12 +1126,15 @@ class MacdSegEventWindow(technical.EventWindow):
             for t in [ih1, ih2, peek1, peek2]:
                 if op < t and cl > t:
                     TP.append(t)
+                diff = (t - hi) / hi
+                if (hi > t and cl < t) or (diff < 0.01 and diff > 0):
+                    ZL.append(t)
         tprice = -1
         if len(TP) > 0:
             tprice = np.max(TP)
             if qs == 1 and hist > 0:
                 self.__tupo.append((tprice, hist, value.getVolume()))
-        return (gd, qs, tprice)
+        return (gd, qs, tprice, ZL)
         # print dateTime, self.__inchigh_list[-1], self.__incdate_list[-1] 
  
     def MAIterPosition(self, dateTime, value):
