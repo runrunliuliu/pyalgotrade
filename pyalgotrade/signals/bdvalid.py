@@ -45,6 +45,9 @@ class BDvalid(object):
         peek   = datehigh[ptime] 
         valley = datelow[vtime] 
 
+        # if self.__status == 10:
+        #    print dateTime, datehigh[nowgd], valley
+
         # gold = self.goldSegment(peek, valley, 1)
         timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
         # print dateTime, vtime, ptime, timediff 
