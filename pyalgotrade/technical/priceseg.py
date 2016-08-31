@@ -949,13 +949,14 @@ class MacdSegEventWindow(technical.EventWindow):
         madirect   = self.__indicator.getMAdirect() 
         maposition = self.__indicator.getMAPosition() 
         buy = 0
+
         # 天级别买点
         if self.__period == 'day' \
                 and len(self.__desdate_list) > 0 \
                 and len(self.__tupo_list) > 0 \
                 and len(self.__incdate_list) > 1 \
                 and self.__macd.getHistogram()[-1] > 0 \
-                and qshist == 1:
+                and qsgd is not None and qshist == 1:
 
             tupo     = self.__hist_tupo
             zhicheng = self.__now_zhicheng
@@ -986,6 +987,8 @@ class MacdSegEventWindow(technical.EventWindow):
             valid_8  = masigs.NowTuPo(dateTime, nowtp, madirect)
             valid_9  = masigs.MABULL(dateTime, madirect, maposition)
             valid_10 = masigs.MA5Down(dateTime, downmas)
+            
+            valid_11 = masigs.MAstick(dateTime, madirect)
 
             valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, \
                       valid_6, valid_8, valid_9, valid_10]
@@ -994,6 +997,7 @@ class MacdSegEventWindow(technical.EventWindow):
             if sum(valid) >= nvalid and (upbars + pdbars) >= 7 \
                     and upbars >= 3 \
                     and tprice > 0 \
+                    and valid_11 == 1 \
                     and histratio > 0: 
                 buy = 1
         ma20val = 1024
