@@ -188,4 +188,12 @@ class MAvalid(object):
             if rate > 0.8 and rate < 1.0:
                 valid_10 = -1
         return valid_10
+
+    # 最后一跌MA5要收跌活着粘合
+    def MAstick(self, dateTime, madirect):
+        valid_11 = 0 
+        md = madirect[-2]
+        if md[0] < 0 or abs(md[0]) < 0.005:
+            valid_11 = 1
+        return valid_11
 # 
