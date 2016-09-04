@@ -17,6 +17,8 @@ from pyalgotrade.signals import mavalid
 from pyalgotrade.signals import macdvalid 
 from pyalgotrade.signals import bdvalid 
 from pyalgotrade.signals import dtvalid 
+import logging
+import logging.config
 
 
 class MacdSegEventWindow(technical.EventWindow):
@@ -24,6 +26,7 @@ class MacdSegEventWindow(technical.EventWindow):
     def __init__(self, BarSeries, windows, inst, useAdjustedValues):
         assert(windows > 0)
         technical.EventWindow.__init__(self, windows, dtype=object)
+        self.__logger = logging.getLogger('MacdSegEventWindow')
         self.__windows = windows
         self.__inst    = inst 
         self.__priceDS = BarSeries.getCloseDataSeries()
@@ -742,6 +745,8 @@ class MacdSegEventWindow(technical.EventWindow):
             else:
                 self.__NBS = None
 
+            # print dateTime, buy, dtsignal, qsHistZuli, tprice, self.__NBS
+
             # 波段点
             self.BDsignal(dateTime, qshist, change)
 
@@ -993,13 +998,23 @@ class MacdSegEventWindow(technical.EventWindow):
             valid  = [valid_1, valid_2, valid_3, valid_4, valid_5, \
                       valid_6, valid_8, valid_9, valid_10]
             nvalid = 6
-            # print dateTime, valid, upbars, pdbars, zuli, zhicheng, histratio
             if sum(valid) >= nvalid and (upbars + pdbars) >= 7 \
                     and upbars >= 3 \
                     and tprice > 0 \
                     and valid_11 == 1 \
                     and histratio > 0: 
                 buy = 1
+          
+            # Track Log
+            if buy == 0:
+                self.__logger.log(logging.ERROR, 'NBS_DROP: dt_%s %s up_%d pd_%d v11_%d hist_%d valid_%d', \
+                                  dateTime, 
+                                  self.__inst, 
+                                  upbars, 
+                                  pdbars,
+                                  valid_11,
+                                  histratio,
+                                  sum(valid),)
         ma20val = 1024
         if magd[20] is not None:
             ma20val = magd[20]
@@ -1133,6 +1148,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 diff = (t - hi) / hi
                 if (hi > t and cl < t) or (diff < 0.01 and diff > 0):
                     ZL.append(t)
+
         tprice = -1
         if len(TP) > 0:
             tprice = np.max(TP)
@@ -1264,7 +1280,7 @@ class MacdSegEventWindow(technical.EventWindow):
                     if fts[0][0] < 0:
                         self.__prevXTscore = (dateTime, fts[0][0])
                 else:
-                    print 'drop_macd:', dateTime, self.__inst, score
+                    self.__logger.log(logging.ERROR, 'Drop_Macd: %s %s %f', dateTime, self.__inst, score)
             self.__prevmacd = score
         return ret
 
