@@ -64,6 +64,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__NBS = None
 
         self.__vbused = set()
+        self.__pbused = set()
         
         # Record Trading Days FOR ZHOUQI theory
         self.__zq   = 0
@@ -246,12 +247,17 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__LFVbeili[self.__gddt] = update 
         # Peek Beili
         if flag == -1:
-            if self.__datehigh[dateTime] > self.__datehigh[self.__gddt]:
-                update = (dateTime, self.__datehigh[dateTime])
+            if self.__datehigh[dateTime] > self.__datehigh[self.__gddt] * 0.97:
+                # 1 已经背离
+                # 2 将要背离
+                bltp = 2 
+                if self.__datehigh[dateTime] > self.__datehigh[self.__gddt]:
+                    bltp = 1
+                update = (dateTime, self.__datehigh[dateTime], bltp)
                 if self.__gddt in self.__LFPbeili:
                     tmp = self.__LFPbeili[self.__gddt]
                     phigh = tmp[1]
-                    if phigh > self.__datehigh[dateTime]:
+                    if phigh >= self.__datehigh[dateTime]:
                         update = tmp
                 self.__LFPbeili[self.__gddt] = update 
 
@@ -696,7 +702,9 @@ class MacdSegEventWindow(technical.EventWindow):
             if change == 1 or self.__beili == -1:
                 self.parseGD(dateTime, self.__nowgd, nwprice) 
 
-            # VBeiLi Buy Point
+            (self.__fkQH, ) = self.fakeMACD(dateTime)
+            # BeiLi Buy Point / Sell Point
+            self.__pbeili = self.setPBeiLiSellPoint(dateTime) 
             self.__vbeili = self.setVBeiLiBuyPoint(dateTime) 
             twoline       = self.computeBarLinePosition(dateTime, value)
             hline         = self.computeHLinePosition(dateTime, value)
@@ -744,9 +752,10 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__NBS = (buy + dtsignal[1] * 10, dtsignal[0], tprice, maval)
             else:
                 self.__NBS = None
-
-            # print dateTime, buy, dtsignal, qsHistZuli, tprice, self.__NBS
-
+            
+            # DEBUG
+            # print dateTime, self.__pbeili
+             
             # 波段点
             self.BDsignal(dateTime, qshist, change)
 
@@ -759,7 +768,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
-                (tkdk,tkdf) + (maval,)
+                (tkdk,tkdf) + (maval,) +  self.__pbeili
 
             self.filter4Show(dateTime, twoline, value)
 
@@ -1299,6 +1308,28 @@ class MacdSegEventWindow(technical.EventWindow):
         # print 'FakeMACD:', dateTime, fenzi, fenmu, nopen
         return fprice 
 
+    def fakeqHist(self, dateTime, fastval, slowval, sigval, hist):
+        fastmulti = (2.0 / (12 + 1))
+        slowmulti = (2.0 / (26 + 1))
+        sigmulti  = (2.0 / (9  + 1))
+
+        right = hist * 0.5 + sigval - sigval * sigmulti 
+        right = right / ( 1 - sigmulti)
+        right = right + fastval * fastmulti - slowval * slowmulti - (fastval - slowval)
+        fenmu = fastmulti - slowmulti
+
+        return right / fenmu
+
+    def fakeMACD(self, dateTime):
+        nfast = self.__macd.getFast()
+        nslow = self.__macd.getSlow()
+        nDEA = self.__macd.getSignal()[-1]
+        nHist = self.__macd.getHistogram()[-1]
+
+        fkQHprice = self.fakeqHist(dateTime, nfast, nslow, nDEA, nHist)
+
+        return (fkQHprice,)
+
     def scoreDT(self, dateTime, weakmacd, mascore, dt):
         ret = None 
         if weakmacd < 0.6 and mascore > 100.0 and dt[0] == 1:
@@ -1473,6 +1504,21 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__gd[val[0]] = val[1]
             self.__beili = -1
             self.__gddt  = val[0]
+
+    # 临峰顶背离
+    def setPBeiLiSellPoint(self, dateTime):
+        res = (0, 1024, 1024)
+        if self.__gddt in self.__LFPbeili \
+                and (self.__gddt not in self.__pbused):
+            bl = self.__LFPbeili[self.__gddt]
+            cdea  = self.__macd.getSignal()[-1] - self.__macd.getSignal()[-2]
+            phist_area = np.mean(self.__poshist_list[-1])
+            if np.mean(self.__neghist) < -0.05 and cdea < 0 and bl[0] == dateTime and phist_area > 0.05:
+                tmp =  "{:.2f}".format(self.__fkQH)
+                res = (bl[2], self.__datehigh[self.__gddt], tmp)
+                if res == 1:
+                    self.__pbused.add(self.__gddt)
+        return res 
 
     def setVBeiLiBuyPoint(self, dateTime):
         res = 0 
