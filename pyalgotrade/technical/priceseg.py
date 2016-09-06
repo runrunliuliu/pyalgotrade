@@ -247,12 +247,10 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__LFVbeili[self.__gddt] = update 
         # Peek Beili
         if flag == -1:
-            if self.__datehigh[dateTime] > self.__datehigh[self.__gddt] * 0.97:
+            if self.__datehigh[dateTime] > self.__datehigh[self.__gddt]:
                 # 1 已经背离
                 # 2 将要背离
-                bltp = 2 
-                if self.__datehigh[dateTime] > self.__datehigh[self.__gddt]:
-                    bltp = 1
+                bltp = 1
                 update = (dateTime, self.__datehigh[dateTime], bltp)
                 if self.__gddt in self.__LFPbeili:
                     tmp = self.__LFPbeili[self.__gddt]
@@ -1515,8 +1513,9 @@ class MacdSegEventWindow(technical.EventWindow):
             phist_area = np.mean(self.__poshist_list[-1])
             if np.mean(self.__neghist) < -0.05 and cdea < 0 and bl[0] == dateTime and phist_area > 0.05:
                 tmp =  "{:.2f}".format(self.__fkQH)
+                print dateTime, self.__gddt, self.__datehigh[self.__gddt]
                 res = (bl[2], self.__datehigh[self.__gddt], tmp)
-                if res == 1:
+                if res[0] == 1:
                     self.__pbused.add(self.__gddt)
         return res 
 
