@@ -765,7 +765,8 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
-                (tkdk,tkdf) + (maval,) +  self.__pbeili
+                (tkdk,tkdf) + (maval,) +  self.__pbeili + \
+                (self.__QUSHI[1], )
 
             self.filter4Show(dateTime, twoline, value)
 
