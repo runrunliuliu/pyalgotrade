@@ -35,10 +35,19 @@ class BDvalid(object):
                 ret.append(valley + diff * i) 
         return ret
 
+    def period(self, dateTime, fpeek, fvalley):
+
+        if self.__status == 10 or self.__status == 11:
+            print dateTime, fpeek[0][0], fvalley[0][0]
+            # timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
+
     def bupStatus(self, dateTime, nowgd, fpeek, fvalley, datelow, datehigh):
         ret = None
         if len(fpeek) < 1 or len(fvalley) < 1:
             return ret 
+
+        # self.period(dateTime, fpeek, fvalley)
+
         ptime = fpeek[0][0]
         vtime = fvalley[0][0]
 
