@@ -249,7 +249,6 @@ class MacdSegEventWindow(technical.EventWindow):
         if flag == -1:
             if self.__datehigh[dateTime] > self.__datehigh[self.__gddt]:
                 # 1 已经背离
-                # 2 将要背离
                 bltp = 1
                 update = (dateTime, self.__datehigh[dateTime], bltp)
                 if self.__gddt in self.__LFPbeili:
@@ -295,8 +294,6 @@ class MacdSegEventWindow(technical.EventWindow):
                 now_dt  = self.__negdate[now.argmin()]
             # Find BeiLi point
             self.findBeiLi(dateTime, ret)
-            # Find GeFeng BeiLi 
-            self.__gfbeili = self.findGFBeiLi(dateTime, ret)
 
         return (now_val, now_dt)
 
@@ -702,11 +699,13 @@ class MacdSegEventWindow(technical.EventWindow):
 
             (self.__fkQH, ) = self.fakeMACD(dateTime)
             # BeiLi Buy Point / Sell Point
-            self.__pbeili = self.setPBeiLiSellPoint(dateTime) 
-            self.__vbeili = self.setVBeiLiBuyPoint(dateTime) 
-            twoline       = self.computeBarLinePosition(dateTime, value)
-            hline         = self.computeHLinePosition(dateTime, value)
-            (sup, prs)    = self.breakIncQSLine(dateTime, twoline)
+            # Find GeFeng BeiLi 
+            self.__gfbeili = self.findGFBeiLi(dateTime, ret)
+            self.__pbeili  = self.setPBeiLiSellPoint(dateTime) 
+            self.__vbeili  = self.setVBeiLiBuyPoint(dateTime) 
+            twoline        = self.computeBarLinePosition(dateTime, value)
+            hline          = self.computeHLinePosition(dateTime, value)
+            (sup, prs)     = self.breakIncQSLine(dateTime, twoline)
             (ndiff, npres) = self.pressDesQSLine(dateTime, twoline)
 
             # 获取当前的整体的趋势
@@ -752,7 +751,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__NBS = None
             
             # DEBUG
-            # print dateTime, self.__pbeili
+            # print dateTime, self.__fkQH
              
             # 波段点
             self.BDsignal(dateTime, qshist, change)
@@ -827,27 +826,29 @@ class MacdSegEventWindow(technical.EventWindow):
         if self.__direct == 1 and klines[2] == 1:
             print dateTime, 'baodie', hline
 
+    # 隔峰背离
     def findGFBeiLi(self, dateTime, flag):
-        nfast = self.__macd.getFast()
-        nslow = self.__macd.getSlow()
-        nDEA = self.__macd.getSignal()[-1]
         ret = (-1, -1)
         # 顶背离有效概率比较高
         if flag == 1:
-            if len(self.__poshist_list) > 1: 
+            if len(self.__poshist_list) > 2: 
+                if len(self.__poshigh_list[-1]) < 3:
+                    return ret
                 gf1high = np.array(self.__poshigh_list[-1])
+                gf1 = np.array(self.__poshist_list[-1])
+
                 nowhigh = np.array(self.__poshigh)
-                gf = np.array(self.__poshist_list[-1])
-                nw = np.array(self.__poshist)
+                nowhist = np.array(self.__poshist)
                 
-                price_rate  = nowhigh.max() / gf1high.max()
-                hist_rate = gf.max() / nw.max()
-                if price_rate > 0.90 and hist_rate > 2.0:
-                    dcprice = self.fakeCross(dateTime, nfast, nslow, nDEA)
-                    dcprice = "{:.4f}".format(dcprice)
-                    price_rate = (1.0 if price_rate < 1.0 else price_rate)
-                    ratio   = "{:.4f}".format(hist_rate / price_rate)
-                    ret = (dcprice, ratio) 
+                gf1_sum = np.sum(gf1)
+                gfn_sum = np.sum(nowhist)
+
+                if gfn_sum < gf1_sum * 0.5 \
+                        and nowhist.max() / gf1.max() < 0.5 \
+                        and nowhigh[-1] > gf1high.max():
+                    # print 'GFBEILI', dateTime, gf1high.max(), nowhigh[-1], self.__fkQH
+                    tmp = "{:.4f}".format(self.__fkQH)
+                    ret = (tmp, -1)
         return ret
 
     def filter4Show(self, dateTime, twoline, value):
@@ -1326,7 +1327,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         fkQHprice = self.fakeqHist(dateTime, nfast, nslow, nDEA, nHist)
 
-        return (fkQHprice,)
+        return (fkQHprice, )
 
     def scoreDT(self, dateTime, weakmacd, mascore, dt):
         ret = None 
@@ -1513,7 +1514,6 @@ class MacdSegEventWindow(technical.EventWindow):
             phist_area = np.mean(self.__poshist_list[-1])
             if np.mean(self.__neghist) < -0.05 and cdea < 0 and bl[0] == dateTime and phist_area > 0.05:
                 tmp =  "{:.2f}".format(self.__fkQH)
-                print dateTime, self.__gddt, self.__datehigh[self.__gddt]
                 res = (bl[2], self.__datehigh[self.__gddt], tmp)
                 if res[0] == 1:
                     self.__pbused.add(self.__gddt)
