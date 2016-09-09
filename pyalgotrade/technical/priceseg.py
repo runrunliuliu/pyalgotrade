@@ -109,6 +109,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__hist_tupo     = collections.ListDeque(5)
         self.__hist_zuli     = collections.ListDeque(5)
 
+        self.__incfb    = []
         self.__incvol   = []
         self.__inchist  = []
         self.__incdate  = []
@@ -116,7 +117,8 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__inclow   = []
         self.__incclose = []
         self.__incmas   = []
-        self.__incvol_list = collections.ListDeque(5)
+        self.__incfb_list   = collections.ListDeque(5)
+        self.__incvol_list  = collections.ListDeque(5)
         self.__inchist_list = collections.ListDeque(5)
         self.__incdate_list = collections.ListDeque(5)
         self.__inchigh_list = collections.ListDeque(5)
@@ -124,6 +126,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__incclose_list  = collections.ListDeque(5)
         self.__incmas_list    = collections.ListDeque(5)
 
+        self.__desfb    = []
         self.__desvol   = []
         self.__deshist  = []
         self.__desdate  = []
@@ -131,6 +134,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__deslow   = []
         self.__desclose = []
         self.__desmas   = []
+        self.__desfb_list    = collections.ListDeque(5)
         self.__desvol_list   = collections.ListDeque(5)
         self.__deshist_list  = collections.ListDeque(5)
         self.__desdate_list  = collections.ListDeque(5)
@@ -778,11 +782,15 @@ class MacdSegEventWindow(technical.EventWindow):
         ret = None
         d = dtvalid.DTvalid(nbar)
         if len(self.__incvol_list) > 1 and len(self.__desvol_list) > 1:
-
+            
             incvols = self.__incvol_list[-1] 
             desvols = self.__desvol_list[-1]
+            incfb   = self.__incfb_list[-1]
+            desfb   = self.__desfb_list[-1]
 
-            ret = d.status(dateTime, mascore, dt, incvols, desvols)
+            tup = (incvols, desvols, incfb, desfb)
+
+            ret = d.status(dateTime, mascore, dt, tup)
         return ret 
 
     def BDsignal(self, dateTime, qshist, change):
@@ -1038,6 +1046,7 @@ class MacdSegEventWindow(technical.EventWindow):
         if self.__prehist is not None:
             if hist < self.__prehist:
                 qs = -1
+                self.__desfb.append(value.getFB())
                 self.__desvol.append(value.getVolume())
                 self.__deshist.append(hist)
                 self.__desdate.append(dateTime)
@@ -1047,6 +1056,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__desmas.append(self.__mas)
             else:
                 qs = 1
+                self.__incfb.append(value.getFB())
                 self.__incvol.append(value.getVolume())
                 self.__incdate.append(dateTime)
                 self.__inchist.append(hist)
@@ -1076,6 +1086,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__desclose = [self.__incclose[-1]] + self.__desclose
                 self.__desmas   = [self.__incmas[-1]] + self.__desmas
 
+                self.__incfb_list.append(self.__incfb)
                 self.__tupo_list.append(self.__tupo)
                 self.__incvol_list.append(self.__incvol)
                 self.__inchist_list.append(self.__inchist)
@@ -1093,6 +1104,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__now_zuli.append(zl)
                 self.__now_tupo.append(tupo)
 
+                self.__incfb     = []
                 self.__tupo      = []
                 self.__incvol    = []
                 self.__inchist   = []
@@ -1109,6 +1121,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__incclose = [self.__desclose[-1]] + self.__incclose
                 self.__incmas   = [self.__desmas[-1]] + self.__incmas
 
+                self.__desfb_list.append(self.__desfb)
                 self.__desvol_list.append(self.__desvol)
                 self.__deshist_list.append(self.__deshist)
                 self.__desdate_list.append(self.__desdate)
@@ -1124,6 +1137,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__now_zuli.append(zl)
                 self.__now_tupo.append(tupo)
 
+                self.__desfb    = []
                 self.__desvol   = []
                 self.__deshist  = []
                 self.__desdate  = []
