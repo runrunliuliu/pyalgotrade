@@ -235,6 +235,14 @@ class BasicBar(Bar):
         else:
             return self.__close
 
+    def getFB(self):
+        ret = 0
+        if self.__open == self.__close \
+                and self.__close == self.__high \
+                and self.__high  == self.__low:
+            ret = 1
+        return ret
+
     def getVolume(self):
         return self.__volume
 
