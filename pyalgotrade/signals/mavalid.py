@@ -196,4 +196,9 @@ class MAvalid(object):
         if md[0] < 0 or abs(md[0]) < 0.005:
             valid_11 = 1
         return valid_11
+
+    # 均线进攻形态, 连续三日
+    def MAlong(self, dateTime, madirect, maposition):
+        direct = madirect[-1]
+        maposition = madirect[-1]
 # 
