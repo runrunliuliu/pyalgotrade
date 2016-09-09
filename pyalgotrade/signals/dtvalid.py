@@ -15,7 +15,7 @@ class DTvalid(object):
         if rate is None:
             flag = 3
         else:
-            if rate < 2.0 and rate > 0.80:
+            if rate > 0.80:
                 flag = 1
             else:
                 flag = 2
@@ -24,15 +24,25 @@ class DTvalid(object):
     # 1 -- 缩量
     # 2 -- 常量
     # 3 -- 巨量
-    def volume(self, dateTime, dt, incvols, desvols):
+    def volume(self, dateTime, dt, tup):
+        
+        incvols = tup[0]
+        desvols = tup[1]
+        incfb   = tup[2]
+        desfb   = tup[3]
+
         flag = 0
         lb   = dt[1]
         lb5  = dt[2]
         lb20 = dt[3] 
 
         nvol = self.__nbar.getVolume()
-        def stats(arrvols, nvol):
-            npvols = np.array(arrvols) 
+        def stats(arrvols, nvol, fb):
+            npvols = [] 
+            for i in range(0, len(arrvols)):
+                if fb[i] == 0:
+                    npvols.append(arrvols[i])
+            npvols = np.array(npvols)
 
             npmax  = np.max(npvols) 
             npmed  = np.median(npvols) 
@@ -43,15 +53,21 @@ class DTvalid(object):
 
             return (rmax, rmed, npmean)
 
-        (rincmax, rincmed, incmean) = stats(incvols, nvol)
-        (rdesmax, rdesmed, desmean) = stats(desvols, nvol)
+        (rincmax, rincmed, incmean) = stats(incvols, nvol, incfb)
+        (rdesmax, rdesmed, desmean) = stats(desvols, nvol, desfb)
 
         rmax = min([rincmax, rdesmax])
         
         if len(incvols) > len(desvols):
-            incmean = np.mean(incvols[-1 * len(desvols):])
+            sums = []
+            for i in range(1, len(desvols) + 1):
+                if incfb[i * -1] == 0:
+                    sums.append(incvols[i * -1])
+            incmean = np.mean(sums)
+            # incmean = np.mean(incvols[-1 * len(desvols):])
 
-        # print dateTime, incmean, desmean, lb, rmax, rincmax, rdesmax
+        # print dateTime, incmean, desmean, len(incvols), len(desvols)
+        # print dateTime, incvols, desvols, incfb, desfb
 
         if incmean / desmean < 1.0:
             return flag
@@ -65,12 +81,12 @@ class DTvalid(object):
 
         return flag
 
-    def status(self, dateTime, mascore, dt, incvols, desvols):
+    def status(self, dateTime, mascore, dt, tup):
+
         ret = 0
         mflag = self.money(dt[0])
-        vflag = self.volume(dateTime, dt, incvols, desvols)
+        vflag = self.volume(dateTime, dt, tup)
         
-        # print dateTime, dt[0], mflag, vflag
         if mflag == 1 and vflag == 1:
             ret = 11
         if mflag == 1 and vflag == 2:
