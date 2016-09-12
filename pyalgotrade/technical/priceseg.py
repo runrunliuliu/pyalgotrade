@@ -62,6 +62,8 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__roc = None
         self.__cxshort = None
         self.__NBS = None
+        
+        self.__md5120 = None
 
         self.__vbused = set()
         self.__pbused = set()
@@ -701,7 +703,7 @@ class MacdSegEventWindow(technical.EventWindow):
             if change == 1 or self.__beili == -1:
                 self.parseGD(dateTime, self.__nowgd, nwprice) 
 
-            (self.__fkQH, ) = self.fakeMACD(dateTime)
+            (self.__fkQH, self.__fkCROSS) = self.fakeMACD(dateTime)
             # BeiLi Buy Point / Sell Point
             # Find GeFeng BeiLi 
             self.__gfbeili = self.findGFBeiLi(dateTime, ret)
@@ -731,6 +733,7 @@ class MacdSegEventWindow(technical.EventWindow):
             mafeature      = self.__fts[4]
             klines         = self.__fts[5]
             magd           = self.__fts[9]
+            self.__madiff  = self.__fts[10]
             nDIF = self.__macd[-1] 
             yDIF = self.__macd[-2]
             nDEA = self.__macd.getSignal()[-1]
@@ -754,8 +757,14 @@ class MacdSegEventWindow(technical.EventWindow):
             else:
                 self.__NBS = None
             
-            # DEBUG
-            # print dateTime, self.__fkQH
+            # MAD 
+            MADprice = 1024
+            self.__md5120 = mavalid.MAvalid.MAdiff(dateTime, \
+                                                   self.__madiff, \
+                                                   self.__md5120, \
+                                                   self.__macd.getHistogram()[-1])
+            if self.__md5120 is not None:
+                MADprice = "{:.4f}".format(self.__fkCROSS)
              
             # 波段点
             self.BDsignal(dateTime, qshist, change)
@@ -770,7 +779,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
-                (self.__QUSHI[1], )
+                (self.__QUSHI[1], MADprice)
 
             self.filter4Show(dateTime, twoline, value)
 
@@ -1341,8 +1350,9 @@ class MacdSegEventWindow(technical.EventWindow):
         nHist = self.__macd.getHistogram()[-1]
 
         fkQHprice = self.fakeqHist(dateTime, nfast, nslow, nDEA, nHist)
+        fkCross   = self.fakeCross(dateTime, nfast, nslow, nDEA)
 
-        return (fkQHprice, )
+        return (fkQHprice, fkCross)
 
     def scoreDT(self, dateTime, weakmacd, mascore, dt):
         ret = None 
