@@ -163,6 +163,19 @@ class IndEventWindow(technical.EventWindow):
             f2 = [None] * (len(self.__mawins))
         return f2
 
+    def MAdiff(self, nma_dict):
+        d1 = dict() 
+    
+        if 60 in nma_dict:
+            d20_60 =  (nma_dict[20] - nma_dict[60]) / nma_dict[60]
+            d1['2060'] = d20_60
+        
+        if 120 in nma_dict:
+            d5_120 =  (nma_dict[5] - nma_dict[120]) / nma_dict[120]
+            d1['5120'] = d5_120
+
+        return d1
+
     def MAposition(self, nma_dict, nowclose):
         f1 = []
         for i in self.__mawins:
@@ -291,6 +304,9 @@ class IndEventWindow(technical.EventWindow):
         f1 = self.MAposition(nma_dict, nowclose)
         # 均线运行方向
         f2 = self.MAdirect(nma_dict)
+        # 均线的距离
+        f3 = self.MAdiff(nma_dict)
+
         # 量能变化 
         lb = self.boostVol(dateTime, self.__mavol5.getValue(), self.__mavol10.getValue())
         # 价格变化
@@ -337,6 +353,7 @@ class IndEventWindow(technical.EventWindow):
         fts.append(bp)
         fts.append(dt)
         fts.append(magd)
+        fts.append(f3)
         
         self.__pf1 = f1
         self.__pf2 = f2
