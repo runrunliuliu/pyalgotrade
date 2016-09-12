@@ -198,7 +198,25 @@ class MAvalid(object):
         return valid_11
 
     # 均线进攻形态, 连续三日
-    def MAlong(self, dateTime, madirect, maposition):
-        direct = madirect[-1]
-        maposition = madirect[-1]
+    # def MAlong(self, dateTime, madirect, maposition):
+    #     direct = madirect[-1]
+    #     maposition = madirect[-1]
+
+    # MA均线距差,
+    # None -- 无效
+    # 1 -- 观察
+    @staticmethod
+    def MAdiff(dateTime, madiff, md5120, nhist):
+        key = '5120'
+        if key in madiff:
+            if md5120 is None:
+                if madiff[key] > 1.0:
+                    md5120 = 1
+            else:
+                if nhist > 0:
+                    md5120 = 1
+                else:
+                    md5120 = None
+        valid_12 = md5120
+        return valid_12 
 # 
