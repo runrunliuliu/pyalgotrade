@@ -62,6 +62,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__roc = None
         self.__cxshort = None
         self.__NBS = None
+        self.__NBS_Dts = [] 
         
         self.__md5120 = None
 
@@ -726,8 +727,10 @@ class MacdSegEventWindow(technical.EventWindow):
             # 颈线形态
             self.xtNeckLine(dateTime, twoline, hline, value, now_val, now_dt)
 
-            self.add2observed(dateTime, now_dt, value)
+            # 突破之后的同峰背离
+            self.__tfbeili = self.findTFBeiLi(dateTime, ret, value, qshist) 
 
+            self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
             self.__cxshort = self.__fts[3]
             mafeature      = self.__fts[4]
@@ -754,6 +757,8 @@ class MacdSegEventWindow(technical.EventWindow):
             dtsignal = self.DTsignal(dateTime, value, self.__fts[0][0], self.__fts[8])
             if dtsignal is not None and dtsignal[1] > 0 and len(qsHistZuli) == 0:
                 self.__NBS = (buy + dtsignal[1] * 10, dtsignal[0], tprice, maval)
+                if buy == 1:
+                    self.__NBS_Dts.append(dateTime)
             else:
                 self.__NBS = None
             
@@ -779,7 +784,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
-                (self.__QUSHI[1], MADprice)
+                (self.__QUSHI[1], MADprice, self.__tfbeili)
 
             self.filter4Show(dateTime, twoline, value)
 
@@ -843,6 +848,24 @@ class MacdSegEventWindow(technical.EventWindow):
     def baodie(self, dateTime, klines, hline):
         if self.__direct == 1 and klines[2] == 1:
             print dateTime, 'baodie', hline
+
+    # 同峰背离
+    def findTFBeiLi(self, dateTime, flag, value, qshist):
+        ret = 0
+        # 顶背离有效概率比较高
+        if flag == 1 and qshist == -1 \
+                and len(self.__inchist_list) > 2 \
+                and len(self.__NBS_Dts) > 0:
+
+            if self.__desdate[0] == self.__NBS_Dts[-1]:
+                phist = np.max(self.__inchist_list[-2])
+                phigh = np.max(self.__inchigh_list[-2])
+
+                nhigh = value.getHigh()
+                nhist = self.__macd.getHistogram()[-1]
+                if nhigh > phigh * 0.99 and nhist < phist * 0.55:
+                    ret = 1
+        return ret
 
     # 隔峰背离
     def findGFBeiLi(self, dateTime, flag):
