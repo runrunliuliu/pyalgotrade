@@ -756,7 +756,7 @@ class MacdSegEventWindow(technical.EventWindow):
            
             dtsignal = self.DTsignal(dateTime, value, self.__fts[0][0], self.__fts[8])
             if dtsignal is not None and dtsignal[1] > 0 and len(qsHistZuli) == 0:
-                self.__NBS = (buy + dtsignal[1] * 10, dtsignal[0], tprice, maval)
+                self.__NBS = (buy + dtsignal[1] * 10, dtsignal[0], tprice, maval, dtsignal[2])
                 if buy == 1:
                     self.__NBS_Dts.append(dateTime)
             else:
