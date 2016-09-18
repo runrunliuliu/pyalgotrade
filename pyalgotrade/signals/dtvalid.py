@@ -15,10 +15,11 @@ class DTvalid(object):
         if rate is None:
             flag = 3
         else:
-            if rate > 0.80:
-                flag = 1
-            else:
-                flag = 2
+            # if rate > 0.80:
+            #     flag = 1
+            # else:
+            #     flag = 2
+            flag = 1 
         return flag
 
     # 1 -- 缩量
