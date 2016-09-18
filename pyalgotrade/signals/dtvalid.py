@@ -13,14 +13,11 @@ class DTvalid(object):
     def money(self, rate):
         flag = -1 
         if rate is None:
+            rate = -1
             flag = 3
         else:
-            # if rate > 0.80:
-            #     flag = 1
-            # else:
-            #     flag = 2
-            flag = 1 
-        return flag
+            flag = 1
+        return (flag, rate)
 
     # 1 -- 缩量
     # 2 -- 常量
@@ -95,9 +92,9 @@ class DTvalid(object):
     def status(self, dateTime, mascore, dt, tup):
 
         ret = 0
-        mflag = self.money(dt[0])
+        (mflag, rate) = self.money(dt[0])
         vflag = self.volume(dateTime, dt, tup)
-        
+       
         if mflag == 1 and vflag == 1:
             ret = 11
         if mflag == 1 and vflag == 2:
@@ -108,5 +105,5 @@ class DTvalid(object):
         if mflag == 3 and vflag == 2:
             ret = 22
 
-        return (mascore, ret)
+        return (mascore, ret, rate)
 ##
