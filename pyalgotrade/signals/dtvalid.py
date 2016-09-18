@@ -16,6 +16,7 @@ class DTvalid(object):
             rate = -1
             flag = 3
         else:
+            rate = "{:.2f}".format(rate)
             flag = 1
         return (flag, rate)
 
