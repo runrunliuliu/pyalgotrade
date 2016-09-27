@@ -717,7 +717,7 @@ class MacdSegEventWindow(technical.EventWindow):
             (ndiff, npres) = self.pressDesQSLine(dateTime, twoline)
 
             # 回踩趋势线
-            self.__xtCT = self.xtBackOnQS(dateTime, twoline)
+            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value)
 
             # 获取当前的整体的趋势
             qsxingtai = self.figureQS(dateTime)
@@ -1298,26 +1298,48 @@ class MacdSegEventWindow(technical.EventWindow):
         return (tpmas, zlmas, zcmas)
 
     # 回踩趋势线
-    def xtBackOnQS(self, dateTime, twoline):
+    def xtBackOnQS(self, dateTime, twoline, value):
         ret = None
         incloseDiff = twoline[0]
         inclowDiff  = twoline[5]
-        # incQS     = twoline[1]
+        madirect    = self.__indicator.getMAdirect() 
 
         score = "{:.4f}".format(self.__fts[0][0])
-        # print dateTime, incloseDiff, inclowDiff
         for i in range(0, len(incloseDiff)):
-
-            if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008) \
-                    and self.__fts[5][3] == 1:
+            hcqs = 0
+            if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008):
+                hcqs = 1
+            # 刺透形态
+            if hcqs == 1 and self.__fts[5][3] == 1:
                 ret = (1, score)
                 break
-
-            if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008) \
-                    and self.__fts[5][4] == 1:
+            # 刺透形态2 
+            if hcqs == 1 and self.__fts[5][5] == 1:
                 ret = (2, score)
                 break
 
+        hc120 = 0
+        hc250 = 0
+        if ret is None:
+            low120 = 1024
+            if 120 in self.__mas:
+                low120 = (value.getLow() - self.__mas[120]) / value.getLow() 
+                if (low120 < 0 or low120 < 0.008) \
+                        and value.getClose() > self.__mas[120] \
+                        and madirect[-1][6] > 0.001:
+                    hc120 = 1
+
+            low250 = 1024
+            if 250 in self.__mas:
+                low250 = (value.getLow() - self.__mas[250]) / value.getLow() 
+                if (low250 < 0 or low250 < 0.008) \
+                        and value.getClose() > self.__mas[250] \
+                        and madirect[-1][7] > 0.001:
+                    hc250 = 1
+            if (hc120 + hc250) > 0 and self.__fts[5][3] == 1:
+                ret = (3, score)
+            if (hc120 + hc250) > 0 and self.__fts[5][5] == 1:
+                ret = (4, score)
         return ret
 
     # Triangle XingTai 
