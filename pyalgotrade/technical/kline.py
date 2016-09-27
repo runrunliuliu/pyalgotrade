@@ -35,8 +35,9 @@ class KLineEventWindow(technical.EventWindow):
         self.__tkdk = 1024 
         self.__tkdf = 1024 
         self.__bdie = 1024
-        self.__ctxt = -1
-        self.__zyd  = -1
+        self.__ctxt  = -1
+        self.__ctxt2 = -1
+        self.__zyd   = -1
 
     def baodie(self, dateTime, diefu, zhenfu):
         mins = diefu
@@ -70,6 +71,24 @@ class KLineEventWindow(technical.EventWindow):
         if op1 > cl1 and cl0 > (op1 + cl1) * 0.5 \
                 and op0 < lw1 and op1 / cl1 >= 1.02 \
                 and cl0 > op0 and cl0 < op1: 
+            ret = 1
+        return ret
+
+    def CTXT2(self, dateTime, values):
+        ret = 0
+        day1 = values[-2]
+        op1 = day1.getOpen()
+        cl1 = day1.getClose()
+        lw1 = day1.getLow()
+
+        nday = values[-1]
+        op0 = nday.getOpen()
+        cl0 = nday.getClose()
+        hi0 = nday.getHigh()
+
+        if op1 > cl1 and hi0 > (op1 + cl1) * 0.5 \
+                and op0 < lw1 and op1 / cl1 >= 1.02 \
+                and cl0 > op0 and cl0 < op1 and cl0 > cl1: 
             ret = 1
         return ret
 
@@ -113,8 +132,9 @@ class KLineEventWindow(technical.EventWindow):
 
             self.tkdk(dateTime,jump, diefu, shying, xaying) 
             self.baodie(dateTime, diefu, zhenfu)
-            self.__ctxt = self.CTXT(dateTime, values)
-            self.__zyd  = self.ZYD(dateTime, values)
+            self.__ctxt  = self.CTXT(dateTime, values)
+            self.__zyd   = self.ZYD(dateTime, values)
+            self.__ctxt2 = self.CTXT2(dateTime, values)
 
     def getValue(self):
-        return (self.__tkdk, self.__tkdf, self.__bdie, self.__ctxt, self.__zyd) 
+        return (self.__tkdk, self.__tkdf, self.__bdie, self.__ctxt, self.__zyd, self.__ctxt2) 
