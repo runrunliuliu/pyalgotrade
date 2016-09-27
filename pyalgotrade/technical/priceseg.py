@@ -1304,13 +1304,20 @@ class MacdSegEventWindow(technical.EventWindow):
         inclowDiff  = twoline[5]
         # incQS     = twoline[1]
 
+        score = "{:.4f}".format(self.__fts[0][0])
         # print dateTime, incloseDiff, inclowDiff
         for i in range(0, len(incloseDiff)):
+
             if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008) \
                     and self.__fts[5][3] == 1:
-                # print dateTime, incQS[i].toString(), incQS[i].getSlope(), self.__fts[5], self.__fts[0][0]
-                score = "{:.4f}".format(self.__fts[0][0])
                 ret = (1, score)
+                break
+
+            if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008) \
+                    and self.__fts[5][4] == 1:
+                ret = (2, score)
+                break
+
         return ret
 
     # Triangle XingTai 
