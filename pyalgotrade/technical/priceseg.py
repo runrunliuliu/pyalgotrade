@@ -58,6 +58,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__gfbeili = (-1, -1)
 
+        self.__xtCT       = None
         self.__xtTriangle = None 
         self.__roc = None
         self.__cxshort = None
@@ -715,6 +716,9 @@ class MacdSegEventWindow(technical.EventWindow):
             (sup, prs)     = self.breakIncQSLine(dateTime, twoline)
             (ndiff, npres) = self.pressDesQSLine(dateTime, twoline)
 
+            # 回踩趋势线
+            self.__xtCT = self.xtBackOnQS(dateTime, twoline)
+
             # 获取当前的整体的趋势
             qsxingtai = self.figureQS(dateTime)
 
@@ -1293,6 +1297,22 @@ class MacdSegEventWindow(technical.EventWindow):
                         zcmas.append(w)
         return (tpmas, zlmas, zcmas)
 
+    # 回踩趋势线
+    def xtBackOnQS(self, dateTime, twoline):
+        ret = None
+        incloseDiff = twoline[0]
+        inclowDiff  = twoline[5]
+        # incQS     = twoline[1]
+
+        # print dateTime, incloseDiff, inclowDiff
+        for i in range(0, len(incloseDiff)):
+            if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008) \
+                    and self.__fts[5][3] == 1:
+                # print dateTime, incQS[i].toString(), incQS[i].getSlope(), self.__fts[5], self.__fts[0][0]
+                score = "{:.4f}".format(self.__fts[0][0])
+                ret = (1, score)
+        return ret
+
     # Triangle XingTai 
     def xtTriangle(self, dateTime, twoline, hline, sup, prs):
         ret = None 
@@ -1585,7 +1605,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
                self.__dropout, self.__ftDes, self.__ftInc, self.__observed, \
-               self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS)
+               self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS, self.__xtCT)
         return ret
 
 
