@@ -1338,8 +1338,10 @@ class MacdSegEventWindow(technical.EventWindow):
                     hc250 = 1
             if (hc120 + hc250) > 0 and self.__fts[5][3] == 1:
                 ret = (3, score)
+                return ret
             if (hc120 + hc250) > 0 and self.__fts[5][5] == 1:
                 ret = (4, score)
+                return ret
         return ret
 
     # Triangle XingTai 
