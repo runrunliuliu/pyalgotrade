@@ -22,10 +22,10 @@ class QsLineFit(object):
         x1 = tups[2]; end = dtzq[x1]
         y1 = tups[3]
 
-        desc = 'Start:' + x0.strftime('%Y-%m-%d') \
-            + ' x0:'  + str(start) \
-            + ' End:' + x1.strftime('%Y-%m-%d') \
-            + ' x1:'  + str(end)
+        desc = 'Start|' + x0.strftime('%Y-%m-%d') \
+            + ' x0|'  + str(start) \
+            + ' End|' + x1.strftime('%Y-%m-%d') \
+            + ' x1|'  + str(end)
 
         key = x0.strftime('%Y-%m-%d') + '|' + x1.strftime('%Y-%m-%d')
 
@@ -47,10 +47,10 @@ class QsLineFit(object):
         return self.__key
 
     def setDesc(self, startday, enday):
-        self.__desc = 'Start:' + startday.strftime('%Y-%m-%d') \
-            + ' x0:' + str(self.__x0) \
-            + ' End:' + enday.strftime('%Y-%m-%d') \
-            + ' x1:' + str(self.__x1)
+        self.__desc = 'Start|' + startday.strftime('%Y-%m-%d') \
+            + ' x0|' + str(self.__x0) \
+            + ' End|' + enday.strftime('%Y-%m-%d') \
+            + ' x1|' + str(self.__x1)
 
     def toString(self):
         return self.__desc
