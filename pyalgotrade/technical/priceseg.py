@@ -717,7 +717,7 @@ class MacdSegEventWindow(technical.EventWindow):
             (ndiff, npres) = self.pressDesQSLine(dateTime, twoline)
 
             # 回踩趋势线
-            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value)
+            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, sup)
 
             # 获取当前的整体的趋势
             qsxingtai = self.figureQS(dateTime)
@@ -1298,9 +1298,10 @@ class MacdSegEventWindow(technical.EventWindow):
         return (tpmas, zlmas, zcmas)
 
     # 回踩趋势线
-    def xtBackOnQS(self, dateTime, twoline, value):
+    def xtBackOnQS(self, dateTime, twoline, value, sup):
         ret = None
         incloseDiff = twoline[0]
+        incqsfit    = twoline[1]
         inclowDiff  = twoline[5]
         madirect    = self.__indicator.getMAdirect() 
 
@@ -1309,6 +1310,14 @@ class MacdSegEventWindow(technical.EventWindow):
             hcqs = 0
             if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008):
                 hcqs = 1
+            # 过滤弱支撑线
+            if hcqs == 1 and i not in sup:
+                self.__logger.log(logging.ERROR, 'Drop_BackOnQS: %s %s %s', \
+                                  dateTime, \
+                                  self.__inst, \
+                                  incqsfit[i].toString())
+                continue
+
             # 刺透形态
             if hcqs == 1 and self.__fts[5][3] == 1:
                 ret = (1, score)
