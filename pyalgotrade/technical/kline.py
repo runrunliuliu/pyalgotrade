@@ -63,7 +63,6 @@ class KLineEventWindow(technical.EventWindow):
         op1 = day1.getOpen()
         cl1 = day1.getClose()
         lw1 = day1.getLow()
-        hi1 = day1.getHigh()
 
         nday = values[-1]
         op0 = nday.getOpen()
@@ -71,8 +70,7 @@ class KLineEventWindow(technical.EventWindow):
 
         if op1 > cl1 and cl0 > (op1 + cl1) * 0.5 \
                 and op0 < lw1 and op1 / cl1 >= 1.02 \
-                and cl0 > op0 and cl0 < op1 \
-                and hi1 / lw1 < 1.15: 
+                and cl0 > op0 and cl0 < op1:
             ret = 1
         return ret
 
@@ -82,18 +80,15 @@ class KLineEventWindow(technical.EventWindow):
         op1 = day1.getOpen()
         cl1 = day1.getClose()
         lw1 = day1.getLow()
-        hi1 = day1.getHigh()
 
         nday = values[-1]
         op0 = nday.getOpen()
         cl0 = nday.getClose()
         hi0 = nday.getHigh()
 
-        print dateTime, hi1 / lw1
         if op1 > cl1 and hi0 > (op1 + cl1) * 0.5 \
                 and op0 < lw1 and op1 / cl1 >= 1.02 \
-                and cl0 > op0 and cl0 < op1 and cl0 > cl1 \
-                and hi1 / lw1 < 1.12: 
+                and cl0 > op0 and cl0 < op1 and cl0 > cl1:
             ret = 1
         return ret
 
