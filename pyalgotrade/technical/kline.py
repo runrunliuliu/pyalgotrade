@@ -38,6 +38,7 @@ class KLineEventWindow(technical.EventWindow):
         self.__ctxt  = -1
         self.__ctxt2 = -1
         self.__zyd   = -1
+        self.__szx   = -1
 
     def baodie(self, dateTime, diefu, zhenfu):
         mins = diefu
@@ -57,6 +58,7 @@ class KLineEventWindow(technical.EventWindow):
             self.__tkdk = jump
             self.__tkdf = diefu
 
+    # 刺透
     def CTXT(self, dateTime, values):
         ret = 0
         day1 = values[-2]
@@ -74,6 +76,7 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
 
+    # 刺透2
     def CTXT2(self, dateTime, values):
         ret = 0
         day1 = values[-2]
@@ -91,7 +94,8 @@ class KLineEventWindow(technical.EventWindow):
                 and cl0 > op0 and cl0 < op1 and cl0 > cl1:
             ret = 1
         return ret
-
+    
+    # 卓腰带
     def ZYD(self, dateTime, values):
         ret = 0
         nday = values[-1]
@@ -102,7 +106,33 @@ class KLineEventWindow(technical.EventWindow):
         if op0 / lw0 < 1.001 and cl0 / op0 > 1.03: 
             ret = 1
         return ret
-        
+
+    # 十字星
+    def SZX(self, dateTime, values):
+        ret = 0
+        day1 = values[-2]
+        vol1 = day1.getVolume()
+
+        nday = values[-1]
+        vol0 = nday.getVolume()
+        op0  = nday.getOpen()
+        cl0  = nday.getClose()
+        lw0  = nday.getLow()
+        hi0  = nday.getHigh()
+
+        diff = op0 - cl0
+        fenm = cl0
+        if op0 < cl0:
+            diff = cl0 - op0
+            fenm = op0
+
+        if hi0 == lw0:
+            return ret
+
+        if vol0 / vol1  < 1.10 and diff / fenm < 0.005 and diff / (hi0 - lw0) < 0.1:
+            ret = 1
+        return ret
+
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
         if value is not None and self.windowFull():
@@ -135,6 +165,9 @@ class KLineEventWindow(technical.EventWindow):
             self.__ctxt  = self.CTXT(dateTime, values)
             self.__zyd   = self.ZYD(dateTime, values)
             self.__ctxt2 = self.CTXT2(dateTime, values)
+            self.__szx   = self.SZX(dateTime, values)
 
     def getValue(self):
-        return (self.__tkdk, self.__tkdf, self.__bdie, self.__ctxt, self.__zyd, self.__ctxt2) 
+        return (self.__tkdk, self.__tkdf, self.__bdie, \
+                self.__ctxt, self.__zyd, self.__ctxt2, \
+                self.__szx) 
