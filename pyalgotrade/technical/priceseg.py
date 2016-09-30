@@ -716,9 +716,6 @@ class MacdSegEventWindow(technical.EventWindow):
             (sup, prs)     = self.breakIncQSLine(dateTime, twoline)
             (ndiff, npres) = self.pressDesQSLine(dateTime, twoline)
 
-            # 回踩趋势线
-            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, sup)
-
             # 获取当前的整体的趋势
             qsxingtai = self.figureQS(dateTime)
 
@@ -733,6 +730,9 @@ class MacdSegEventWindow(technical.EventWindow):
 
             # 突破之后的同峰背离
             self.__tfbeili = self.findTFBeiLi(dateTime, ret, value, qshist) 
+
+            # 回踩趋势线
+            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, sup)
 
             self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
@@ -1305,13 +1305,22 @@ class MacdSegEventWindow(technical.EventWindow):
         inclowDiff  = twoline[5]
         madirect    = self.__indicator.getMAdirect() 
 
+        if len(self.__desdate_list) < 1:
+            return ret
+        pdbars  = len(self.__desdate_list[-1])
+
         score = "{:.4f}".format(self.__fts[0][0])
         for i in range(0, len(incloseDiff)):
             hcqs = 0
             if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008):
                 hcqs = 1
+            if incloseDiff[i] < 0 and \
+                    ((inclowDiff[i] > -0.008 and pdbars > 4) or \
+                     (inclowDiff[i] > -0.015 and pdbars > 6)):
+                hcqs = 2
+
             # 过滤弱支撑线
-            if hcqs == 1 and i not in sup:
+            if hcqs > 0 and i not in sup:
                 self.__logger.log(logging.ERROR, 'Drop_BackOnQS: %s %s %s', \
                                   dateTime, \
                                   self.__inst, \
@@ -1325,6 +1334,11 @@ class MacdSegEventWindow(technical.EventWindow):
             # 刺透形态2 
             if hcqs == 1 and self.__fts[5][5] == 1:
                 ret = (2, score)
+                break
+
+            # 回踩十字星 
+            if hcqs == 2 and self.__fts[5][6] == 1:
+                ret = (5, score)
                 break
 
         hc120 = 0
