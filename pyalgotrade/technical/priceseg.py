@@ -732,7 +732,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__tfbeili = self.findTFBeiLi(dateTime, ret, value, qshist) 
 
             # 回踩趋势线
-            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, sup)
+            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, sup, qshist, ret)
 
             self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
@@ -1298,16 +1298,14 @@ class MacdSegEventWindow(technical.EventWindow):
         return (tpmas, zlmas, zcmas)
 
     # 回踩趋势线
-    def xtBackOnQS(self, dateTime, twoline, value, sup):
+    def xtBackOnQS(self, dateTime, twoline, value, sup, qshist, gd):
         ret = None
         incloseDiff = twoline[0]
         incqsfit    = twoline[1]
         inclowDiff  = twoline[5]
         madirect    = self.__indicator.getMAdirect() 
 
-        if len(self.__desdate_list) < 1:
-            return ret
-        pdbars  = len(self.__desdate_list[-1])
+        pdbars  = len(self.__desdate)
 
         score = "{:.4f}".format(self.__fts[0][0])
         for i in range(0, len(incloseDiff)):
@@ -1337,7 +1335,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 break
 
             # 回踩十字星 
-            if hcqs == 2 and self.__fts[5][6] == 1:
+            if hcqs == 2 and qshist == -1 and gd == -1 and self.__fts[5][6] == 1:
                 ret = (5, score)
                 break
 
