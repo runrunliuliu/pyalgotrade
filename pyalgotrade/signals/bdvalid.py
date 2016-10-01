@@ -29,7 +29,7 @@ class BDvalid(object):
     def goldSegment(self, peek, valley):
         # 反弹
         ret  = []
-        g    = [0.764, 0.618, 0.5, 0.382, 0.236]
+        g    = [0.764, 0.618, 0.5, 0.382]
         diff = peek - valley
         baseval = -1 
         flag    = 0
@@ -43,7 +43,7 @@ class BDvalid(object):
             for i in g:
                 fb = peek - diff * i
                 rt = (baseval - fb) / fb
-                if rt > 0 and rt < 0.01: 
+                if rt > 0 and rt < 0.005: 
                     ret.append(flag) 
                 else:
                     ret.append(0)
