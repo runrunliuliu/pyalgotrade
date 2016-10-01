@@ -1306,6 +1306,9 @@ class MacdSegEventWindow(technical.EventWindow):
         madirect    = self.__indicator.getMAdirect() 
 
         pdbars  = len(self.__desdate)
+        
+        masigs = mavalid.MAvalid()
+        hcma = masigs.HCMA(dateTime, madirect, self.__mas, value)
 
         score = "{:.4f}".format(self.__fts[0][0])
         for i in range(0, len(incloseDiff)):
@@ -1319,10 +1322,9 @@ class MacdSegEventWindow(technical.EventWindow):
 
             # 过滤弱支撑线
             if hcqs > 0 and i not in sup:
-                self.__logger.log(logging.ERROR, 'Drop_BackOnQS: %s %s %s', \
-                                  dateTime, \
-                                  self.__inst, \
-                                  incqsfit[i].toString())
+                self.__logger.log(logging.ERROR, 'BackOnQS: %s %s %s %d %d %d',\
+                                  dateTime, self.__inst, incqsfit[i].toString(),\
+                                  self.__fts[5][3], self.__fts[5][5], hcqs)
                 continue
 
             # 刺透形态
@@ -1333,9 +1335,9 @@ class MacdSegEventWindow(technical.EventWindow):
             if hcqs == 1 and self.__fts[5][5] == 1:
                 ret = (2, score)
                 break
-
             # 回踩十字星 
-            if hcqs == 2 and qshist == -1 and gd == -1 and self.__fts[5][6] == 1:
+            if hcqs == 2 and qshist == -1 and gd == -1 \
+                    and self.__fts[5][6] == 1 and sum(hcma) > 0:
                 ret = (5, score)
                 break
 
