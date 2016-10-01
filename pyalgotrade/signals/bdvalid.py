@@ -26,25 +26,19 @@ class BDvalid(object):
         if self.__direct == 1 and qshist == 1:
             self.__status = 21
 
-    def goldSegment(self, peek, valley):
-        # 反弹
+    def goldSegment(self, dateTime, peek, valley):
         ret  = []
-        g    = [0.764, 0.618, 0.5, 0.382]
+        g    = [1.0, 0.764, 0.618, 0.5, 0.382]
         diff = peek - valley
-        baseval = -1 
-        flag    = 0
-        if self.__status == 20:
-            baseval = self.__nbar.getHigh()
-            flag    = 1 
-        if self.__status == 21:
-            baseval = self.__nbar.getClose()
-            flag    = -1 
-        if baseval > 0: 
+        # 回踩黄金分割位
+        if self.__status == 20 or self.__status == 21:
+            nlow = self.__nbar.getLow()
+            ncls = self.__nbar.getClose()
             for i in g:
                 fb = peek - diff * i
-                rt = (baseval - fb) / fb
-                if rt > 0 and rt < 0.005: 
-                    ret.append(flag) 
+                rt = (nlow - fb) / fb
+                if ncls > fb and abs(rt) < 0.005: 
+                    ret.append(1) 
                 else:
                     ret.append(0)
         else:
@@ -67,6 +61,6 @@ class BDvalid(object):
         peek   = datehigh[ptime] 
         valley = datelow[vtime] 
 
-        gold = self.goldSegment(peek, valley)
+        gold = self.goldSegment(dateTime, peek, valley)
         return (sum(gold),)
 #
