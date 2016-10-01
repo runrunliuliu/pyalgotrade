@@ -222,17 +222,16 @@ class MAvalid(object):
 
     # 回踩均线
     def HCMA(self, dateTime, madirect, mavals, value):
-        ma  = [10, 20, 30, 60, 90, 120, 250]
+        ma  = [20, 30, 60, 90, 120, 250]
         ret = []
         for k in ma:
             if k in mavals:
                 low = (value.getLow() - mavals[k]) / value.getLow() 
                 t = 0.0008
-                if k == 10:
-                    t = 0.004
                 if k == 20 or k == 30:
                     t = 0.003
-                if (low < 0 or low < 0.008) and value.getClose() > mavals[k] \
+                diff = (value.getClose() - mavals[k]) / mavals[k]
+                if (low < 0 or low < 0.008) and diff > 0 \
                         and madirect[-1][self.__mapma[k]] > t:
                     ret.append(1)
                 else:
