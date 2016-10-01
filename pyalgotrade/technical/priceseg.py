@@ -1305,6 +1305,7 @@ class MacdSegEventWindow(technical.EventWindow):
         incqsfit    = twoline[1]
         inclowDiff  = twoline[5]
         madirect    = self.__indicator.getMAdirect() 
+        maposition  = self.__indicator.getMAPosition() 
 
         if len(self.__incdate_list) < 1:
             return ret
@@ -1313,6 +1314,8 @@ class MacdSegEventWindow(technical.EventWindow):
         
         masigs = mavalid.MAvalid()
         hcma = masigs.HCMA(dateTime, madirect, self.__mas, value)
+
+        print dateTime, madirect[-1][0], maposition[-1]
 
         score = "{:.4f}".format(self.__fts[0][0])
         for i in range(0, len(incloseDiff)):
@@ -1330,26 +1333,28 @@ class MacdSegEventWindow(technical.EventWindow):
                                   self.__fts[5][3], self.__fts[5][5], hcqs)
                 continue
             # 刺透形态
-            if hcqs == 1 and self.__fts[5][3] == 1:
+            if hcqs == 1 and madirect[-1][0] > -0.03 and self.__fts[5][3] == 1:
                 ret = (1, score)
                 break
             # 刺透形态2 
-            if hcqs == 1 and self.__fts[5][5] == 1:
+            if hcqs == 1 and madirect[-1][0] > -0.03 and self.__fts[5][5] == 1:
                 ret = (2, score)
                 break
             # 回踩十字星 
             if hcqs == 2 and qshist == -1 and (gd == -1 or abs(hist) < 0.0382) \
-                    and self.__fts[5][6] == 1 and sum(hcma) > 0:
+                    and madirect[-1][0] > -0.02 and self.__fts[5][6] == 1 and sum(hcma) > 0:
                 ret = (5, score)
                 break
             # 黄金分割位, 趋势线或者重要均线
             if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
-                    and self.__fts[5][6] == 1 and float(score) > 0:
+                    and madirect[-1][0] > -0.01 and abs(maposition[-1][0]) < 0.02 \
+                    and float(score) > 0:
                 ret = (6, score)
                 break
-            # 充分调整, 趋势线或者重要均线
+            # 充分调整, 回踩趋势线或者重要均线
             if (upbars + pdbars) > 21 and (hcqs == 2 or sum(hcma) > 0) \
-                    and abs(madirect[-1][0]) < 0.0008 and float(score) > 0:
+                    and madirect[-1][0] > -0.01 and abs(maposition[-1][0]) < 0.02 \
+                    and float(score) > 0:
                 ret = (7, score)
                 break
 
