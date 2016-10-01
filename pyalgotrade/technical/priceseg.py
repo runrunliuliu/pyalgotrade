@@ -731,8 +731,12 @@ class MacdSegEventWindow(technical.EventWindow):
             # 突破之后的同峰背离
             self.__tfbeili = self.findTFBeiLi(dateTime, ret, value, qshist) 
 
+            # 波段点
+            bd = self.BDsignal(dateTime, qshist, change, value)
+
             # 回踩趋势线
-            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, sup, qshist, ret)
+            self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
+                                          sup, qshist, hist, ret, bd)
 
             self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
@@ -774,9 +778,6 @@ class MacdSegEventWindow(technical.EventWindow):
                                                    self.__macd.getHistogram()[-1])
             if self.__md5120 is not None:
                 MADprice = "{:.4f}".format(self.__fkCROSS)
-             
-            # 波段点
-            self.BDsignal(dateTime, qshist, change)
 
             # 非上升趋势的跳空低开,视为趋势的恶化，空仓
             tkdk = 1024
@@ -811,10 +812,10 @@ class MacdSegEventWindow(technical.EventWindow):
             ret = d.status(dateTime, mascore, dt, tup)
         return ret 
 
-    def BDsignal(self, dateTime, qshist, change):
-        bd = bdvalid.BDvalid(self.__direct, qshist, change, self.__dtzq)
-        bd.bupStatus(dateTime, self.__nowgd, self.__fpeek, self.__fvalley, self.__datelow, self.__datehigh)
-        # print dateTime, self.__direct, self.__nowgd, self.__fpeek[-1], self.__fvalley[-1]
+    def BDsignal(self, dateTime, qshist, change, value):
+        bd = bdvalid.BDvalid(self.__direct, qshist, change, self.__dtzq, value)
+        ret = bd.bupStatus(dateTime, self.__nowgd, self.__fpeek, self.__fvalley, self.__datelow, self.__datehigh)
+        return ret
 
     def LongPeriod(self, dateTime, value):
         madirect   = self.__indicator.getMAdirect() 
@@ -1298,13 +1299,16 @@ class MacdSegEventWindow(technical.EventWindow):
         return (tpmas, zlmas, zcmas)
 
     # 回踩趋势线
-    def xtBackOnQS(self, dateTime, twoline, value, sup, qshist, gd):
+    def xtBackOnQS(self, dateTime, twoline, value, sup, qshist, hist, gd, bd):
         ret = None
         incloseDiff = twoline[0]
         incqsfit    = twoline[1]
         inclowDiff  = twoline[5]
         madirect    = self.__indicator.getMAdirect() 
 
+        if len(self.__incdate_list) < 1:
+            return ret
+        upbars  = len(self.__incdate_list[-1])
         pdbars  = len(self.__desdate)
         
         masigs = mavalid.MAvalid()
@@ -1319,14 +1323,12 @@ class MacdSegEventWindow(technical.EventWindow):
                     ((inclowDiff[i] > -0.008 and pdbars > 4) or \
                      (inclowDiff[i] > -0.015 and pdbars > 6)):
                 hcqs = 2
-
             # 过滤弱支撑线
             if hcqs > 0 and i not in sup:
                 self.__logger.log(logging.ERROR, 'BackOnQS: %s %s %s %d %d %d',\
                                   dateTime, self.__inst, incqsfit[i].toString(),\
                                   self.__fts[5][3], self.__fts[5][5], hcqs)
                 continue
-
             # 刺透形态
             if hcqs == 1 and self.__fts[5][3] == 1:
                 ret = (1, score)
@@ -1336,29 +1338,22 @@ class MacdSegEventWindow(technical.EventWindow):
                 ret = (2, score)
                 break
             # 回踩十字星 
-            if hcqs == 2 and qshist == -1 and gd == -1 \
+            if hcqs == 2 and qshist == -1 and (gd == -1 or abs(hist) < 0.0382) \
                     and self.__fts[5][6] == 1 and sum(hcma) > 0:
                 ret = (5, score)
                 break
+            # 黄金分割位, 趋势线或者重要均线
+            if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0):
+                ret = (6, score)
+                break
+            # 充分调整, 趋势线或者重要均线
+            if (upbars + pdbars) > 21 and (hcqs == 2 or sum(hcma) > 0):
+                ret = (7, score)
+                break
 
-        hc120 = 0
-        hc250 = 0
         if ret is None:
-            low120 = 1024
-            if 120 in self.__mas:
-                low120 = (value.getLow() - self.__mas[120]) / value.getLow() 
-                if (low120 < 0 or low120 < 0.008) \
-                        and value.getClose() > self.__mas[120] \
-                        and madirect[-1][6] > 0.001:
-                    hc120 = 1
-
-            low250 = 1024
-            if 250 in self.__mas:
-                low250 = (value.getLow() - self.__mas[250]) / value.getLow() 
-                if (low250 < 0 or low250 < 0.008) \
-                        and value.getClose() > self.__mas[250] \
-                        and madirect[-1][7] > 0.001:
-                    hc250 = 1
+            hc120 = hcma[-2]
+            hc250 = hcma[-1]
             if (hc120 + hc250) > 0 and self.__fts[5][3] == 1:
                 ret = (3, score)
                 return ret
