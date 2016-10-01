@@ -219,4 +219,23 @@ class MAvalid(object):
                     md5120 = None
         valid_12 = md5120
         return valid_12 
+
+    # 回踩均线
+    def HCMA(self, dateTime, madirect, mavals, value):
+        ma  = [20, 60, 90, 120, 250]
+        ret = []
+        for k in ma:
+            if k in mavals:
+                low = (value.getLow() - mavals[k]) / value.getLow() 
+                t = 0.001
+                if k == 20:
+                    t = 0.003
+                if (low < 0 or low < 0.008) and value.getClose() > mavals[k] \
+                        and madirect[-1][self.__mapma[k]] > t:
+                    ret.append(1)
+                else:
+                    ret.append(0)
+            else:
+                ret.append(0)
+        return ret
 # 
