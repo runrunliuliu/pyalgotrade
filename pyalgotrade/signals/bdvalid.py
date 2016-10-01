@@ -57,9 +57,13 @@ class BDvalid(object):
             return ret 
         ptime = fpeek[0][0]
         vtime = fvalley[0][0]
-
+        
         peek   = datehigh[ptime] 
         valley = datelow[vtime] 
+        
+        timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
+        if abs(timediff) < 7 or (peek - valley) / valley < 0.20:
+            return ret
 
         gold = self.goldSegment(dateTime, peek, valley)
         return (sum(gold),)
