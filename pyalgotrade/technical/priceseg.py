@@ -1315,8 +1315,6 @@ class MacdSegEventWindow(technical.EventWindow):
         masigs = mavalid.MAvalid()
         hcma = masigs.HCMA(dateTime, madirect, self.__mas, value)
 
-        print dateTime, madirect[-1][0], maposition[-1]
-
         score = "{:.4f}".format(self.__fts[0][0])
         for i in range(0, len(incloseDiff)):
             hcqs = 0
@@ -1348,13 +1346,15 @@ class MacdSegEventWindow(technical.EventWindow):
             # 黄金分割位, 趋势线或者重要均线
             if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
                     and madirect[-1][0] > -0.02 and abs(maposition[-1][0]) < 0.03 \
-                    and float(score) > 0 and abs(hist) < 0.08:
+                    and (qshist == -1 and abs(hist) / abs(self.__deshist[0]) < 0.20)  \
+                    and float(score) > 0:
                 ret = (6, score)
                 break
             # 充分调整, 回踩趋势线或者重要均线
             if (upbars + pdbars) > 21 and (hcqs == 2 or sum(hcma) > 0) \
                     and madirect[-1][0] > -0.01 and abs(maposition[-1][0]) < 0.02 \
-                    and float(score) > 0 and abs(hist) < 0.08:
+                    and qshist == -1 and abs(hist) / abs(self.__deshist[0]) < 0.15 \
+                    and float(score) > 0:
                 ret = (7, score)
                 break
 
