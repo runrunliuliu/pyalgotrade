@@ -1343,11 +1343,13 @@ class MacdSegEventWindow(technical.EventWindow):
                 ret = (5, score)
                 break
             # 黄金分割位, 趋势线或者重要均线
-            if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0):
+            if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
+                    and self.__fts[5][6] == 1 and float(score) > 0:
                 ret = (6, score)
                 break
             # 充分调整, 趋势线或者重要均线
-            if (upbars + pdbars) > 21 and (hcqs == 2 or sum(hcma) > 0):
+            if (upbars + pdbars) > 21 and (hcqs == 2 or sum(hcma) > 0) \
+                    and abs(madirect[-1][0]) < 0.0008 and float(score) > 0:
                 ret = (7, score)
                 break
 
