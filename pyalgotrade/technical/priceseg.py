@@ -49,6 +49,8 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__bars = BarSeries
         self.__period = None
 
+        self.__fibs = None
+
         self.__prevmacd    = None 
         self.__prevXTscore = None
 
@@ -733,6 +735,9 @@ class MacdSegEventWindow(technical.EventWindow):
 
             # 波段点
             bd = self.BDsignal(dateTime, qshist, change, value)
+            # STORED
+            if bd is not None and bd[1] == 1:
+                self.__fibs = (dateTime, bd[2])
 
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
@@ -785,11 +790,18 @@ class MacdSegEventWindow(technical.EventWindow):
             if klines[0] < 0.0 and self.__direct == 1:
                 tkdk = "{:.4f}".format(klines[0])
                 tkdf = "{:.4f}".format(klines[1])
+
+            fibs = 0
+            if self.__fibs is not None:
+                fibdt = self.__dtzq[self.__fibs[0]]
+                nowdt = self.__dtzq[dateTime]
+                if (nowdt - fibdt) < 3 and value.getClose() < self.__fibs[1]:
+                    fibs = 1
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
-                (self.__QUSHI[1], MADprice, self.__tfbeili)
+                (self.__QUSHI[1], MADprice, self.__tfbeili, fibs)
 
             self.filter4Show(dateTime, twoline, value)
 
