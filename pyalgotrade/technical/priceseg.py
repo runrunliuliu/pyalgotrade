@@ -736,7 +736,7 @@ class MacdSegEventWindow(technical.EventWindow):
             # 波段点
             bd = self.BDsignal(dateTime, qshist, change, value)
             # STORED
-            if bd is not None and bd[1] == 1:
+            if bd is not None and bd[1] > 0:
                 self.__fibs = (dateTime, bd[2])
 
             # 回踩趋势线
