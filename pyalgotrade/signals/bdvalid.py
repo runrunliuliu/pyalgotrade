@@ -26,7 +26,7 @@ class BDvalid(object):
         if self.__direct == 1 and qshist == 1:
             self.__status = 21
 
-    def goldSegment(self, dateTime, peek, valley):
+    def longGoldSegment(self, dateTime, peek, valley):
         ret  = []
         g    = [1.0, 0.764, 0.618, 0.5, 0.382]
         diff = peek - valley
@@ -45,8 +45,25 @@ class BDvalid(object):
             ret = [0]
         return ret
 
-    def period(self, dateTime, fpeek, fvalley):
+    def shortGoldSegment(self, dateTime, peek, valley):
+        ret  = []
+        g    = [1.0, 0.764, 0.618, 0.5, 0.382, 0.236]
+        diff = peek - valley
+        # 上冲黄金分割位
+        nhi  = self.__nbar.getHigh()
+        ncls = self.__nbar.getClose()
+        price = -1024
+        for i in g:
+            fb = valley + diff * i
+            rt = (nhi - fb) / fb
+            if ncls < fb and abs(rt) < 0.02: 
+                ret.append(1) 
+                price = fb
+            else:
+                ret.append(0)
+        return (ret, price)
 
+    def period(self, dateTime, fpeek, fvalley):
         if self.__status == 10 or self.__status == 11:
             print dateTime, fpeek[0][0], fvalley[0][0]
             # timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
@@ -60,11 +77,18 @@ class BDvalid(object):
         
         peek   = datehigh[ptime] 
         valley = datelow[vtime] 
-        
+       
+        longGold  = [0]
+        shortGold = ([0], -1024)
         timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
+
         if (abs(timediff) >= 7 and (peek - valley) / valley >= 0.20) \
                 or (abs(timediff) >= 11 and (peek - valley) / valley >= 0.10):
-            gold = self.goldSegment(dateTime, peek, valley)
-            return (sum(gold),)
-        return ret
+            longGold = self.longGoldSegment(dateTime, peek, valley)
+       
+        if self.__status <= 11 and (peek - valley) / valley > 0.8:
+            shortGold = self.shortGoldSegment(dateTime, peek, valley)
+        if self.__status == 21 and ((peek - datelow[nowgd]) / datelow[nowgd] > 0.8):
+            shortGold = self.shortGoldSegment(dateTime, peek, datelow[nowgd])
+        return (sum(longGold), sum(shortGold[0]), shortGold[1])
 #
