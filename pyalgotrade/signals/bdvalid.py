@@ -27,23 +27,31 @@ class BDvalid(object):
             self.__status = 21
 
     def longGoldSegment(self, dateTime, peek, valley):
-        ret  = []
-        g    = [1.0, 0.764, 0.618, 0.5, 0.382]
-        diff = peek - valley
+        ret   = []
+        g     = [1.0, 0.764, 0.618, 0.5, 0.382]
+        fbp   = 1024
+        press = [] 
+        diff  = peek - valley
         # 回踩黄金分割位
         if self.__status == 20 or self.__status == 21:
             nlow = self.__nbar.getLow()
+            nhi  = self.__nbar.getHigh()
             ncls = self.__nbar.getClose()
+            cnt  = 0
             for i in g:
+                cnt = cnt + 1
                 fb = peek - diff * i
                 rt = (nlow - fb) / fb
                 if ncls > fb and abs(rt) < 0.005: 
+                    fbp = fb
                     ret.append(1) 
                 else:
                     ret.append(0)
+                if nhi > fb and ncls < fb:
+                    press.append(cnt)
         else:
             ret = [0]
-        return ret
+        return (ret, fbp, press)
 
     def shortGoldSegment(self, dateTime, peek, valley):
         ret  = []
@@ -78,7 +86,7 @@ class BDvalid(object):
         peek   = datehigh[ptime] 
         valley = datelow[vtime] 
        
-        longGold  = [0]
+        longGold  = ([0], 1024, [])
         shortGold = ([0], -1024)
         timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
 
@@ -91,5 +99,6 @@ class BDvalid(object):
         if self.__status == 21 and ((peek - datelow[nowgd]) / datelow[nowgd] > 0.8):
             shortGold = self.shortGoldSegment(dateTime, peek, datelow[nowgd])
 
-        return (sum(longGold), sum(shortGold[0]), shortGold[1])
+        return (sum(longGold[0]), sum(shortGold[0]), shortGold[1], \
+                longGold[1], longGold[2])
 #
