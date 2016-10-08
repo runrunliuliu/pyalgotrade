@@ -741,7 +741,8 @@ class MacdSegEventWindow(technical.EventWindow):
 
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
-                                          sup, qshist, hist, ret, bd)
+                                          sup, qshist, hist, ret, bd,\
+                                          qsgd)
 
             self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
@@ -1311,7 +1312,8 @@ class MacdSegEventWindow(technical.EventWindow):
         return (tpmas, zlmas, zcmas)
 
     # 回踩趋势线
-    def xtBackOnQS(self, dateTime, twoline, value, sup, qshist, hist, gd, bd):
+    def xtBackOnQS(self, dateTime, twoline, value, sup, \
+                   qshist, hist, gd, bd, qsgd):
         ret = None
         incloseDiff = twoline[0]
         incqsfit    = twoline[1]
@@ -1355,7 +1357,7 @@ class MacdSegEventWindow(technical.EventWindow):
                     and madirect[-1][0] > -0.02 and self.__fts[5][6] == 1 and sum(hcma) > 0:
                 ret = (5, score)
                 break
-            # 黄金分割位, 趋势线或者重要均线
+            # 黄金分割位1, 趋势线或者重要均线
             if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
                     and madirect[-1][0] > -0.02 and abs(maposition[-1][0]) < 0.03 \
                     and (qshist == -1 and abs(hist) / abs(self.__deshist[0]) < 0.20)  \
@@ -1368,6 +1370,12 @@ class MacdSegEventWindow(technical.EventWindow):
                     and qshist == -1 and abs(hist) / abs(self.__deshist[0]) < 0.15 \
                     and float(score) > 0:
                 ret = (7, score)
+                break
+            # 黄金分割位2, 趋势线或者重要均线
+            if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
+                    and (qshist == 1 and qsgd is not None) \
+                    and float(score) > 0:
+                ret = (8, score)
                 break
 
         if ret is None:
