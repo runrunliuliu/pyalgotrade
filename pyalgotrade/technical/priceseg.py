@@ -734,11 +734,14 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__tfbeili = self.findTFBeiLi(dateTime, ret, value, qshist) 
 
             # 波段点
-            bd = self.BDsignal(dateTime, qshist, change, value)
-            # STORED
-            if bd is not None and bd[1] > 0:
-                self.__fibs = (dateTime, bd[2])
-
+            fbpress = 0
+            fbprice = 1024
+            bd      = self.BDsignal(dateTime, qshist, change, value)
+            if bd is not None:
+                if bd[1] > 0:
+                    self.__fibs = (dateTime, bd[2])
+                fbprice = "{:.4f}".format(bd[3])
+                fbpress = len(bd[4])
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
@@ -807,7 +810,8 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
-                (self.__QUSHI[1], MADprice, self.__tfbeili, fibs, bias5120)
+                (self.__QUSHI[1], MADprice, self.__tfbeili, \
+                 fibs, bias5120, fbprice, fbpress)
 
             self.filter4Show(dateTime, twoline, value)
 
