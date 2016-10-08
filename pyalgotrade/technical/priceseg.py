@@ -785,6 +785,11 @@ class MacdSegEventWindow(technical.EventWindow):
             if self.__md5120 is not None:
                 MADprice = "{:.4f}".format(self.__fkCROSS)
 
+            # BIAS
+            bias5120 = 1024
+            if '5120' in self.__madiff:
+                bias5120 = "{:.2f}".format(self.__madiff['5120'])
+
             # 非上升趋势的跳空低开,视为趋势的恶化，空仓
             tkdk = 1024
             tkdf = 1024
@@ -802,7 +807,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
-                (self.__QUSHI[1], MADprice, self.__tfbeili, fibs)
+                (self.__QUSHI[1], MADprice, self.__tfbeili, fibs, bias5120)
 
             self.filter4Show(dateTime, twoline, value)
 
