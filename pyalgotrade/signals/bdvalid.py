@@ -90,5 +90,6 @@ class BDvalid(object):
             shortGold = self.shortGoldSegment(dateTime, peek, valley)
         if self.__status == 21 and ((peek - datelow[nowgd]) / datelow[nowgd] > 0.8):
             shortGold = self.shortGoldSegment(dateTime, peek, datelow[nowgd])
+
         return (sum(longGold), sum(shortGold[0]), shortGold[1])
 #
