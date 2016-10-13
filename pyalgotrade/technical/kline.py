@@ -129,7 +129,9 @@ class KLineEventWindow(technical.EventWindow):
         if hi0 == lw0:
             return ret
 
-        if vol0 / vol1  < 1.10 and diff / fenm < 0.005 and diff / (hi0 - lw0) < 0.1:
+        # if vol0 / vol1  < 1.10 and diff / fenm < 0.005 and diff / (hi0 - lw0) < 0.1:
+        #    ret = 1
+        if vol0 / vol1  < 1.10 and diff / fenm < 0.01 and diff / (hi0 - lw0) < 0.168:
             ret = 1
         return ret
 

@@ -1339,6 +1339,11 @@ class MacdSegEventWindow(technical.EventWindow):
         hcma = masigs.HCMA(dateTime, madirect, self.__mas, value)
 
         score = "{:.4f}".format(self.__fts[0][0])
+
+        self.__logger.log(logging.ERROR, 'BackOnQS_Feature: %s %s %d %d %d %d',\
+                          dateTime, self.__inst, pdbars, sum(hcma), qshist, \
+                          self.__fts[5][6])
+
         for i in range(0, len(incloseDiff)):
             hcqs = 0
             if incloseDiff[i] < 0 and (inclowDiff[i] > 0 or inclowDiff[i] > -0.008):
@@ -1382,7 +1387,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 break
             # 黄金分割位2, 趋势线或者重要均线
             if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
-                    and self.__fts[5][6] == 1 and qshist == -1 and pdbars >= 5:
+                    and self.__fts[5][6] == 1 and qshist == -1 and pdbars >= 3:
                 ret = (8, score)
                 break
 
