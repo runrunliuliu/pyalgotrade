@@ -1387,7 +1387,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 break
             # 黄金分割位2, 趋势线或者重要均线
             if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
-                    and self.__fts[5][6] == 1 and qshist == -1 and pdbars >= 3:
+                    and self.__fts[5][6] == 1 and qshist == -1 and pdbars > 3:
                 ret = (8, score)
                 break
 
