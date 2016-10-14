@@ -1334,6 +1334,8 @@ class MacdSegEventWindow(technical.EventWindow):
 
         if len(self.__incdate_list) < 1:
             return ret
+        if len(self.__desdate_list) < 1:
+            return ret
         upbars  = len(self.__incdate_list[-1])
         pdbars  = len(self.__desdate)
         predn   = len(self.__desdate_list[-1])
