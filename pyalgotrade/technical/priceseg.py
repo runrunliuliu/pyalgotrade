@@ -737,15 +737,17 @@ class MacdSegEventWindow(technical.EventWindow):
             fbpress = 0
             fbprice = 1024
             bd      = self.BDsignal(dateTime, qshist, change, value)
+            gprice  = []
             if bd is not None:
                 if bd[1] > 0:
                     self.__fibs = (dateTime, bd[2])
                 fbprice = "{:.4f}".format(bd[3])
                 fbpress = len(bd[4])
+                gprice  = bd[5]
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
-                                          qsgd)
+                                          qsgd, gprice)
 
             self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
@@ -1322,7 +1324,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
     # 回踩趋势线
     def xtBackOnQS(self, dateTime, twoline, value, sup, \
-                   qshist, hist, gd, bd, qsgd):
+                   qshist, hist, gd, bd, qsgd, gprice):
         ret = None
         incloseDiff = twoline[0]
         incqsfit    = twoline[1]
@@ -1334,6 +1336,7 @@ class MacdSegEventWindow(technical.EventWindow):
             return ret
         upbars  = len(self.__incdate_list[-1])
         pdbars  = len(self.__desdate)
+        predn   = len(self.__desdate_list[-1])
         
         masigs = mavalid.MAvalid()
         hcma = masigs.HCMA(dateTime, madirect, self.__mas, value)
@@ -1391,6 +1394,20 @@ class MacdSegEventWindow(technical.EventWindow):
                     and sum(hcma) > 0 and pdbars >= 5:
                 ret = (5, score)
                 break
+
+        # 黄金分割位暴力反弹, 913, 923
+        # flag = 9
+        if len(gprice) > 0 and (ret is None or ret[0] == 5) \
+                and ((qshist == -1 and pdbars >= 7) or (qshist == 1 and predn >= 7)):
+            flag = -1
+            for i in [3, 2, 0]:
+                if value.getLow() < gprice[i] and value.getClose() > gprice[i]:
+                    if self.__fts[5][3] == 1:
+                        flag = 9 * 100 + 10 + i
+                    if flag < 0 and self.__fts[5][4] == 1:
+                        flag = 9 * 100 + 20 + i
+            if flag > 0:
+                ret = (flag, score)
 
         if ret is None:
             hc120 = hcma[-2]
