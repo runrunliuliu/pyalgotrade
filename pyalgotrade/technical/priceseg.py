@@ -1386,7 +1386,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 ret = (7, score)
                 break
             # 回踩十字星 
-            if hcqs == 2 and qshist == -1 and (gd == -1 or abs(hist) < 0.0382) \
+            if hcqs == 2 and qshist == -1 and abs(hist) < 0.0382 \
                     and madirect[-1][0] > -0.02 and self.__fts[5][6] == 1 \
                     and sum(hcma) > 0 and pdbars >= 5:
                 ret = (5, score)
