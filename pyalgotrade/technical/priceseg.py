@@ -1366,17 +1366,17 @@ class MacdSegEventWindow(technical.EventWindow):
             if hcqs == 1 and madirect[-1][0] > -0.03 and self.__fts[5][5] == 1:
                 ret = (2, score)
                 break
-            # 回踩十字星 
-            if hcqs == 2 and qshist == -1 and (gd == -1 or abs(hist) < 0.0382) \
-                    and madirect[-1][0] > -0.02 and self.__fts[5][6] == 1 and sum(hcma) > 0:
-                ret = (5, score)
-                break
             # 黄金分割位1, 趋势线或者重要均线
             if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
                     and madirect[-1][0] > -0.02 and abs(maposition[-1][0]) < 0.03 \
                     and (qshist == -1 and abs(hist) / abs(self.__deshist[0]) < 0.20)  \
                     and float(score) > 0:
                 ret = (6, score)
+                break
+            # 黄金分割位2, 趋势线或者重要均线
+            if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
+                    and self.__fts[5][6] == 1 and qshist == -1 and pdbars > 3:
+                ret = (8, score)
                 break
             # 充分调整, 回踩趋势线或者重要均线
             if (upbars + pdbars) > 21 and (hcqs == 2 or sum(hcma) > 0) \
@@ -1385,10 +1385,10 @@ class MacdSegEventWindow(technical.EventWindow):
                     and float(score) > 0:
                 ret = (7, score)
                 break
-            # 黄金分割位2, 趋势线或者重要均线
-            if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
-                    and self.__fts[5][6] == 1 and qshist == -1 and pdbars > 3:
-                ret = (8, score)
+            # 回踩十字星 
+            if hcqs == 2 and qshist == -1 and (gd == -1 or abs(hist) < 0.0382) \
+                    and madirect[-1][0] > -0.02 and self.__fts[5][6] == 1 and sum(hcma) > 0:
+                ret = (5, score)
                 break
 
         if ret is None:
