@@ -1415,7 +1415,7 @@ class MacdSegEventWindow(technical.EventWindow):
         # flag = 9
         if len(gprice) > 0 and (ret is None or ret[0] == 5) \
                 and ((qshist == -1 and pdbars >= 5) or (qshist == 1 and predn >= 5 and nowup <= 2)) \
-                and madirect[-1][0] > -0.01:
+                and madirect[-1][0] > -0.005:
             flag = -1
             for i in [4, 3, 2, 1, 0]:
                 if value.getLow() < gprice[i] and value.getClose() > gprice[i]:
