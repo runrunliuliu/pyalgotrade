@@ -92,6 +92,8 @@ class BDvalid(object):
         shortGold = ([0], -1024)
         timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
 
+        bddf = (peek - valley) / valley
+
         if (abs(timediff) >= 7 and (peek - valley) / valley >= 0.20) \
                 or (abs(timediff) >= 11 and (peek - valley) / valley >= 0.10):
             longGold = self.longGoldSegment(dateTime, peek, valley)
@@ -102,5 +104,5 @@ class BDvalid(object):
             shortGold = self.shortGoldSegment(dateTime, peek, datelow[nowgd])
 
         return (sum(longGold[0]), sum(shortGold[0]), shortGold[1], \
-                longGold[1], longGold[2], longGold[3])
+                longGold[1], longGold[2], longGold[3], bddf)
 #
