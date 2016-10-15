@@ -39,6 +39,7 @@ class KLineEventWindow(technical.EventWindow):
         self.__ctxt2 = -1
         self.__zyd   = -1
         self.__szx   = -1
+        self.__kztm  = -1
 
     def baodie(self, dateTime, diefu, zhenfu):
         mins = diefu
@@ -103,7 +104,29 @@ class KLineEventWindow(technical.EventWindow):
         cl0  = nday.getClose()
         lw0  = nday.getLow()
 
-        if op0 / lw0 < 1.001 and cl0 / op0 > 1.03: 
+        if op0 / lw0 < 1.001 and cl0 / op0 > 1.03 and cl0 / op0 <= 1.08: 
+            ret = 1
+        return ret
+
+    # 看涨吞没形态 
+    def KZTM(self, dateTime, values):
+        ret = 0
+        day1 = values[-2]
+        op1 = day1.getOpen()
+        cl1 = day1.getClose()
+        lw1 = day1.getLow()
+        hi1 = day1.getHigh()
+        vol1 = day1.getVolume()
+
+        nday = values[-1]
+        op0 = nday.getOpen()
+        cl0 = nday.getClose()
+        hi0 = nday.getHigh()
+        vol0 = nday.getVolume()
+
+        if vol0 / vol1 > 0.99 and op1 > cl1 and hi0 > hi1 \
+                and op0 < lw1 and op1 / cl1 >= 1.02 \
+                and cl0 > op0 and cl0 > op1:
             ret = 1
         return ret
 
@@ -166,8 +189,9 @@ class KLineEventWindow(technical.EventWindow):
             self.__zyd   = self.ZYD(dateTime, values)
             self.__ctxt2 = self.CTXT2(dateTime, values)
             self.__szx   = self.SZX(dateTime, values)
+            self.__kztm  = self.KZTM(dateTime, values)
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
                 self.__ctxt, self.__zyd, self.__ctxt2, \
-                self.__szx) 
+                self.__szx, self.__kztm) 
