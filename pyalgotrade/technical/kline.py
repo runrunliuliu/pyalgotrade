@@ -96,15 +96,20 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
     
-    # 卓腰带
+    # 前阴卓腰带
     def ZYD(self, dateTime, values):
         ret = 0
+        day1 = values[-2]
+        op1 = day1.getOpen()
+        cl1 = day1.getClose()
+
         nday = values[-1]
         op0  = nday.getOpen()
         cl0  = nday.getClose()
         lw0  = nday.getLow()
 
-        if op0 / lw0 < 1.001 and cl0 / op0 > 1.03 and cl0 / op0 <= 1.08: 
+        if op0 / lw0 < 1.001 and cl0 / op0 > 1.03 and cl0 / op0 <= 1.08 \
+                and op1 > cl1: 
             ret = 1
         return ret
 
@@ -114,18 +119,15 @@ class KLineEventWindow(technical.EventWindow):
         day1 = values[-2]
         op1 = day1.getOpen()
         cl1 = day1.getClose()
-        lw1 = day1.getLow()
-        hi1 = day1.getHigh()
         vol1 = day1.getVolume()
 
         nday = values[-1]
         op0 = nday.getOpen()
         cl0 = nday.getClose()
-        hi0 = nday.getHigh()
         vol0 = nday.getVolume()
 
-        if vol0 / vol1 > 0.99 and op1 > cl1 and hi0 > hi1 \
-                and op0 < lw1 and op1 / cl1 >= 1.02 \
+        if vol0 / vol1 > 1.0 and op1 > cl1 \
+                and op0 < cl1 and op1 / cl1 <= 1.02 \
                 and cl0 > op0 and cl0 > op1:
             ret = 1
         return ret
