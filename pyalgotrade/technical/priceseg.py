@@ -738,12 +738,14 @@ class MacdSegEventWindow(technical.EventWindow):
             fbprice = 1024
             bd      = self.BDsignal(dateTime, qshist, change, value)
             gprice  = []
+            bddf    = 1024
             if bd is not None:
                 if bd[1] > 0:
                     self.__fibs = (dateTime, bd[2])
                 fbprice = "{:.4f}".format(bd[3])
                 fbpress = len(bd[4])
                 gprice  = bd[5]
+                bddf    = "{:.4f}".format(bd[6])
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
@@ -813,7 +815,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
-                 fibs, bias5120, fbprice, fbpress)
+                 fibs, bias5120, fbprice, fbpress, bddf)
 
             self.filter4Show(dateTime, twoline, value)
 
