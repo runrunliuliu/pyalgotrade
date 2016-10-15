@@ -1338,9 +1338,10 @@ class MacdSegEventWindow(technical.EventWindow):
             return ret
         if len(self.__desdate_list) < 1:
             return ret
-        upbars  = len(self.__incdate_list[-1])
-        pdbars  = len(self.__desdate)
-        predn   = len(self.__desdate_list[-1])
+        upbars = len(self.__incdate_list[-1])
+        pdbars = len(self.__desdate)
+        predn  = len(self.__desdate_list[-1])
+        nowup  = len(self.__incdate)
         
         masigs = mavalid.MAvalid()
         hcma = masigs.HCMA(dateTime, madirect, self.__mas, value)
@@ -1399,20 +1400,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 ret = (5, score)
                 break
 
-        # 黄金分割位暴力反弹, 913, 923
-        # flag = 9
-        if len(gprice) > 0 and (ret is None or ret[0] == 5) \
-                and ((qshist == -1 and pdbars >= 7) or (qshist == 1 and predn >= 7)):
-            flag = -1
-            for i in [3, 2, 0]:
-                if value.getLow() < gprice[i] and value.getClose() > gprice[i]:
-                    if self.__fts[5][3] == 1:
-                        flag = 9 * 100 + 10 + i
-                    if flag < 0 and self.__fts[5][4] == 1:
-                        flag = 9 * 100 + 20 + i
-            if flag > 0:
-                ret = (flag, score)
-
+        # 关键均线的反弹
         if ret is None:
             hc120 = hcma[-2]
             hc250 = hcma[-1]
@@ -1422,6 +1410,23 @@ class MacdSegEventWindow(technical.EventWindow):
             if (hc120 + hc250) > 0 and self.__fts[5][5] == 1:
                 ret = (4, score)
                 return ret
+
+        # 黄金分割位暴力反弹, 91*, 92*, 93*
+        # flag = 9
+        if len(gprice) > 0 and (ret is None or ret[0] == 5) \
+                and ((qshist == -1 and pdbars >= 7) or (qshist == 1 and predn >= 7 and nowup <= 2)):
+            flag = -1
+            for i in [4, 3, 2, 1, 0]:
+                if value.getLow() < gprice[i] and value.getClose() > gprice[i]:
+                    if self.__fts[5][3] == 1:
+                        flag = 9 * 100 + 10 + i
+                    if flag < 0 and self.__fts[5][4] == 1:
+                        flag = 9 * 100 + 20 + i
+                    if flag < 0 and self.__fts[5][7] == 1:
+                        flag = 9 * 100 + 30 + i
+            if flag > 0:
+                ret = (flag, score)
+
         return ret
 
     # Triangle XingTai 
