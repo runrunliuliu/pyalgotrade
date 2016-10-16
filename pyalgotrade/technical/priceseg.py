@@ -739,6 +739,7 @@ class MacdSegEventWindow(technical.EventWindow):
             bd      = self.BDsignal(dateTime, qshist, change, value)
             gprice  = []
             bddf    = 1024
+            goldseg = 1024
             if bd is not None:
                 if bd[1] > 0:
                     self.__fibs = (dateTime, bd[2])
@@ -746,6 +747,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 fbpress = len(bd[4])
                 gprice  = bd[5]
                 bddf    = "{:.4f}".format(bd[6])
+                goldseg = bd[7]
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
@@ -815,7 +817,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
-                 fibs, bias5120, fbprice, fbpress, bddf)
+                 fibs, bias5120, fbprice, fbpress, bddf, goldseg)
 
             self.filter4Show(dateTime, twoline, value)
 
@@ -1413,15 +1415,15 @@ class MacdSegEventWindow(technical.EventWindow):
 
         # 黄金分割位暴力反弹, 91*, 92*, 93*
         # flag = 9
-        if len(gprice) > 0 and (ret is None or ret[0] == 5) \
+        if len(madirect) > 1 and len(gprice) > 0 and (ret is None or ret[0] == 5) \
                 and ((qshist == -1 and pdbars >= 5) or (qshist == 1 and predn >= 5 and nowup <= 2)) \
-                and madirect[-1][0] > -0.005:
+                and madirect[-1][0] > -0.005 and madirect[-2][0] > -0.01:
             flag = -1
             for i in [4, 3, 2, 1, 0]:
                 if value.getOpen() < gprice[i] and value.getClose() > gprice[i]:
-                    if flag < 0 and self.__fts[5][4] == 1:
+                    if self.__fts[5][4] == 1:
                         flag = 9 * 100 + 20 + i
-                    if flag < 0 and self.__fts[5][7] == 1:
+                    if self.__fts[5][7] == 1:
                         flag = 9 * 100 + 30 + i
             if flag > 0:
                 ret = (flag, score)
