@@ -1431,8 +1431,6 @@ class MacdSegEventWindow(technical.EventWindow):
             flag = -1
             for i in [4, 3, 2, 1, 0]:
                 if value.getOpen() < gprice[i] and value.getClose() > gprice[i]:
-                    if self.__fts[5][3] == 1:
-                        flag = 9 * 100 + 10 + i
                     if self.__fts[5][4] == 1:
                         flag = 9 * 100 + 20 + i
                     if self.__fts[5][7] == 1:
