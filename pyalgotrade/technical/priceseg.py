@@ -740,6 +740,7 @@ class MacdSegEventWindow(technical.EventWindow):
             gprice  = []
             bddf    = 1024
             goldseg = 1024
+            peekzl  = 1024
             if bd is not None:
                 if bd[1] > 0:
                     self.__fibs = (dateTime, bd[2])
@@ -748,6 +749,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 gprice  = bd[5]
                 bddf    = "{:.4f}".format(bd[6])
                 goldseg = bd[7]
+                peekzl  = bd[8]
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
@@ -812,12 +814,20 @@ class MacdSegEventWindow(technical.EventWindow):
                 nowdt = self.__dtzq[dateTime]
                 if (nowdt - fibdt) < 3 and value.getClose() < self.__fibs[1]:
                     fibs = 1
+
+            # MAdirect
+            ma5d = 1024
+            madirect = self.__indicator.getMAdirect() 
+            if len(madirect[-1]) > 0:
+                ma5d = "{:.4f}".format(madirect[-1][0])
+
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
-                 fibs, bias5120, fbprice, fbpress, bddf, goldseg)
+                 fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
+                 ma5d, peekzl)
 
             self.filter4Show(dateTime, twoline, value)
 
@@ -1383,7 +1393,7 @@ class MacdSegEventWindow(technical.EventWindow):
                     and float(score) > 0:
                 ret = (6, score)
                 break
-            # 黄金分割位2, 趋势线或者重要均线
+            # 黄金分割位2 + 十字星, 趋势线或者重要均线
             if bd is not None and bd[0] == 1 and (hcqs == 2 or sum(hcma) > 0) \
                     and self.__fts[5][6] == 1 and qshist == -1 and pdbars > 3:
                 ret = (8, score)
@@ -1421,6 +1431,8 @@ class MacdSegEventWindow(technical.EventWindow):
             flag = -1
             for i in [4, 3, 2, 1, 0]:
                 if value.getOpen() < gprice[i] and value.getClose() > gprice[i]:
+                    if self.__fts[5][3] == 1:
+                        flag = 9 * 100 + 10 + i
                     if self.__fts[5][4] == 1:
                         flag = 9 * 100 + 20 + i
                     if self.__fts[5][7] == 1:
