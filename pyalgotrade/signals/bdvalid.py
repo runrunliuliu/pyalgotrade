@@ -78,6 +78,15 @@ class BDvalid(object):
             print dateTime, fpeek[0][0], fvalley[0][0]
             # timediff = self.__dtzq[vtime] - self.__dtzq[ptime]
 
+    # 前峰受阻
+    def peekZL(self, dateTime, peek):
+        ret = 0
+        nhi = self.__nbar.getHigh()
+        ncl = self.__nbar.getClose()
+        if nhi > peek and ncl < peek:
+            ret = 1
+        return ret
+
     def bupStatus(self, dateTime, nowgd, fpeek, fvalley, datelow, datehigh):
         ret = None
         if len(fpeek) < 1 or len(fvalley) < 1:
@@ -109,6 +118,9 @@ class BDvalid(object):
             if len(goldseg[0]) > 0:
                 gs = goldseg[0][0]
 
+        peekzl = self.peekZL(dateTime, peek)
+
         return (sum(longGold[0]), sum(shortGold[0]), shortGold[1], \
-                longGold[1], longGold[2], longGold[3], bddf, gs)
+                longGold[1], longGold[2], longGold[3], bddf, gs, \
+                peekzl)
 #
