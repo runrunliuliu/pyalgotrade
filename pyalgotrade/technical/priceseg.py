@@ -1405,6 +1405,12 @@ class MacdSegEventWindow(technical.EventWindow):
                     and float(score) > 0:
                 ret = (7, score)
                 break
+
+            # 刺透形态3 -- 10
+            if hcqs == 2 and self.__fts[5][8] == 1:
+                ret = (10, score)
+                break
+
             # 回踩十字星 
             if hcqs == 2 and qshist == -1 and abs(hist) < 0.0382 \
                     and madirect[-1][0] > -0.02 and self.__fts[5][6] == 1 \
