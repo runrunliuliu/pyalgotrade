@@ -37,6 +37,7 @@ class KLineEventWindow(technical.EventWindow):
         self.__bdie = 1024
         self.__ctxt  = -1
         self.__ctxt2 = -1
+        self.__ctxt3 = -1
         self.__zyd   = -1
         self.__szx   = -1
         self.__kztm  = -1
@@ -95,7 +96,27 @@ class KLineEventWindow(technical.EventWindow):
                 and cl0 > op0 and cl0 < op1 and cl0 > cl1:
             ret = 1
         return ret
-    
+ 
+    # 刺透3
+    def CTXT3(self, dateTime, values):
+        ret = 0
+        day1 = values[-2]
+        op1 = day1.getOpen()
+        cl1 = day1.getClose()
+        lw1 = day1.getLow()
+
+        nday = values[-1]
+        op0 = nday.getOpen()
+        cl0 = nday.getClose()
+        lw0 = nday.getLow()
+
+        if op1 > cl1 and cl0 > (op1 + cl1) * 0.5 \
+                and op0 < cl1 and op1 / cl1 >= 1.02 \
+                and cl0 > op0 and cl0 < op1 and cl0 > cl1 \
+                and lw0 >= lw1:
+            ret = 1
+        return ret
+   
     # 前阴卓腰带
     def ZYD(self, dateTime, values):
         ret = 0
@@ -192,8 +213,9 @@ class KLineEventWindow(technical.EventWindow):
             self.__ctxt2 = self.CTXT2(dateTime, values)
             self.__szx   = self.SZX(dateTime, values)
             self.__kztm  = self.KZTM(dateTime, values)
+            self.__ctxt3 = self.CTXT3(dateTime, values)
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
                 self.__ctxt, self.__zyd, self.__ctxt2, \
-                self.__szx, self.__kztm) 
+                self.__szx, self.__kztm, self.__ctxt3) 
