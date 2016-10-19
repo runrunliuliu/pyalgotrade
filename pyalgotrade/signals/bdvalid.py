@@ -87,6 +87,27 @@ class BDvalid(object):
             ret = 1
         return ret
 
+    # M-Head
+    def MHead(self, dateTime, peek, valley, high):
+        MLINE = 1024 
+        ret   = [] 
+        if self.__status == 10 or self.__status == 11:
+            for i in range(0, len(peek)):
+                if len(ret) == 2:
+                    break
+                ptime = peek[i][0]
+                if (i + 1) >= len(valley):
+                    return ret
+
+                vtime = valley[i+1][0]
+                timediff = self.__dtzq[ptime] - self.__dtzq[vtime]
+                if (timediff + 1) >= 5:
+                    ret.append((ptime,high[ptime]))
+        if len(ret) == 2:
+            if abs((ret[0][1] - ret[1][1]) / ret[1][1]) < 0.005:
+                MLINE = ret[0][1]
+        return MLINE
+
     def bupStatus(self, dateTime, nowgd, fpeek, fvalley, datelow, datehigh):
         ret = None
         if len(fpeek) < 1 or len(fvalley) < 1:
@@ -119,8 +140,9 @@ class BDvalid(object):
                 gs = goldseg[0][0]
 
         peekzl = self.peekZL(dateTime, peek)
+        mhead  = self.MHead(dateTime, fpeek, fvalley, datehigh)
 
         return (sum(longGold[0]), sum(shortGold[0]), shortGold[1], \
                 longGold[1], longGold[2], longGold[3], bddf, gs, \
-                peekzl)
+                peekzl, mhead)
 #
