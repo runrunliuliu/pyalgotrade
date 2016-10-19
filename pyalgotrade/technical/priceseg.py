@@ -1411,6 +1411,11 @@ class MacdSegEventWindow(technical.EventWindow):
                 ret = (10, score)
                 break
 
+            # 挽袖线--13
+            if hcqs == 2 and self.__fts[5][9] == 1:
+                ret = (11, score)
+                break
+
             # 回踩十字星 
             if hcqs == 2 and qshist == -1 and abs(hist) < 0.0382 \
                     and madirect[-1][0] > -0.02 and self.__fts[5][6] == 1 \
