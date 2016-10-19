@@ -853,7 +853,7 @@ class MacdSegEventWindow(technical.EventWindow):
         return ret 
 
     def BDsignal(self, dateTime, qshist, change, value):
-        bd = bdvalid.BDvalid(self.__direct, qshist, change, self.__dtzq, value)
+        bd = bdvalid.BDvalid(self.__direct, qshist, change, self.__dtzq, value, self.__inst)
         ret = bd.bupStatus(dateTime, self.__nowgd, self.__fpeek, self.__fvalley, self.__datelow, self.__datehigh)
         return ret
 
