@@ -1,11 +1,16 @@
 import numpy as np
+import logging
+import logging.config
 
 
 # 波段的有效性指标
 class BDvalid(object):
 
-    def __init__(self, direct, qshist, change, dtzq, value):
+    def __init__(self, direct, qshist, change, dtzq, value, inst):
 
+        self.__logger = logging.getLogger('BDvalid')
+
+        self.__inst   = inst
         self.__direct = direct 
         self.__qshist = qshist
         self.__change = change
@@ -97,7 +102,7 @@ class BDvalid(object):
                     break
                 ptime = peek[i][0]
                 if (i + 1) >= len(valley):
-                    return ret
+                    return MLINE 
 
                 vtime = valley[i+1][0]
                 timediff = self.__dtzq[ptime] - self.__dtzq[vtime]
@@ -106,6 +111,7 @@ class BDvalid(object):
         if len(ret) == 2:
             if abs((ret[0][1] - ret[1][1]) / ret[1][1]) < 0.005:
                 MLINE = ret[0][1]
+                self.__logger.log(logging.ERROR, 'M_HEAD: %s %s %f', dateTime, self.__inst, MLINE)
         return MLINE
 
     def bupStatus(self, dateTime, nowgd, fpeek, fvalley, datelow, datehigh):
