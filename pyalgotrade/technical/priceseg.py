@@ -741,6 +741,7 @@ class MacdSegEventWindow(technical.EventWindow):
             bddf    = 1024
             goldseg = 1024
             peekzl  = 1024
+            mhead   = 1024
             if bd is not None:
                 if bd[1] > 0:
                     self.__fibs = (dateTime, bd[2])
@@ -750,6 +751,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 bddf    = "{:.4f}".format(bd[6])
                 goldseg = bd[7]
                 peekzl  = bd[8]
+                mhead   = bd[9]
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
@@ -827,7 +829,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
                  fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
-                 ma5d, peekzl)
+                 ma5d, peekzl, mhead)
 
             self.filter4Show(dateTime, twoline, value)
 
