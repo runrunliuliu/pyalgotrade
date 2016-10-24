@@ -6,6 +6,7 @@ from pyalgotrade.utils import qsLineFit
 from pyalgotrade.dataseries import bards
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import macd
+from pyalgotrade.technical import kdj 
 from pyalgotrade.technical import indicator 
 from pyalgotrade.technical import sar 
 from array import array
@@ -26,11 +27,12 @@ class MacdSegEventWindow(technical.EventWindow):
     def __init__(self, BarSeries, windows, inst, useAdjustedValues):
         assert(windows > 0)
         technical.EventWindow.__init__(self, windows, dtype=object)
-        self.__logger = logging.getLogger('MacdSegEventWindow')
+        self.__logger  = logging.getLogger('MacdSegEventWindow')
         self.__windows = windows
         self.__inst    = inst 
         self.__priceDS = BarSeries.getCloseDataSeries()
-        self.__macd = macd.MACD(self.__priceDS, 12, 26, 9, flag=0)
+        self.__macd    = macd.MACD(self.__priceDS, 12, 26, 9, flag=0)
+        self.__kdj     = kdj.KDJEventWindow(9, 2, 2)
 
         self.__mapma = {
             5: 0,
@@ -42,6 +44,10 @@ class MacdSegEventWindow(technical.EventWindow):
             120:6,
             250:7 
         }
+
+        # Indicator Define in QuChaoGu corps.
+        self.__qcg   = None
+        self.__macdx = []
 
         self.__indicator = indicator.IndEventWindow(inst)
         self.__sar = sar.SAREventWindow(8)
@@ -62,10 +68,10 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__xtCT       = None
         self.__xtTriangle = None 
-        self.__roc = None
-        self.__cxshort = None
-        self.__NBS = None
-        self.__NBS_Dts = [] 
+        self.__roc        = None
+        self.__cxshort    = None
+        self.__NBS        = None
+        self.__NBS_Dts    = [] 
         
         self.__md5120 = None
 
@@ -667,6 +673,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__indicator.onNewValue(dateTime, value)
         self.__sar.onNewValue(dateTime, value)
+        self.__kdj.onNewValue(dateTime, value)
 
         self.__period = self.setPeriod(value)
         self.__nowBar = value
@@ -831,11 +838,26 @@ class MacdSegEventWindow(technical.EventWindow):
                  fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
                  ma5d, peekzl, mhead)
 
+            # collect2QCG
+            qcgtp = (change, self.__direct, nDIF)
+            self.collect2QCG(dateTime, qcgtp)
+            
+            # For Show in Plot
             self.filter4Show(dateTime, twoline, value)
 
             # Keep Record
             self.__prehist = hist 
             self.__preval  = value
+
+    def collect2QCG(self, dateTime, qcgtp):
+        # KDJ DeadCross Twice
+        self.__qcg = (self.__kdj.getDeadXX(),)
+
+        # MACD DeadCross Twice
+        if qcgtp[1] == 1 and qcgtp[0] == 1:
+            self.__macdx.append((dateTime, qcgtp[2]))
+            if len(self.__macdx) > 1:
+                print dateTime, qcgtp[2], self.__macdx[-2]
 
     def DTsignal(self, dateTime, nbar, mascore, dt):
         ret = None
@@ -1740,7 +1762,8 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__nowdesline, self.__nowincline, \
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
                self.__dropout, self.__ftDes, self.__ftInc, self.__observed, \
-               self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS, self.__xtCT)
+               self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS, self.__xtCT, \
+               self.__qcg)
         return ret
 
 
