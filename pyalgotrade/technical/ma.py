@@ -86,10 +86,11 @@ class SMA(technical.EventBasedFilter):
 
 
 class EMAEventWindow(technical.EventWindow):
-    def __init__(self, period):
+    def __init__(self, period, weight=2.0):
         assert(period > 1)
         technical.EventWindow.__init__(self, period)
-        self.__multiplier = (2.0 / (period + 1))
+        self.__multiplier = (weight / (period + 1))
+        # self.__multiplier = (1.0 / (period + 1))
         self.__value = None
 
     def onNewValue(self, dateTime, value):
