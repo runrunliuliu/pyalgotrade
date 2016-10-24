@@ -20,6 +20,7 @@
 
 from pyalgotrade.technical import ma
 from pyalgotrade import dataseries
+from pyalgotrade.utils import collections
 
 
 class MACD(dataseries.SequenceDataSeries):
@@ -105,3 +106,4 @@ class MACD(dataseries.SequenceDataSeries):
         self.appendWithDateTime(dateTime, macdValue)
         self.__signal.appendWithDateTime(dateTime, signalValue)
         self.__histogram.appendWithDateTime(dateTime, histogramValue)
+#
