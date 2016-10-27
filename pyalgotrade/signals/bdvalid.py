@@ -6,7 +6,7 @@ import logging.config
 # 波段的有效性指标
 class BDvalid(object):
 
-    def __init__(self, direct, qshist, change, dtzq, value, inst):
+    def __init__(self, direct, qshist, change, dtzq, value, inst, maqstup):
 
         self.__logger = logging.getLogger('BDvalid')
 
@@ -16,6 +16,7 @@ class BDvalid(object):
         self.__change = change
         self.__dtzq   = dtzq
         self.__nbar   = value
+        self.__maqstup = maqstup 
 
         self.__status = -1 
         # 上升
@@ -114,6 +115,46 @@ class BDvalid(object):
                 self.__logger.log(logging.ERROR, 'M_HEAD: %s %s %f', dateTime, self.__inst, MLINE)
         return MLINE
 
+    # 通道定义@ QuChaoGu Corp.
+    def QTDao(self, dateTime):
+        ind   = None
+        start = None
+        end   = None
+        if self.__maqstup[0] == 1:
+            ind   = 1
+            start = -1 
+            end   = 0 
+        if self.__maqstup[0] == -1:
+            ind   = 5 
+            start = 0 
+            end   = -1
+        ma5s = self.__maqstup[ind]
+        nma5 = ma5s[-1]
+        diff = (ma5s[start] - ma5s[end]) / ma5s[end]
+
+        ma5t  = self.__maqstup[ind + 1]
+        tdiff = self.__dtzq[ma5t[-1]] - self.__dtzq[ma5t[0]]
+
+        ret = (1024, 1024, 1024) 
+        if diff >= 0.002:
+            diff =  "{:.4f}".format(diff)
+            ret = (self.__maqstup[0], diff, tdiff)
+        else:
+            ma5s  = self.__maqstup[6 - ind + 2][-1]      
+            start = end
+            diff  = None
+            dirt  = None 
+            tdiff = self.__dtzq[dateTime] - self.__dtzq[self.__maqstup[6 - ind + 3][-1][0]]
+            if ma5s[start] > nma5:
+                diff = (ma5s[start] - nma5) / nma5
+                dirt = -1
+            else:
+                diff = (nma5 - ma5s[start]) / ma5s[start]
+                dirt = 1
+            diff =  "{:.4f}".format(diff)
+            ret = (dirt, diff, tdiff)
+        return ret
+
     def bupStatus(self, dateTime, nowgd, fpeek, fvalley, datelow, datehigh):
         ret = None
         if len(fpeek) < 1 or len(fvalley) < 1:
@@ -148,7 +189,9 @@ class BDvalid(object):
         peekzl = self.peekZL(dateTime, peek)
         mhead  = self.MHead(dateTime, fpeek, fvalley, datehigh)
 
+        qtdao  = self.QTDao(dateTime)
+
         return (sum(longGold[0]), sum(shortGold[0]), shortGold[1], \
                 longGold[1], longGold[2], longGold[3], bddf, gs, \
-                peekzl, mhead)
+                peekzl, mhead, qtdao)
 #
