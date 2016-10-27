@@ -42,6 +42,8 @@ class KLineEventWindow(technical.EventWindow):
         self.__szx   = -1
         self.__kztm  = -1
         self.__wxx   = -1
+        self.__xtsxy = -1
+        self.__xtztf = -1
 
     def baodie(self, dateTime, diefu, zhenfu):
         mins = diefu
@@ -60,6 +62,77 @@ class KLineEventWindow(technical.EventWindow):
         if jump < -0.005 and shying < 0.08 and xaying < 0.05 and diefu < -0.015:
             self.__tkdk = jump
             self.__tkdf = diefu
+
+    # Define IN QuChaoGu Corp.
+    def xtZTF(self, dateTime, values):
+        flag = -1
+        if len(values) < 2:
+            return flag
+        nbar = values[-1]
+        ybar = values[-2]
+       
+        cl1 = ybar.getClose()
+        cl0 = nbar.getClose()
+
+        diff = (cl0 - cl1) / cl1
+        # 1. 微涨：0<P≤0.4%
+        if diff > 0 and diff <= 0.004:
+            flag = 1
+        # 2. 中阳：0.4<P≤1%
+        if diff > 0.004 and diff <= 0.01:
+            flag = 2
+        # 3. 大涨：P>1%
+        if diff > 0.01:
+            flag = 3
+        # 4. 微跌：-0.4%≤P<0%
+        if diff >= -0.004 and diff < 0.0:
+            flag = 4
+        # 5. 中阴：-1%≤P<-0.4%
+        if diff >= -0.01 and diff < -0.004:
+            flag = 5
+        # 6. 大跌：P < -1%
+        if diff < -0.01:
+            flag = 6
+        # 7. 无涨跌：0%
+        if diff == 0.0:
+            flag = 7
+        return flag
+        
+    # Define IN QuChaoGu Crop.
+    def xtSXY(self, dateTime, values):
+        flag = -1 
+        nbar = values[-1]
+        
+        op = nbar.getOpen()
+        hi = nbar.getHigh()
+        lw = nbar.getLow()
+        cl = nbar.getClose()
+
+        up = op
+        dn = cl
+        if cl > op:
+            up = cl
+            dn = op
+        # 1. 长上影线：上影线价格区间/实体线价格区间≥2
+        if (hi - up) / (up - dn + 0.00001) >= 2.0:
+            flag = 1
+        # 2. 中上影线：1≤上影线价格区间/实体线价格区间<2
+        if (hi - up) / (up - dn + 0.00001) < 2.0 and (hi - up) / (up - dn + 0.00001) >= 1.0:
+            flag = 2
+        # 3. 短上影线：0≤上影线价格区间/实体线价格区间<1
+        if (hi - up) / (up - dn + 0.00001) < 1.0 and (hi - up) / (up - dn + 0.00001) >= 0.0:
+            flag = 3
+        # 4. 长下影线：下影线价格区间/实体线价格区间≥2
+        if (dn - lw) / (up - dn + 0.00001) >= 2.0:
+            flag = 4
+        # 5. 中下影线：1≤下影线价格区间/实体线价格区间<2
+        if (dn - lw) / (up - dn + 0.00001) < 2.0 and (dn - lw) / (up - dn + 0.00001) >= 1.0:
+            flag = 5
+        # 6. 短下影线：0≤下影线价格区间/实体线价格区间<1
+        if (dn - lw) / (up - dn + 0.00001) < 1.0 and (dn - lw) / (up - dn + 0.00001) >= 0.0:
+            flag = 6
+        
+        return flag
 
     # 刺透
     def CTXT(self, dateTime, values):
@@ -148,7 +221,7 @@ class KLineEventWindow(technical.EventWindow):
         cl0 = nday.getClose()
         vol0 = nday.getVolume()
 
-        if vol0 / vol1 > 1.0 and op1 > cl1 \
+        if vol0 / (vol1 + 0.00000001) > 1.0 and op1 > cl1 \
                 and op0 < cl1 and op1 / cl1 <= 1.02 \
                 and cl0 > op0 and cl0 > op1:
             ret = 1
@@ -176,7 +249,7 @@ class KLineEventWindow(technical.EventWindow):
         if hi0 == lw0:
             return ret
 
-        if vol0 / vol1  < 1.10 and diff / fenm < 0.005 and diff / (hi0 - lw0) < 0.1:
+        if vol0 / (vol1 + 0.00000001)  < 1.10 and diff / (fenm + 0.0000001) < 0.005 and diff / (hi0 - lw0 + 0.000000001) < 0.1:
             ret = 1
         return ret
 
@@ -194,7 +267,7 @@ class KLineEventWindow(technical.EventWindow):
         cl0 = nday.getClose()
         vol0 = nday.getVolume()
 
-        if vol0 / vol1 > 1.0 and op1 > cl1 \
+        if vol0 / (vol1 + 0.0000000001) > 1.0 and op1 > cl1 \
                 and op0 > cl1 and op1 / cl1 >= 1.02 \
                 and cl0 > hi1 and cl0 > op0:
             ret = 1
@@ -236,9 +309,12 @@ class KLineEventWindow(technical.EventWindow):
             self.__kztm  = self.KZTM(dateTime, values)
             self.__ctxt3 = self.CTXT3(dateTime, values)
             self.__wxx   = self.WXX(dateTime, values)
+            self.__xtsxy = self.xtSXY(dateTime, values)
+            self.__xtztf = self.xtZTF(dateTime, values)
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
                 self.__ctxt, self.__zyd, self.__ctxt2, \
                 self.__szx, self.__kztm, self.__ctxt3, \
-                self.__wxx) 
+                self.__wxx, self.__xtsxy, self.__xtztf) 
+#
