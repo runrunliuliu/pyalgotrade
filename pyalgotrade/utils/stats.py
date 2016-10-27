@@ -33,3 +33,14 @@ def stddev(values, ddof=1):
     if len(values):
         ret = numpy.array(values).std(ddof=ddof)
     return ret
+
+
+# Calculate Number of Bars, General Method
+def getNBarsDayRange(dtzq, index, t1, t2):
+    days = set()
+    ind1 = dtzq[t1]
+    ind2 = dtzq[t2]
+    for i in range(ind1, ind2 + 1):
+        days.add(index[i - 1].date())
+    return len(days)
+#
