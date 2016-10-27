@@ -3,6 +3,7 @@ from pyalgotrade import bar
 from pyalgotrade import dataseries
 from pyalgotrade.utils import collections
 from pyalgotrade.utils import qsLineFit 
+from pyalgotrade.utils import stats 
 from pyalgotrade.dataseries import bards
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import macd
@@ -82,6 +83,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__zq   = 0
         self.__dtzq  = OrderedDict() 
         self.__dtmas = OrderedDict()
+        self.__dtindex = []
 
         self.__qsfilter  = set() 
         self.__qsfit     = {}
@@ -169,6 +171,22 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__neglow   = []
         self.__neghist_list = collections.ListDeque(3)
         self.__negdate_list = collections.ListDeque(3)
+
+        # Used For MA5QS
+        self.__prema5     = None 
+        self.__prema5date = None
+        self.__qsma5      = None
+
+        self.__incma5      = []
+        self.__incma5date  = []
+        self.__incma5_list     = collections.ListDeque(5)
+        self.__incma5date_list = collections.ListDeque(5)
+
+        self.__desma5      = []
+        self.__desma5date  = []
+        self.__desma5_list     = collections.ListDeque(5)
+        self.__desma5date_list = collections.ListDeque(5)
+        # USE END
 
         self.__dropout  = []
         self.__observed = {}
@@ -684,6 +702,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__zq = self.__zq + 1
         self.__dtzq[dateTime] = self.__zq
+        self.__dtindex.append(dateTime)
 
         (self.__fts, self.__mas) = self.__indicator.getValue()
         self.__dtmas[dateTime] = self.__mas
@@ -692,6 +711,9 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__vbeili = 0 
         nwprice = None
         if self.__macd[-1] is not None:
+            # 增加到MA5序列
+            self.add2MA5(dateTime, self.__mas[5])
+
             hist = self.__macd.getHistogram()[-1]
             (ret, change) = self.addHist(hist, dateTime, value.getClose(), value.getLow(), value.getHigh()) 
             (now_val, now_dt) = self.parsePrevHistDay(ret, change, dateTime)
@@ -749,6 +771,7 @@ class MacdSegEventWindow(technical.EventWindow):
             goldseg = 1024
             peekzl  = 1024
             mhead   = 1024
+            qtdao   = None
             if bd is not None:
                 if bd[1] > 0:
                     self.__fibs = (dateTime, bd[2])
@@ -759,6 +782,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 goldseg = bd[7]
                 peekzl  = bd[8]
                 mhead   = bd[9]
+                qtdao   = bd[10]
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
@@ -839,7 +863,7 @@ class MacdSegEventWindow(technical.EventWindow):
                  ma5d, peekzl, mhead)
 
             # collect2QCG
-            qcgtp = (change, self.__direct, nDIF)
+            qcgtp = (change, self.__direct, nDIF, qtdao)
             self.collect2QCG(dateTime, qcgtp)
             
             # For Show in Plot
@@ -850,14 +874,35 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__preval  = value
 
     def collect2QCG(self, dateTime, qcgtp):
-        # KDJ DeadCross Twice
-        self.__qcg = (self.__kdj.getDeadXX(),)
+        # KDJ DeadCross Twice, k_second < k_first
+        kdj_flag  = 0
+        if self.__kdj.getDeadXX() is not None:
+            (f, s) = self.__kdj.getDeadXX()
+            if f[1] < s[1] and f[0].date() != s[0].date():
+                kdj_flag = 1
 
-        # MACD DeadCross Twice
+        # MACD DeadCoss Twice
+        macd_flag = 0
         if qcgtp[1] == 1 and qcgtp[0] == 1:
             self.__macdx.append((dateTime, qcgtp[2]))
             if len(self.__macdx) > 1:
-                print dateTime, qcgtp[2], self.__macdx[-2]
+                t1 = self.__macdx[-2][0] 
+                t2 = dateTime
+                nbars = stats.getNBarsDayRange(self.__dtzq, self.__dtindex, t1, t2) 
+                if nbars <= 15 and qcgtp[2] < self.__macdx[-2][1]:
+                    if qcgtp[2] < 1 and qcgtp[2] > -1:
+                        macd_flag = 1
+                    else:
+                        macd_flag = 2
+
+        # QTdao
+        tdao = (1024, 1024, 1024)
+        if qcgtp[3] is not None:
+            tdao = qcgtp[3]
+
+        self.__qcg = (kdj_flag, macd_flag, \
+                      self.__fts[5][10], self.__fts[5][11]) + tdao
+        # print dateTime, self.__qcg
 
     def DTsignal(self, dateTime, nbar, mascore, dt):
         ret = None
@@ -875,7 +920,11 @@ class MacdSegEventWindow(technical.EventWindow):
         return ret 
 
     def BDsignal(self, dateTime, qshist, change, value):
-        bd = bdvalid.BDvalid(self.__direct, qshist, change, self.__dtzq, value, self.__inst)
+        maqstup = (self.__qsma5, \
+                   self.__incma5, self.__incma5date, self.__incma5_list, self.__incma5date_list, \
+                   self.__desma5, self.__desma5date, self.__desma5_list, self.__desma5date_list
+                   )
+        bd  = bdvalid.BDvalid(self.__direct, qshist, change, self.__dtzq, value, self.__inst, maqstup)
         ret = bd.bupStatus(dateTime, self.__nowgd, self.__fpeek, self.__fvalley, self.__datelow, self.__datehigh)
         return ret
 
@@ -1743,6 +1792,50 @@ class MacdSegEventWindow(technical.EventWindow):
                 if res[0] == 1:
                     self.__pbused.add(self.__gddt)
         return res 
+
+    def add2MA5(self, dateTime, ma5):
+        ret    = 1
+        change = 0 
+        if self.__prema5 is not None:
+            if self.__prema5 < ma5:
+                if self.__qsma5 is None:
+                    self.__qsma5 = 1
+                    self.__incma5.extend([self.__prema5, ma5])
+                    self.__incma5date.extend([self.__prema5date, dateTime])
+                else:
+                    if self.__qsma5 == -1:
+                        self.__qsma5 = 1
+                        self.__desma5_list.append(self.__desma5)
+                        self.__desma5date_list.append(self.__desma5date)
+                        self.__desma5     = []
+                        self.__desma5date = []
+
+                        self.__incma5.extend([self.__prema5, ma5])
+                        self.__incma5date.extend([self.__prema5date, dateTime])
+                    else:
+                        self.__incma5.append(ma5)
+                        self.__incma5date.append(dateTime)
+            else:
+                if self.__qsma5 is None:
+                    self.__qsma5 = -1
+                    self.__desma5.extend([self.__prema5, ma5])
+                    self.__desma5date.extend([self.__prema5date, dateTime])
+                else:
+                    if self.__qsma5 == 1:
+                        self.__qsma5 = -1
+                        self.__incma5_list.append(self.__incma5)
+                        self.__incma5date_list.append(self.__incma5date)
+                        self.__incma5     = []
+                        self.__incma5date = []
+
+                        self.__desma5.extend([self.__prema5, ma5])
+                        self.__desma5date.extend([self.__prema5date, dateTime])
+                    else:
+                        self.__desma5.append(ma5)
+                        self.__desma5date.append(dateTime)
+        self.__prema5     = ma5
+        self.__prema5date = dateTime
+        return (ret, change)
 
     def setVBeiLiBuyPoint(self, dateTime):
         res = 0 
