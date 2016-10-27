@@ -52,6 +52,14 @@ def parse_date(date, freq):
         mint  = int(date[14:16])
         secs  = int(date[17:19])
         ret = datetime.datetime(year, month, day, hour, mint, secs)
+
+    if freq == bar.Frequency.MIN15:
+        year  = int(date[0:4])
+        month = int(date[5:7])
+        day   = int(date[8:10])
+        hour  = int(date[11:13])
+        mint  = int(date[14:16])
+        ret = datetime.datetime(year, month, day, hour, mint)
     return ret
 
 
@@ -118,7 +126,9 @@ class Feed(csvfeed.BarFeed):
         if isinstance(timezone, int):
             raise Exception("timezone as an int parameter is not supported anymore. Please use a pytz timezone instead.")
 
-        if frequency not in [bar.Frequency.DAY, bar.Frequency.WEEK, bar.Frequency.MINUTE, bar.Frequency.MONTH]:
+        if frequency not in [bar.Frequency.DAY, bar.Frequency.WEEK, \
+                             bar.Frequency.MINUTE, bar.Frequency.MONTH, \
+                             bar.Frequency.MIN15]:
             raise Exception("Invalid frequency.")
 
         csvfeed.BarFeed.__init__(self, frequency, maxLen)
