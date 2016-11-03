@@ -882,14 +882,24 @@ class MacdSegEventWindow(technical.EventWindow):
                 kdj_flag = 1
 
         # MACD DeadCoss Twice
-        macd_flag = 0
+        macd_flag  = 0
+        macd_flag2 = (0, 0, 0, 0, 0)
         if qcgtp[1] == 1 and qcgtp[0] == 1:
             self.__macdx.append((dateTime, qcgtp[2]))
             if len(self.__macdx) > 1:
                 t1 = self.__macdx[-2][0] 
                 t2 = dateTime
                 nbars = stats.getNBarsDayRange(self.__dtzq, self.__dtindex, t1, t2) 
-                if nbars <= 15 and qcgtp[2] < self.__macdx[-2][1]:
+                
+                op1   = self.__dateopen[t1]
+                cl2   = self.__dateclose[t2]
+                diff1 = '{:.4f}'.format((cl2 - op1) / op1)
+                dif1 = '{:.4f}'.format(self.__macdx[-2][1])
+                dif2 = '{:.4f}'.format(qcgtp[2])
+                t2_f = t2.strftime('%Y-%m-%d')
+                
+                if nbars <= 5 and qcgtp[2] < self.__macdx[-2][1]:
+                    macd_flag2 = (str(nbars), dif1, dif2, diff1, t2_f)
                     if qcgtp[2] < 1 and qcgtp[2] > -1:
                         macd_flag = 1
                     else:
@@ -901,8 +911,8 @@ class MacdSegEventWindow(technical.EventWindow):
             tdao = qcgtp[3]
 
         self.__qcg = (kdj_flag, macd_flag, \
-                      self.__fts[5][10], self.__fts[5][11]) + tdao
-        # print dateTime, self.__qcg
+                      self.__fts[5][10], self.__fts[5][11]) \
+            + tdao + macd_flag2
 
     def DTsignal(self, dateTime, nbar, mascore, dt):
         ret = None
