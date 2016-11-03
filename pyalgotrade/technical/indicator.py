@@ -97,7 +97,7 @@ class IndEventWindow(technical.EventWindow):
         if len(self.__vol) > 1:
             yvol = self.__vol[-2]
             nvol = self.__vol[-1]
-            lb1  =  nvol / yvol
+            lb1  =  nvol / (yvol + 0.0000001)
         if ma5 is not None:
             lb2 = self.__vol[-1] / ma5
         if ma20 is not None:
