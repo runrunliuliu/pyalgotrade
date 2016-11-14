@@ -21,6 +21,7 @@ from pyalgotrade.signals import bdvalid
 from pyalgotrade.signals import dtvalid 
 import logging
 import logging.config
+import datetime
 
 
 class MacdSegEventWindow(technical.EventWindow):
@@ -883,23 +884,33 @@ class MacdSegEventWindow(technical.EventWindow):
 
         # MACD DeadCoss Twice
         macd_flag  = 0
-        macd_flag2 = (0, 0, 0, 0, 0)
+        macd_flag2 = (0, 0, 0, 0, 0, 0)
         if qcgtp[1] == 1 and qcgtp[0] == 1:
             self.__macdx.append((dateTime, qcgtp[2]))
             if len(self.__macdx) > 1:
                 t1 = self.__macdx[-2][0] 
                 t2 = dateTime
-                nbars = stats.getNBarsDayRange(self.__dtzq, self.__dtindex, t1, t2) 
-                
-                op1   = self.__dateopen[t1]
+                ndaybars = stats.getNBarsDayRange(self.__dtzq, self.__dtindex, t1, t2) 
+                nbars    = self.__dtzq[t2] - self.__dtzq[t1]
+
+                cl1   = self.__dateclose[t1]
                 cl2   = self.__dateclose[t2]
-                diff1 = '{:.4f}'.format((cl2 - op1) / op1)
+                diff1 = '{:.4f}'.format((cl2 - cl1) / cl1)
                 dif1 = '{:.4f}'.format(self.__macdx[-2][1])
                 dif2 = '{:.4f}'.format(qcgtp[2])
                 t2_f = t2.strftime('%Y-%m-%d')
                 
-                if nbars <= 5 and qcgtp[2] < self.__macdx[-2][1]:
-                    macd_flag2 = (str(nbars), dif1, dif2, diff1, t2_f)
+                # Previous Day
+                if self.__period == '15mink':
+                    pday  = self.__dtindex[self.__dtzq[t2] - 16].strftime('%Y-%m-%d')
+                    pdate = datetime.datetime.strptime(pday + ' 15:00:00', '%Y-%m-%d %H:%M:%S')
+                    pcl   = self.__dateclose[pdate]
+                    diff2 = '{:.4f}'.format((cl2 - pcl) / pcl)
+                else:
+                    diff2 = -1 
+
+                if ndaybars <= 5 and qcgtp[2] < self.__macdx[-2][1]:
+                    macd_flag2 = (str(nbars), dif1, dif2, diff1, t2_f, diff2)
                     if qcgtp[2] < 1 and qcgtp[2] > -1:
                         macd_flag = 1
                     else:
