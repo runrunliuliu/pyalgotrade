@@ -40,11 +40,12 @@ class Frequency(object):
     TRADE = -1
     SECOND = 1
     MINUTE = 60
-    HOUR = 60*60
-    DAY = 24*60*60
-    WEEK = 24*60*60*7
-    MONTH = 24*60*60*31
-    MIN15 = 60*15
+    HOUR   = 60*60
+    DAY    = 24*60*60
+    WEEK   = 24*60*60*7
+    MONTH  = 24*60*60*31
+    MIN15  = 60*15
+    MIN30  = 60*30
 
 
 class Bar(object):
