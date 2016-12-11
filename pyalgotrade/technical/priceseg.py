@@ -22,6 +22,7 @@ from pyalgotrade.signals import dtvalid
 import logging
 import logging.config
 import datetime
+import math
 
 
 class MacdSegEventWindow(technical.EventWindow):
@@ -909,7 +910,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 else:
                     diff2 = -1 
 
-                if ndaybars <= 5 and qcgtp[2] < self.__macdx[-2][1]:
+                if ndaybars <= 5 and qcgtp[2] < self.__macdx[-2][1] and float(diff1) < 0:
                     macd_flag2 = (str(nbars), dif1, dif2, diff1, t2_f, diff2)
                     if qcgtp[2] < 1 and qcgtp[2] > -1:
                         macd_flag = 1
@@ -921,9 +922,14 @@ class MacdSegEventWindow(technical.EventWindow):
         if qcgtp[3] is not None:
             tdao = qcgtp[3]
 
+        # 涨跌幅
+        logdiff = (1024201,)
+        if self.__preval is not None:
+            logdiff = (math.log(self.__nowBar.getClose() / self.__preval.getClose()), )
+        
         self.__qcg = (kdj_flag, macd_flag, \
                       self.__fts[5][10], self.__fts[5][11]) \
-            + tdao + macd_flag2
+            + tdao + macd_flag2 + logdiff
 
     def DTsignal(self, dateTime, nbar, mascore, dt):
         ret = None
