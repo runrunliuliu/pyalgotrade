@@ -295,6 +295,28 @@ class IndEventWindow(technical.EventWindow):
     def MAGD(self, dateTime):
         return self.__mafirstv
 
+    # MA死叉
+    def MADC(self, dateTime):
+        pass
+
+    # 均线的价托(s)和价压(p)
+    def MAps(self, dateTime):
+        ret = None
+        if len(self.__mas) < 2:
+            return ret
+        nma = self.__mas[-1]
+        yma = self.__mas[-2]
+        # 5, 10, 20
+        if 20 in yma:
+            # 死叉
+            if yma[5] > yma[10] and nma[5] < yma[10]: 
+                print i, yma[i], nma[i]
+            if yma[5] > yma[20] and nma[5] < yma[20]: 
+                print i, yma[i], nma[i]
+            if yma[10] > yma[20] and nma[10] < yma[20]: 
+                print i, yma[i], nma[i]
+
+    # MA总特征提取
     def MAfeature(self, bars, dateTime):
         nma_dict = self.__mas[-1]
         nowclose = bars[-1].getClose()
@@ -306,6 +328,8 @@ class IndEventWindow(technical.EventWindow):
         f2 = self.MAdirect(nma_dict)
         # 均线的距离
         f3 = self.MAdiff(nma_dict)
+        # 均线的价托和价压
+        # f4 = self.MAps(dateTime)
 
         # 量能变化 
         lb = self.boostVol(dateTime, self.__mavol5.getValue(), self.__mavol10.getValue())
