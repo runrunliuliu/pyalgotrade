@@ -60,6 +60,15 @@ def parse_date(date, freq):
         hour  = int(date[11:13])
         mint  = int(date[14:16])
         ret = datetime.datetime(year, month, day, hour, mint)
+
+    if freq == bar.Frequency.MIN30:
+        year  = int(date[0:4])
+        month = int(date[5:7])
+        day   = int(date[8:10])
+        hour  = int(date[11:13])
+        mint  = int(date[14:16])
+        ret = datetime.datetime(year, month, day, hour, mint)
+
     return ret
 
 
@@ -128,7 +137,7 @@ class Feed(csvfeed.BarFeed):
 
         if frequency not in [bar.Frequency.DAY, bar.Frequency.WEEK, \
                              bar.Frequency.MINUTE, bar.Frequency.MONTH, \
-                             bar.Frequency.MIN15]:
+                             bar.Frequency.MIN15, bar.Frequency.MIN30]:
             raise Exception("Invalid frequency.")
 
         csvfeed.BarFeed.__init__(self, frequency, maxLen)
