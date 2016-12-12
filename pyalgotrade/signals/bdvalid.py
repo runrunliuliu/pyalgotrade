@@ -95,24 +95,26 @@ class BDvalid(object):
 
     # M-Head
     def MHead(self, dateTime, peek, valley, high):
-        MLINE = 1024 
-        ret   = [] 
-        if self.__status == 10 or self.__status == 11:
-            for i in range(0, len(peek)):
-                if len(ret) == 2:
-                    break
-                ptime = peek[i][0]
-                if (i + 1) >= len(valley):
-                    return MLINE 
+        MLINE = None 
+        if len(peek) < 1:
+            return MLINE
+        npeek = peek[0]
+        peekA = high[npeek[0]]
+        peekB = high[npeek[0]]
+        timed = 0
+        for i in range(1, len(peek)):
+            ptime = peek[i][0]
+            peekB = high[ptime]
+            hdiff = (peekB - peekA) / peekA
+            if hdiff > 0.01:
+                return MLINE
+            timed = self.__dtzq[npeek[0]] - self.__dtzq[ptime] 
 
-                vtime = valley[i+1][0]
-                timediff = self.__dtzq[ptime] - self.__dtzq[vtime]
-                if (timediff + 1) >= 5:
-                    ret.append((ptime,high[ptime]))
-        if len(ret) == 2:
-            if abs((ret[0][1] - ret[1][1]) / ret[1][1]) < 0.005:
-                MLINE = ret[0][1]
-                self.__logger.log(logging.ERROR, 'M_HEAD: %s %s %f', dateTime, self.__inst, MLINE)
+            if hdiff < 0.01 and hdiff > -0.01 and timed >= 31:
+                MLINE = (npeek[0], peekA, peekB, timed)
+                break
+        if MLINE is not None:
+            self.__logger.log(logging.ERROR, 'M_HEAD: %s %s %s', dateTime, self.__inst, MLINE)
         return MLINE
 
     # 通道定义@ QuChaoGu Corp.
