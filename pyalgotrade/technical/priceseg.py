@@ -190,6 +190,10 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__desma5date_list = collections.ListDeque(5)
         # USE END
 
+        # 形态
+        self.__mhead      = OrderedDict()
+        self.__mhead_used = set()
+
         self.__dropout  = []
         self.__observed = {}
 
@@ -772,7 +776,6 @@ class MacdSegEventWindow(technical.EventWindow):
             bddf    = 1024
             goldseg = 1024
             peekzl  = 1024
-            mhead   = 1024
             qtdao   = None
             if bd is not None:
                 if bd[1] > 0:
@@ -783,12 +786,18 @@ class MacdSegEventWindow(technical.EventWindow):
                 bddf    = "{:.4f}".format(bd[6])
                 goldseg = bd[7]
                 peekzl  = bd[8]
-                mhead   = bd[9]
+                # M_HEAD
+                if bd[9] is not None and bd[9] not in self.__mhead_used:
+                    self.__mhead[dateTime] = bd[9]
+                    self.__mhead_used.add(bd[9])
                 qtdao   = bd[10]
             # 回踩趋势线
             self.__xtCT = self.xtBackOnQS(dateTime, twoline, value, \
                                           sup, qshist, hist, ret, bd,\
                                           qsgd, gprice)
+
+            # M头突破
+            mhead = self.xtMHeadTP(dateTime, value) 
 
             self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
@@ -862,7 +871,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
                  fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
-                 ma5d, peekzl, mhead)
+                 ma5d, peekzl,mhead)
 
             # collect2QCG
             qcgtp = (change, self.__direct, nDIF, qtdao)
@@ -1435,6 +1444,46 @@ class MacdSegEventWindow(technical.EventWindow):
                             and self.__dateclose[close_min_date] > clmas[w]:
                         zcmas.append(w)
         return (tpmas, zlmas, zcmas)
+
+    # M头突破
+    def xtMHeadTP(self, dateTime, value):
+        ret = -1 
+       
+        # 量比
+        lb = self.__fts[6][0]
+
+        for k,v in self.__mhead.iteritems():
+            M1_val = float(v[1])
+            M2_val = float(v[2])
+
+            op = value.getOpen()
+            cl = value.getClose()
+            hi = value.getHigh()
+
+            op_diff1 = (op - M1_val) / M1_val 
+            op_diff2 = (op - M2_val) / M2_val
+            
+            cl_diff1 = (cl - M1_val) / M1_val 
+            cl_diff2 = (cl - M2_val) / M2_val 
+
+            hi_diff1 = (hi - M1_val) / M1_val 
+            hi_diff2 = (hi - M2_val) / M2_val
+
+            if op_diff1 < 0 and op_diff2 < 0 \
+                    and hi_diff1 > 0 and hi_diff2 > 0 \
+                    and lb > 1.5:
+                
+                tp = 0
+                if cl_diff1 > 0 and cl_diff2 > 0:
+                    tp = 1
+                if cl_diff1 > 0 or cl_diff2 < 0:
+                    tp = 2
+                if cl_diff1 < 0 or cl_diff2 > 0:
+                    tp = 3
+                if cl_diff1 < 0 and cl_diff2 < 0:
+                    tp = 4
+                ret = tp
+        return ret
 
     # 回踩趋势线
     def xtBackOnQS(self, dateTime, twoline, value, sup, \
