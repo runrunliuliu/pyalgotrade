@@ -69,6 +69,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__gfbeili = (-1, -1)
 
+        self.__xtMHead    = None
         self.__xtCT       = None
         self.__xtTriangle = None 
         self.__roc        = None
@@ -797,7 +798,7 @@ class MacdSegEventWindow(technical.EventWindow):
                                           qsgd, gprice)
 
             # M头突破
-            mhead = self.xtMHeadTP(dateTime, value) 
+            self.__xtMHead = self.xtMHeadTP(dateTime, value) 
 
             self.add2observed(dateTime, now_dt, value)
             self.__roc     = self.__fts[1] 
@@ -871,7 +872,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
                  fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
-                 ma5d, peekzl,mhead)
+                 ma5d, peekzl)
 
             # collect2QCG
             qcgtp = (change, self.__direct, nDIF, qtdao)
@@ -1447,8 +1448,8 @@ class MacdSegEventWindow(technical.EventWindow):
 
     # M头突破
     def xtMHeadTP(self, dateTime, value):
-        ret = -1 
-       
+        ret   = None 
+        score = "{:.4f}".format(self.__fts[0][0])
         # 量比
         lb = self.__fts[6][0]
 
@@ -1482,7 +1483,7 @@ class MacdSegEventWindow(technical.EventWindow):
                     tp = 3
                 if cl_diff1 < 0 and cl_diff2 < 0:
                     tp = 4
-                ret = tp
+                ret = (tp, score)
         return ret
 
     # 回踩趋势线
@@ -1932,7 +1933,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
                self.__dropout, self.__ftDes, self.__ftInc, self.__observed, \
                self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS, self.__xtCT, \
-               self.__qcg)
+               self.__qcg, self.__xtMHead)
         return ret
 
 
