@@ -1451,15 +1451,24 @@ class MacdSegEventWindow(technical.EventWindow):
         ret   = None 
         score = "{:.4f}".format(self.__fts[0][0])
         # 量比
-        lb = self.__fts[6][0]
+        lb  = self.__fts[6][0]
+        mas = self.__dtmas[dateTime]
+
+        op = value.getOpen()
+        cl = value.getClose()
+        hi = value.getHigh()
+
+        if 250 not in mas:
+            return ret
+            
+        if cl < mas[120] or cl < mas[250] or cl < mas[20]:
+            return ret
 
         for k,v in self.__mhead.iteritems():
             M1_val = float(v[1])
             M2_val = float(v[2])
 
-            op = value.getOpen()
-            cl = value.getClose()
-            hi = value.getHigh()
+            timediff = self.__dtzq[dateTime] - self.__dtzq[v[0]] 
 
             op_diff1 = (op - M1_val) / M1_val 
             op_diff2 = (op - M2_val) / M2_val
@@ -1472,7 +1481,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
             if op_diff1 < 0 and op_diff2 < 0 \
                     and hi_diff1 > 0 and hi_diff2 > 0 \
-                    and lb > 1.5:
+                    and lb > 1.0 and timediff < 120:
                 
                 tp = 0
                 if cl_diff1 > 0 and cl_diff2 > 0:
