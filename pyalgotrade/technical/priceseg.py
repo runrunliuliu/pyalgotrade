@@ -15,10 +15,11 @@ from utils import utils
 from collections import OrderedDict
 import numpy as np
 import pyalgotrade.talibext.indicator as ta
-from pyalgotrade.signals import mavalid 
-from pyalgotrade.signals import macdvalid 
-from pyalgotrade.signals import bdvalid 
-from pyalgotrade.signals import dtvalid 
+from pyalgotrade.signals import mavalid
+from pyalgotrade.signals import macdvalid
+from pyalgotrade.signals import bdvalid
+from pyalgotrade.signals import dtvalid
+from pyalgotrade.signals import xingtai
 import logging
 import logging.config
 import datetime
@@ -880,6 +881,14 @@ class MacdSegEventWindow(technical.EventWindow):
             
             # For Show in Plot
             self.filter4Show(dateTime, twoline, value)
+
+            # XingTai
+            xtups = (self.__dtzq, self.__fpeek, self.__fvalley, \
+                     self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
+                     self.__nowgd, qshist, self.__direct)
+            xt = xingtai.XINGTAI(dateTime, xtups)
+            xt.run()
+            print dateTime, xt.retJSON()
 
             # Keep Record
             self.__prehist = hist 
