@@ -64,6 +64,21 @@ class XINGTAI(object):
 
         return json.dumps(out) 
 
+    def retDICT(self):
+        out = dict()
+        
+        qs = dict()
+        qs['nqs'] = self.__nqs
+        qs['pqs'] = self.__preqs
+        qs['gds'] = self.__struct
+        qs['hcx'] = self.__gs
+        qs['zc']  = self.__zc
+        qs['jd']  = self.__jd
+
+        out['qs'] = qs
+
+        return out
+
     # 趋势
     def qushi(self):
         # 至少4段,前完趋势，当前可能趋势
@@ -164,6 +179,17 @@ class XINGTAI(object):
             gi = float(gi)
             out.append(gi)
         return out
+
+    # 上升扇形
+    def incSectorLine(self):
+        ret = []
+        if len(self.__fvalley) < 4:
+            return ret
+        print self.__fvalley[0:4]
+
+    # 下降扇形
+    def desSectorLine(self):
+        pass
 
     # 三种最基本的走势定义
     #  1 -- 上升
