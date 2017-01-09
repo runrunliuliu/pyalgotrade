@@ -70,6 +70,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__gfbeili = (-1, -1)
 
+        self.__XINGTAI    = None
         self.__xtMHead    = None
         self.__xtCT       = None
         self.__xtTriangle = None 
@@ -888,7 +889,7 @@ class MacdSegEventWindow(technical.EventWindow):
                      self.__nowgd, qshist, self.__direct)
             xt = xingtai.XINGTAI(dateTime, xtups)
             xt.run()
-            print dateTime, xt.retJSON()
+            self.__XINGTAI = xt.retDICT()
 
             # Keep Record
             self.__prehist = hist 
@@ -1951,7 +1952,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
                self.__dropout, self.__ftDes, self.__ftInc, self.__observed, \
                self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS, self.__xtCT, \
-               self.__qcg, self.__xtMHead)
+               self.__qcg, self.__xtMHead, self.__XINGTAI)
         return ret
 
 
