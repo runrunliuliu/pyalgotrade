@@ -1,7 +1,7 @@
 
 class QsLineFit(object):
 
-    def __init__(self, x0, y0, x1, y1, desc='', key=''):
+    def __init__(self, x0, y0, x1, y1, desc='', key='', days=None):
         self.__x0 = x0
         self.__y0 = y0
         self.__x1 = x1
@@ -15,21 +15,31 @@ class QsLineFit(object):
 
         self.__key  = key
 
+        if days is None:
+            self.__start = '' 
+            self.__end   = ''
+        else:
+            self.__start = days[0]
+            self.__end   = days[1]
+
     @classmethod
-    def initFromTuples(cls, tups, dtzq):
+    def initFromTuples(cls, tups, dtzq, formats='%Y-%m-%d'):
         x0 = tups[0]; start = dtzq[x0]
         y0 = tups[1] 
         x1 = tups[2]; end = dtzq[x1]
         y1 = tups[3]
 
-        desc = 'Start|' + x0.strftime('%Y-%m-%d') \
+        desc = 'Start|' + x0.strftime(formats) \
             + ' x0|'  + str(start) \
-            + ' End|' + x1.strftime('%Y-%m-%d') \
+            + ' End|' + x1.strftime(formats) \
             + ' x1|'  + str(end)
 
-        key = x0.strftime('%Y-%m-%d') + '|' + x1.strftime('%Y-%m-%d')
+        dstart = x0.strftime(formats)
+        dend   = x1.strftime(formats)
+        key = dstart + '|' + dend
 
-        return cls(start, y0, end, y1, desc, key)
+        tmp = (dstart, dend)
+        return cls(start, y0, end, y1, desc, key, tmp)
 
     def getWindows(self):
         return self.__x1 - self.__x0
@@ -51,6 +61,23 @@ class QsLineFit(object):
             + ' x0|' + str(self.__x0) \
             + ' End|' + enday.strftime('%Y-%m-%d') \
             + ' x1|' + str(self.__x1)
+
+    def toDICT(self, nind):
+        out = {} 
+        p1  = {}
+        p2  = {}
+
+        p1['d'] = self.__start
+        p1['v'] = self.__y0
+        
+        p2['d'] = self.__end
+        p2['v'] = self.__y1
+
+        out['p1'] = p1
+        out['p2'] = p2
+        out['np'] = float("{:.4f}".format(self.compute(nind)))
+
+        return out
 
     def toString(self):
         return self.__desc
