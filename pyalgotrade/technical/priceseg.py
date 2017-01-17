@@ -97,6 +97,9 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__dateclose = {}
         self.__dateopen  = {}
 
+        self.__valley = []
+        self.__peek   = []
+
         self.__fvalley = []
         self.__fpeek   = []
         self.__desline = OrderedDict()
@@ -194,6 +197,7 @@ class MacdSegEventWindow(technical.EventWindow):
         # USE END
 
         # 形态
+        self.__xingtai    = xingtai.XINGTAI()
         self.__mhead      = OrderedDict()
         self.__mhead_used = set()
 
@@ -679,6 +683,9 @@ class MacdSegEventWindow(technical.EventWindow):
                 tups = (now[0], now[1], (now[1] - pre[1]) / now[1], (now[1] - nex[1]) / now[1])
                 peek.append(tups)
 
+        self.__valley  = valley
+        self.__peek    = peek
+
         self.__fvalley = self.filterGD(valley, -1)
         self.__fpeek   = self.filterGD(peek, 1)
         if self.__direct == 1:
@@ -884,12 +891,12 @@ class MacdSegEventWindow(technical.EventWindow):
             self.filter4Show(dateTime, twoline, value)
 
             # XingTai
-            xtups = (self.__dtzq, self.__fpeek, self.__fvalley, \
+            xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
-                     self.__nowgd, qshist, self.__direct)
-            xt = xingtai.XINGTAI(dateTime, xtups)
-            xt.run()
-            self.__XINGTAI = xt.retDICT()
+                     self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili)
+            self.__xingtai.initTup(dateTime, xtups)
+            self.__xingtai.run()
+            self.__XINGTAI = self.__xingtai.retDICT()
 
             # Keep Record
             self.__prehist = hist 
