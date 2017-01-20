@@ -18,9 +18,16 @@ class XINGTAI(object):
 
         self.__incsector = []
         self.__dessector = []
+
+        self.__peekdays   = set()
+        self.__valleydays = set()
        
         # QUSHI HISTORY
-        self.__history_qs = collections.ListDeque(10)
+        self.__hist_qs     = collections.ListDeque(10)
+
+        self.__histinc_wave5  = collections.ListDeque(120)
+        self.__histdes_wave5  = collections.ListDeque(120)
+        self.__histhp_wave5   = collections.ListDeque(120)
 
     def initTup(self, dateTime, tups):
         self.__nowdt = dateTime
@@ -109,9 +116,16 @@ class XINGTAI(object):
         ngdhigh = self.__high[self.__nowgd]
 
         tup = (peek0, peek1, vall0, vall1)
-        bqs = self.basicQS(tup)
+
+        # add2peekdays
+        self.__peekdays.add(peek0)
+        self.__peekdays.add(peek1)
+        self.__valleydays.add(vall0)
+        self.__valleydays.add(vall1)
+
+        bqs = self.basicQS(tup, self.__direct)
         if self.__update == 1:
-            self.__history_qs.append(bqs)
+            self.__hist_qs.append(bqs)
         pqs = bqs[0] 
         nqs = pqs
 
@@ -154,7 +168,19 @@ class XINGTAI(object):
         self.__incsector = self.incSectorLine(self.__nowdt)
         self.__dessector = self.desSectorLine(self.__nowdt)
 
-        self.szline(self.__nowdt)
+        dateTime = self.__nowdt
+        if self.__update == 1:
+            wave5    = self.wave5construct(dateTime)
+            wave5ret = self.computeWave5(dateTime, wave5)
+
+            if wave5[0] == 1: 
+                self.__histinc_wave5.append(wave5ret)
+            if wave5[0] == -1: 
+                self.__histdes_wave5.append(wave5ret)
+            if wave5[0] == 0: 
+                self.__histhp_wave5.append(wave5ret)
+
+        self.getSZLine(dateTime)
    
     # 反转
     def fanzhuan(self):
@@ -163,6 +189,16 @@ class XINGTAI(object):
     # 持续形态
     def chixu(self):
         pass
+
+    # 计算wave5相关的元素
+    def computeWave5(self, dateTime, wave5):
+        ret = dict()
+
+        # 计算速阻线
+        szline = self.szline(self.__nowdt, wave5)
+        ret['szx'] = szline
+
+        return (dateTime, ret)
 
     # 合并QS, 减少毛刺
     def mergeQS(self, dateTime, qslist):
@@ -196,8 +232,40 @@ class XINGTAI(object):
             count = count + 1
         return QS
 
+    # 定义五浪的标准结构
+    def wave5define(self, dateTime, w5):
+        i   = 0
+        aqs = []
+        while i < len(w5) - 3:
+            direct = 0
+            if w5[i] in self.__valleydays:
+                tup = (w5[i+3], w5[i+1], w5[i+2], w5[i])
+                direct = 1
+            else:
+                tup = (w5[i+2], w5[i], w5[i+3], w5[i+1])
+                direct = -1
+            qs = self.basicQS(tup, direct)
+            aqs.append(qs)
+            i = i + 1
+
+        # 为空返回空
+        if len(aqs) < 3:
+            return (0, aqs)
+        # 上升浪
+        if aqs[0][0] == 2102 and (aqs[2][0] == 2102 or aqs[2][0] == 2103):
+            return (1, aqs)
+        # 下降浪
+        if aqs[0][0] == 1302 and (aqs[2][0] == 1302 or aqs[2][0] == 1301):
+            return (-1, aqs)
+        # 其他
+        return (0, aqs)
+
     # 消除毛刺的5浪重构
-    def wave5construct(self, dateTime, QS):
+    def wave5construct(self, dateTime):
+
+        qslist = self.__hist_qs
+        QS     = self.mergeQS(dateTime, qslist)
+
         used = set()
         w5 = () 
         i  = 1
@@ -213,50 +281,88 @@ class XINGTAI(object):
             # 基本结构无minbar
             if q[-1] == -1:
                 if i == 1:
-                    # w5 = w5 + q[8][0:3]
                     (w5, used) = add(w5, used, q[8][0:3])
                 elif i == len(QS):
-                    # w5 = w5 + q[8][2:4]
                     (w5, used) = add(w5, used, q[8][2:4])
                 else:
-                    # w5 = w5 + (q[8][2],)
                     (w5, used) = add(w5, used, (q[8][2],))
                 step = 1 
             # 基本结构minbar居中
             if q[-1] == 1:
                 if q[0] == 1302 or q[0] == 1301 \
                         or q[0] == 2102 or q[0] == 2103:
-                    # w5 = w5 + (q[8][3],)
                     (w5, used) = add(w5, used, (q[8][3],))
                     step = 2
                 else:
-                    # w5 = w5 + (q[8][1],)
                     (w5, used) = add(w5, used, (q[8][1],))
                     step = 1
             # 基本结构minbar居始
             if q[-1] == 0:
-                # w5 = w5 + q[8][2:4]
                 (w5, used) = add(w5, used, q[8][2:4])
                 step = 2
             # 基本结构minbar居末尾
             if q[-1] == 2:
                 if i == len(QS):
-                    # w5 = w5 + q[8][0:3]
                     (w5, used) = add(w5, used, q[8][0:3])
                 else:
-                    # w5 = w5 + q[8][0:2]
                     (w5, used) = add(w5, used, q[8][0:2])
                 step = 1
             if i == len(QS) - 1:
                 step = 1
             i = i + step
-        print w5
+        return self.wave5define(dateTime, w5)
 
-    # 速阻线
-    def szline(self, dateTime):
-        qslist = self.__history_qs
-        QS = self.mergeQS(dateTime, qslist)
-        self.wave5construct(dateTime, QS)
+    # 计算速阻线
+    def szline(self, dateTime, wave5):
+        ret = None 
+        if wave5[0] == 1:
+            print 'UP', dateTime, wave5[1][0][5]
+            print 'UP', dateTime, wave5[1][0][5][0]['d'], wave5[1][2][5][3]['d']
+            ret = 1
+        if wave5[0] == -1:
+            print 'Down', dateTime, wave5, wave5[1][0][5][0]['d'], wave5[1][2][5][3]['d']
+            ret = -1
+        return ret
+
+    # 获取最近的非盘整状态
+    def getWave5Neighbor(self, dateTime): 
+        inc = self.__histinc_wave5
+        des = self.__histdes_wave5
+        hpp = self.__histhp_wave5
+       
+        nstatus = 0
+        neighbb = None
+
+        if len(inc) > 0 and len(des) == 0:
+            nstatus = 1
+            neighbb = inc[-1]
+
+        if len(inc) == 0 and len(des) > 0:
+            nstatus = -1
+            neighbb = des[-1]
+
+        if len(inc) > 0 and len(des) > 0:
+            if inc[-1][0] > des[-1][0]:
+                nstatus = 1
+                neighbb = inc[-1]
+            else:
+                nstatus = -1
+                neighbb = des[-1]
+
+        if len(hpp) > 0:
+            if neighbb is None:
+                nstatus = 0
+                neighbb = hpp[-1]
+            else:
+                if hpp[-1][0] > neighbb[0]:
+                    nstatus = 0
+
+        return (nstatus, neighbb) 
+   
+    # 获取速阻线
+    def getSZLine(self, dateTime):
+        w5 = self.getWave5Neighbor(dateTime)
+        print dateTime, w5[0], w5[1][1]['szx']
 
     # 支撑线和阻挡线
     def zcjd(self, nqs, nowclose, tup):
@@ -356,7 +462,7 @@ class XINGTAI(object):
     #  1 -- 上升
     #  2 -- 盘整
     #  3 -- 下降
-    def basicQS(self, tup):
+    def basicQS(self, tup, direct):
         ret = 0 
         peek0 = tup[0]; speek0 = peek0.strftime(self.__format)
         peek1 = tup[1]; speek1 = peek1.strftime(self.__format)
@@ -370,7 +476,7 @@ class XINGTAI(object):
         zhouqi = None
         struct = None 
         timegd = None
-        if self.__direct == -1:
+        if direct == -1:
             if high0 >= high1:
                 if low0 >= high1:
                     ret = 1101
@@ -393,7 +499,7 @@ class XINGTAI(object):
             zhouqi = (zq1, zq2, zq3)
             timegd = (peek1, vall1, peek0, vall0)
 
-        if self.__direct == 1:
+        if direct == 1:
             if low0 >= low1:
                 if high0 >= high1:
                     ret = 2102 
