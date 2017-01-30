@@ -15,6 +15,9 @@ class XINGTAI(object):
         self.__gs     = []
         self.__zc     = {} 
         self.__jd     = {} 
+        self.__szl    = {}
+
+        self.__speedqs = {}
 
         self.__incsector = []
         self.__dessector = []
@@ -23,11 +26,34 @@ class XINGTAI(object):
         self.__valleydays = set()
        
         # QUSHI HISTORY
-        self.__hist_qs     = collections.ListDeque(10)
+        self.__hist_qs     = collections.ListDeque(60)
 
         self.__histinc_wave5  = collections.ListDeque(120)
         self.__histdes_wave5  = collections.ListDeque(120)
         self.__histhp_wave5   = collections.ListDeque(120)
+       
+        # MHead历史数据
+        self.__hist_mhead = collections.ListDeque(20)
+        self.__hist_whead = collections.ListDeque(20)
+
+        # TriBottom
+        self.__hist_trib = collections.ListDeque(20)
+        # TriHead
+        self.__hist_trih = collections.ListDeque(20)
+        # HeadShouldersBottom
+        self.__hist_hsb  = collections.ListDeque(20)
+        # HeadShouldersPeek
+        self.__hist_hsp  = collections.ListDeque(20)
+
+        # Triangle
+        self.__hist_triangle  = collections.ListDeque(20)
+
+        # 加速上升趋势线
+        self.__qushi    = 0 
+        self.__pspeedup = None
+        self.__pspeeddn = None
+        self.__speedup   = [] 
+        self.__speeddown = [] 
 
     def initTup(self, dateTime, tups):
         self.__nowdt = dateTime
@@ -54,6 +80,7 @@ class XINGTAI(object):
         # direct
         self.__direct = tups[9]
         self.__format = '%Y-%m-%d'
+        self.__period = tups[10]
         if tups[10] == '15mink':
             self.__format = '%Y-%m-%d-%H'
 
@@ -61,9 +88,16 @@ class XINGTAI(object):
         if tups[11] == 1 or tups[12] == -1:
             self.__update = 1
 
+        self.__inst = tups[13]
+        self.__diff = 0.01
+        if self.__inst[0:2] == 'SZ' or self.__inst[0:2] == 'SH':
+            self.__diff = 0.01
+
     # Main Module
     def run(self):
         self.qushi()
+        self.fanzhuan()
+        self.chixu()
 
     def retJSON(self):
         out = dict()
@@ -75,6 +109,7 @@ class XINGTAI(object):
         qs['hcx'] = self.__gs
         qs['zc']  = self.__zc
         qs['jd']  = self.__jd
+        qs['szl'] = self.__szl
 
         out['qs'] = qs
 
@@ -93,6 +128,18 @@ class XINGTAI(object):
 
         qs['isector']  = self.__incsector
         qs['dsector']  = self.__dessector
+
+        qs['szl'] = self.__szl
+        qs['sqs'] = self.__speedqs
+
+        qs['mhead'] = self.__mhead
+        qs['whead'] = self.__whead
+
+        qs['trib'] = self.__trib
+        qs['trih'] = self.__trih
+        qs['hsb']  = self.__hsb
+        qs['hsp']  = self.__hsp
+        qs['triangle'] = self.__triangle
 
         out['qs'] = qs
 
@@ -172,23 +219,230 @@ class XINGTAI(object):
         if self.__update == 1:
             wave5    = self.wave5construct(dateTime)
             wave5ret = self.computeWave5(dateTime, wave5)
-
             if wave5[0] == 1: 
                 self.__histinc_wave5.append(wave5ret)
             if wave5[0] == -1: 
                 self.__histdes_wave5.append(wave5ret)
             if wave5[0] == 0: 
                 self.__histhp_wave5.append(wave5ret)
+            self.speedQS(dateTime)
 
-        self.getSZLine(dateTime)
-   
+        self.__szl     = self.getSZLine(dateTime)
+        self.__speedqs = self.getSpeedQs(dateTime) 
+
     # 反转
     def fanzhuan(self):
-        pass
+        dateTime = self.__nowdt
+        
+        # 拐点形成之时构建结构
+        if self.__update == 1:
+            ret = self.MHead(dateTime)
+            if len(ret) > 0:
+                self.__hist_mhead.append(ret)
+
+            ret = self.WHead(dateTime)
+            if len(ret) > 0:
+                self.__hist_whead.append(ret)
+
+        self.__mhead = self.getHistXingTai(self.__hist_mhead, dateTime) 
+        self.__whead = self.getHistXingTai(self.__hist_whead, dateTime) 
+        self.__trib  = self.getHistXingTai(self.__hist_trib, dateTime) 
+        self.__trih  = self.getHistXingTai(self.__hist_trih, dateTime) 
+        self.__hsb   = self.getHistXingTai(self.__hist_hsb, dateTime)
+        self.__hsp   = self.getHistXingTai(self.__hist_hsp, dateTime)
+
+    # M头精准定义
+    def MHead(self, dateTime):
+        ret = () 
+        if len(self.__hist_qs) == 0:
+            return ret
+        preqs = self.__hist_qs[-1]
+        ratio = None
+        peek0 = preqs[1]
+        peek1 = preqs[3]
+        if preqs[0] == 2102:
+            ratio = (peek0 - peek1) / peek1
+        if preqs[0] == 2203:
+            ratio = (peek1 - peek0) / peek0
+        if ratio is not None and ratio < self.__diff:
+            out = {}
+            out['st']  = preqs[5]
+            out['nec'] = preqs[5][2]['v'] 
+            out['hd']  = float("{:.2f}".format((peek0 + peek1) * 0.5))
+            ret = (out, dateTime)
+        return ret
+
+    # W头精准定义
+    def WHead(self, dateTime):
+        ret = () 
+        if len(self.__hist_qs) == 0:
+            return ret
+        preqs = self.__hist_qs[-1]
+        ratio = None
+        vall0 = preqs[2]
+        vall1 = preqs[4]
+        if preqs[0] == 1202:
+            ratio = (vall0 - vall1) / vall1
+        if preqs[0] == 1302:
+            ratio = (vall1 - vall0) / vall0
+        if ratio is not None and ratio < self.__diff:
+            out = {}
+            out['st']  = preqs[5]
+            out['nec'] = preqs[5][2]['v'] 
+            out['hd']  = float("{:.2f}".format((vall0 + vall1) * 0.5))
+            ret = (out, dateTime)
+        return ret
 
     # 持续形态
     def chixu(self):
-        pass
+        dateTime = self.__nowdt
+        if self.__update == 1:
+            if len(self.__hist_qs) > 0:
+                preqs = self.__hist_qs[-1]
+                triangle = self.triangle(dateTime, preqs)
+                self.__hist_triangle.append(triangle)
+
+        self.__triangle = self.getTriangle(dateTime)
+
+    # 获取Triangle
+    def getTriangle(self, dateTime):
+        ret = {}
+        if len(self.__hist_triangle) > 0:
+            triangle = self.__hist_triangle[-1]
+            ret = triangle[0]
+        return ret
+
+    # 多种形态
+    def triangle(self, dateTime, preqs):
+        xtname = 'NULL'
+        output = {}
+        # 1-3
+        p1 = preqs[5][0]
+        p3 = preqs[5][2]
+        v  = (preqs[8][0], p1['v'], preqs[8][2], p3['v']) 
+        qs13 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+        s13  = qs13.getSlope()
+        # 2-4
+        p2 = preqs[5][1]
+        p4 = preqs[5][3]
+        v  = (preqs[8][1], p2['v'], preqs[8][3], p4['v']) 
+        qs24 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+        s24  = qs24.getSlope()
+
+        # 对称三角
+        if preqs[0] == 1202 and s13 < 0 and s24 > 0 and abs(s13 + s24) <= 0.0003:
+            xtname = 'symtriangle'
+        if preqs[0] == 2203 and s13 > 0 and s24 < 0 and abs(s13 + s24) <= 0.0003:
+            xtname = 'symtriangle'
+        # 上升三角
+        if (preqs[0] == 1201 or preqs[0] == 1202) and abs(s13) <= 0.0001 and s24 >= 0.001:
+            xtname = 'asctriangle'
+        if (preqs[0] == 2102 or preqs[0] == 2203) and abs(s24) <= 0.0001 and s13 >= 0.001:
+            xtname = 'asctriangle'
+        # 下降三角
+        if (preqs[0] == 1202 or preqs[0] == 1302) and abs(s24) <= 0.0001 and s13 <= -0.001:
+            xtname = 'destriangle'
+        if (preqs[0] == 2203 or preqs[0] == 2204) and abs(s13) <= 0.0001 and s24 <= -0.001:
+            xtname = 'destriangle'
+        # 喇叭形
+        if preqs[0] == 1301 and s24 <= -0.001 and s13 >= 0.001:
+            xtname = 'trumptriangle'
+        if preqs[0] == 2103 and s24 >= 0.001 and s13 <= -0.001:
+            xtname = 'trumptriangle'
+        # 上升旗形
+        if (preqs[0] == 1101 and preqs[0] == 1201 and preqs[0] == 2102) \
+                and abs(s13 - s24) < 0.0003 \
+                and s13 >= 0.001 and s24 >= 0.001:
+            xtname = 'aflagtriangle'
+        # 下降旗形
+        if (preqs[0] == 1302 and preqs[0] == 2303 and preqs[0] == 2204) \
+                and abs(s13 - s24) < 0.0003 \
+                and s13 <= -0.001 and s24 <= -0.001:
+            xtname = 'dflagtriangle'
+        # 上升楔形
+        if (preqs[0] == 1101 and preqs[0] == 1201) \
+                and s13 >= 0.001 and s24 >= 0.001 \
+                and (s24 - s13) >= 0.002:
+            xtname = 'ascwedge'
+        # 上升楔形
+        if preqs[0] == 2102 and s13 >= 0.001 and s24 >= 0.001 \
+                and (s13 - s24) >= 0.002:
+            xtname = 'ascwedge'
+        # 下降楔形
+        if (preqs[0] == 2303 and preqs[0] == 2204) \
+                and s13 <= -0.001 and s24 <= -0.001 \
+                and (s13 - s24) >= 0.002:
+            xtname = 'deswedge'
+        # 下降楔形
+        if preqs[0] == 1302 and s13 <= -0.001 and s24 <= -0.001 \
+                and (s24 - s13) >= 0.002:
+            xtname = 'deswedge'
+        # 矩形
+        if abs(s13) <= 0.0001 and abs(s24) <= 0.0001:
+            xtname = 'rectangle'
+        nind = self.__dtzq[dateTime]
+
+        output['l1']   = qs13.toDICT(nind)
+        output['l2']   = qs24.toDICT(nind)
+        output['name'] = xtname
+
+        return (output, dateTime)
+
+    # 获取加速趋势线
+    def getSpeedQs(self, dateTime):
+        output = dict()
+        nind = self.__dtzq[dateTime]
+        speed = None
+        if self.__qushi == 1 and len(self.__speedup) > 1:
+            speed = self.__speedup
+        if self.__qushi == -1 and len(self.__speeddown) > 1:
+            speed = self.__speeddown
+        lines = []
+        if speed is not None:
+            for s in speed:
+                tmp = dict()
+                tmp['line']  = s.toDICT(nind)
+                tmp['slope'] = float("{:.2f}".format(s.getSlope()))
+                lines.append(tmp)
+            output['lines'] = lines
+            output['qushi'] = self.__qushi
+        return output
+
+    # 加速趋势线 
+    def speedQS(self, dateTime):
+        preqs = self.__hist_qs[-1]
+        v     = (preqs[8][1], preqs[5][1]['v'], preqs[8][3], preqs[5][3]['v']) 
+        qsfit = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+        # 上升趋势
+        if preqs[0] == 1101 or preqs[0] == 1201 or preqs[0] == 1202:
+            if self.__pspeedup is None:
+                self.__speedup.append(qsfit)
+            else:
+                if self.__pspeedup.getSlope() < qsfit.getSlope():
+                    self.__speedup.append(qsfit)
+                else:
+                    self.__speedup  = []
+                    self.__speedup.append(qsfit)
+            self.__pspeedup = qsfit
+            self.__qushi    = 1
+        if preqs[0] == 1301 or preqs[0] == 1302:
+            self.__pspeedup = None
+            self.__speedup  = []
+        # 下降趋势
+        if preqs[0] == 2203 or preqs[0] == 2303 or preqs[0] == 2204:
+            if self.__pspeeddn is None:
+                self.__speeddown.append(qsfit)
+            else:
+                if self.__pspeeddn.getSlope() > qsfit.getSlope():
+                    self.__speeddown.append(qsfit)
+                else:
+                    self.__speeddown = []
+                    self.__speeddown.append(qsfit)
+            self.__pspeeddn = qsfit
+            self.__qushi    = -1
+        if preqs[0] == 2102 or preqs[0] == 2103:
+            self.__pspeeddn  = None
+            self.__speeddown = []
 
     # 计算wave5相关的元素
     def computeWave5(self, dateTime, wave5):
@@ -198,7 +452,114 @@ class XINGTAI(object):
         szline = self.szline(self.__nowdt, wave5)
         ret['szx'] = szline
 
+        # 计算三重底
+        trib = self.triBottom(dateTime, wave5)
+        if len(trib[0]) > 0:
+            self.__hist_trib.append(trib)
+
+        # 计算三重顶
+        trih = self.triHead(dateTime, wave5)
+        if len(trih[0]) > 0:
+            self.__hist_trih.append(trih)
+
+        # 计算头肩底
+        hsb = self.headShoulderBottom(dateTime, wave5)
+        if len(hsb[0]) > 0:
+            self.__hist_hsb.append(hsb)
+
+        # 计算头肩顶
+        hsp = self.headShoulderPeek(dateTime, wave5)
+        if len(hsp[0]) > 0:
+            self.__hist_hsp.append(hsp)
+
         return (dateTime, ret)
+
+    # 计算三重底
+    def triBottom(self, dateTime, wave5):
+        ret = {}
+        w5  = wave5[1]
+        if len(w5) == 3:
+            if w5[0][0] == 1202 or w5[0][0] == 1302:
+                p2 = w5[0][5][1]['v']
+                p3 = w5[0][5][2]['v']
+                p4 = w5[1][5][2]['v']
+                p5 = w5[1][5][3]['v']
+                p6 = w5[2][5][3]['v']
+                if abs((p2 - p4) / p4) < self.__diff and \
+                        abs((p6 - p4) / p4) < self.__diff and \
+                        abs((p3 - p5) / p5) < self.__diff:
+                    ret['st']  = w5[0][5] + w5[2][5][2:]
+                    ret['nec'] = float("{:.2f}".format((p3 + p5) * 0.5))
+                    ret['hd']  = float("{:.2f}".format((p2 + p4 + p6) / 3))
+        return (ret, dateTime)
+    
+    # 计算三重顶
+    def triHead(self, dateTime, wave5):
+        ret = {}
+        w5  = wave5[1]
+        if len(w5) == 3:
+            if w5[0][0] == 2102 or w5[0][0] == 2203:
+                p2 = w5[0][5][1]['v']
+                p3 = w5[0][5][2]['v']
+                p4 = w5[1][5][2]['v']
+                p5 = w5[1][5][3]['v']
+                p6 = w5[2][5][3]['v']
+                if abs((p2 - p4) / p4) < self.__diff and \
+                        abs((p6 - p4) / p4) < self.__diff and \
+                        abs((p3 - p5) / p5) < self.__diff:
+                    ret['st']  = w5[0][5] + w5[2][5][2:]
+                    ret['nec'] = float("{:.2f}".format((p3 + p5) * 0.5))
+                    ret['hd']  = float("{:.2f}".format((p2 + p4 + p6) / 3))
+        return (ret, dateTime)
+
+    # 计算头肩底
+    def headShoulderBottom(self, dateTime, wave5):
+        ret = {}
+        w5  = wave5[1]
+        if len(w5) == 3:
+            if w5[0][0] == 1302:
+                p2 = w5[0][5][1]['v']
+                p3 = w5[0][5][2]['v']
+                p4 = w5[1][5][2]['v']
+                p5 = w5[1][5][3]['v']
+                p6 = w5[2][5][3]['v']
+                if (p4 - p2) / p2 < -0.01 and \
+                        abs((p5 - p3) / p3) < 0.03 and \
+                        p6 < p3 and (p4 - p6) / p4 < -0.01:
+                    ret['st']  = w5[0][5] + w5[2][5][2:]
+                    ret['nec'] = [w5[0][5][2], w5[1][5][3]] 
+                    ret['hd']  = [w5[0][5][1], w5[2][5][3]]
+        return (ret, dateTime)
+
+    # 计算头肩顶
+    def headShoulderPeek(self, dateTime, wave5):
+        ret = {}
+        w5  = wave5[1]
+        if len(w5) == 3:
+            if w5[0][0] == 2102:
+                p2 = w5[0][5][1]['v']
+                p3 = w5[0][5][2]['v']
+                p4 = w5[1][5][2]['v']
+                p5 = w5[1][5][3]['v']
+                p6 = w5[2][5][3]['v']
+                if (p4 - p2) / p2 > 0.01 and \
+                        abs((p5 - p3) / p3) < 0.03 and \
+                        p6 > p3 and (p4 - p6) / p4 > 0.01:
+                    ret['st']  = w5[0][5] + w5[2][5][2:]
+                    ret['nec'] = [w5[0][5][2], w5[1][5][3]] 
+                    ret['hd']  = [w5[0][5][1], w5[2][5][3]]
+        return (ret, dateTime)
+
+    # 获取形态
+    def getHistXingTai(self, xingtai, dateTime, wins=90):
+        ret = {}
+        if len(xingtai) > 0:
+            mh  = xingtai[-1] 
+            dt0 = self.__dtzq[mh[1]]
+            dt1 = self.__dtzq[dateTime]
+            if dt1 - dt0 < wins: 
+                ret = mh[0]
+        return ret
 
     # 合并QS, 减少毛刺
     def mergeQS(self, dateTime, qslist):
@@ -262,10 +623,8 @@ class XINGTAI(object):
 
     # 消除毛刺的5浪重构
     def wave5construct(self, dateTime):
-
         qslist = self.__hist_qs
         QS     = self.mergeQS(dateTime, qslist)
-
         used = set()
         w5 = () 
         i  = 1
@@ -315,14 +674,41 @@ class XINGTAI(object):
     # 计算速阻线
     def szline(self, dateTime, wave5):
         ret = None 
-        if wave5[0] == 1:
-            print 'UP', dateTime, wave5[1][0][5]
-            print 'UP', dateTime, wave5[1][0][5][0]['d'], wave5[1][2][5][3]['d']
-            ret = 1
-        if wave5[0] == -1:
-            print 'Down', dateTime, wave5, wave5[1][0][5][0]['d'], wave5[1][2][5][3]['d']
-            ret = -1
-        return ret
+        out = dict()
+        if len(wave5[1]) == 0: 
+            return ret
+        if len(wave5[1]) == 3 and self.__period == 'day':
+            # start point
+            timegd0 = wave5[1][0][8]
+            struct0 = wave5[1][0][5]
+            # end point
+            timegd1 = wave5[1][2][8]
+            struct1 = wave5[1][2][5]
+            
+            sdate  = timegd0[0]
+            sprice = struct0[0]['v']
+            edate  = timegd1[3]
+            eprice = struct1[3]['v']
+
+            high = None 
+            low  = None
+            if wave5[0] == 1:
+                ret = 1
+                high = eprice
+                low  = sprice
+            if wave5[0] == -1:
+                ret = -1
+                high = sprice
+                low  = eprice
+            if ret is not None:
+                third1 = float("{:.2f}".format(2 * high / 3 + low / 3))
+                third2 = float("{:.2f}".format(1 * high / 3 + 2 * low / 3))
+                out['dir'] = ret
+                out['d0']  = sdate.strftime(self.__format)
+                out['d1']  = edate.strftime(self.__format)
+                out['v']   = [high, third1, third2, low]
+                out['gds'] = self.goldseg(high, low)
+        return out
 
     # 获取最近的非盘整状态
     def getWave5Neighbor(self, dateTime): 
@@ -362,7 +748,7 @@ class XINGTAI(object):
     # 获取速阻线
     def getSZLine(self, dateTime):
         w5 = self.getWave5Neighbor(dateTime)
-        print dateTime, w5[0], w5[1][1]['szx']
+        return w5[1][1]['szx']
 
     # 支撑线和阻挡线
     def zcjd(self, nqs, nowclose, tup):
