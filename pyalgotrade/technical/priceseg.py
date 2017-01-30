@@ -893,7 +893,8 @@ class MacdSegEventWindow(technical.EventWindow):
             # XingTai
             xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
-                     self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili)
+                     self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili,\
+                     self.__inst)
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT()
@@ -1739,7 +1740,7 @@ class MacdSegEventWindow(technical.EventWindow):
             ind = np.where(abs(diff) < threshold)[0]
             for i in ind:
                 if i in line:
-                    tmp = -1 * qsfit[i].getSlope() / diff[i]
+                    tmp = -1 * qsfit[i].getSlope() / (diff[i] + 0.0000001)
                     ss  = ss + tmp
             return ss 
        
