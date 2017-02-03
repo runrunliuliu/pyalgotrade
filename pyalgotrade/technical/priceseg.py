@@ -894,7 +894,7 @@ class MacdSegEventWindow(technical.EventWindow):
             xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
                      self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili,\
-                     self.__inst)
+                     self.__inst, klines)
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT()
