@@ -93,11 +93,14 @@ class XINGTAI(object):
         if self.__inst[0:2] == 'SZ' or self.__inst[0:2] == 'SH':
             self.__diff = 0.01
 
+        self.__klines = tups[14]
+
     # Main Module
     def run(self):
         self.qushi()
         self.fanzhuan()
         self.chixu()
+        self.klines()
 
     def retJSON(self):
         out = dict()
@@ -144,6 +147,11 @@ class XINGTAI(object):
         out['qs'] = qs
 
         return out
+
+    # KLines
+    def klines(self):
+        dateTime = self.__nowdt
+        # print dateTime, '----------', self.__klines[13]
 
     # 趋势
     def qushi(self):
