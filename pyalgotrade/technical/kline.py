@@ -44,6 +44,8 @@ class KLineEventWindow(technical.EventWindow):
         self.__wxx   = -1
         self.__xtsxy = -1
         self.__xtztf = -1
+        self.__ugtc  = -1
+        self.__bab   = -1
 
     def baodie(self, dateTime, diefu, zhenfu):
         mins = diefu
@@ -191,7 +193,7 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
    
-    # 前阴卓腰带
+    # 前阴捉腰带
     def ZYD(self, dateTime, values):
         ret = 0
         day1 = values[-2]
@@ -273,6 +275,86 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
 
+    # Up Gap Two Crows
+    def UGTC(self, dateTime, values):
+        ret = 0
+        if self.__cl2 / self.__op2 >= 1.03 \
+                and self.__op1 > self.__hi2 and self.__cl1 < self.__op1 \
+                and self.__op0 > self.__op1 and self.__cl0 > self.__cl2 \
+                and self.__cl0 < self.__cl1:
+            ret = 1
+        return ret
+
+    # Bullish Abandoned Baby
+    def BAB(self, dateTime, values):
+        ret = 0
+        if self.__cl2 / self.__op2 <= 0.98 \
+                and self.CROSS(values[-2]) == 1 \
+                and self.__op1 < self.__lw2 \
+                and self.__op0 > self.__hi1 \
+                and self.__cl0 / self.__op0 >= 1.02:
+            ret = 1
+        return ret
+
+    # 捉腰带
+    def BELT(self, dateTime, Bar):
+        pass
+
+    # 锤子线, Hammer
+    #  1 --正锤子
+    # -1 --倒锤子
+    def HAMMER(self, dateTime, Bar):
+        ret = 0
+        op0  = Bar.getOpen()
+        cl0  = Bar.getClose()
+        lw0  = Bar.getLow()
+        hi0  = Bar.getHigh()
+        if hi0 == lw0:
+            return ret
+
+        dirt = 0
+        diff = op0 - cl0
+        fenm = cl0
+        if (hi0 - op0) < (cl0 - lw0):
+            cbin = (hi0 - op0) / op0
+        else:
+            cbin = (cl0 - lw0) / lw0
+            dirt = 2
+
+        if op0 < cl0:
+            diff = cl0 - op0
+            fenm = op0
+            if (hi0 - cl0) < (op0 - lw0):
+                cbin = (hi0 - cl0) / cl0
+            else:
+                cbin = (op0 - lw0) / lw0
+                dirt = 2
+
+        if diff / fenm < 0.015 and diff / fenm > 0.005 \
+                and diff / (hi0 - lw0) < 0.318 and diff / (hi0 - lw0) > 0.1 \
+                and cbin < 0.005:
+            ret = 1 - dirt
+        return ret
+
+    # 十字星
+    def CROSS(self, Bar):
+        ret = 0
+        op0  = Bar.getOpen()
+        cl0  = Bar.getClose()
+        lw0  = Bar.getLow()
+        hi0  = Bar.getHigh()
+        if hi0 == lw0:
+            return ret
+
+        diff = op0 - cl0
+        fenm = cl0
+        if op0 < cl0:
+            diff = cl0 - op0
+            fenm = op0
+        if diff / (fenm + 0.0000001) < 0.005 and diff / (hi0 - lw0 + 0.000000001) < 0.1:
+            ret = 1
+        return ret
+
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
         if value is not None and self.windowFull():
@@ -300,6 +382,19 @@ class KLineEventWindow(technical.EventWindow):
             jump = ((values[-1].getOpen() - last) / last)
             diefu = (values[-1].getClose() - values[-2].getClose()) / values[-2].getClose()
 
+            day2 = values[-3]
+            self.__op2  = day2.getOpen()
+            self.__cl2  = day2.getClose()
+            self.__hi2  = day2.getHigh()
+            self.__lw2  = day2.getLow()
+            day1 = values[-2]
+            self.__op1  = day1.getOpen()
+            self.__cl1  = day1.getClose()
+            self.__hi1  = day1.getHigh()
+            day0 = values[-1]
+            self.__op0  = day0.getOpen()
+            self.__cl0  = day0.getClose()
+
             self.tkdk(dateTime,jump, diefu, shying, xaying) 
             self.baodie(dateTime, diefu, zhenfu)
             self.__ctxt  = self.CTXT(dateTime, values)
@@ -311,10 +406,15 @@ class KLineEventWindow(technical.EventWindow):
             self.__wxx   = self.WXX(dateTime, values)
             self.__xtsxy = self.xtSXY(dateTime, values)
             self.__xtztf = self.xtZTF(dateTime, values)
+            self.__ugtc  = self.UGTC(dateTime, values)
+            self.__bab   = self.BAB(dateTime, values)
+            self.__hamm  = self.HAMMER(dateTime, day0)
+            print dateTime, '=======', self.__hamm
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
                 self.__ctxt, self.__zyd, self.__ctxt2, \
                 self.__szx, self.__kztm, self.__ctxt3, \
-                self.__wxx, self.__xtsxy, self.__xtztf) 
+                self.__wxx, self.__xtsxy, self.__xtztf, \
+                self.__ugtc, self.__bab)
 #
