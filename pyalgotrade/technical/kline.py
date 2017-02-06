@@ -18,6 +18,7 @@
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
 
+from collections import OrderedDict
 import numpy as np
 from pyalgotrade import technical
 from pyalgotrade import dataseries
@@ -32,8 +33,8 @@ class KLineEventWindow(technical.EventWindow):
         # 跳空低开
         # 跳空幅度比较大 > 0.02
         # or 跳空幅度> 0.005, 相比昨日跌幅比较大 > 0.015，光头阴线，几乎没有上下影
-        self.__tkdk = 1024 
-        self.__tkdf = 1024 
+        self.__tkdk = 1024
+        self.__tkdf = 1024
         self.__bdie = 1024
         self.__ctxt  = -1
         self.__ctxt2 = -1
@@ -46,21 +47,28 @@ class KLineEventWindow(technical.EventWindow):
         self.__xtztf = -1
         self.__ugtc  = -1
         self.__bab   = -1
+        # GAPS跳空缺口
+        self.__gaps = []
+        self.__gapindex = 0
+
+        self.__dtzq     = OrderedDict() 
+        self.__zq       = 0
 
     def baodie(self, dateTime, diefu, zhenfu):
         mins = diefu
         if diefu > zhenfu:
-            mins = zhenfu 
+            mins = zhenfu
         if mins < -0.04:
             self.__bdie = 1
         else:
             self.__bdie = 1024
 
+    # 跳空低开
     def tkdk(self, dateTime, jump, diefu, shying, xaying):
         if jump < -0.02 and diefu < 0.0:
-            self.__tkdk = jump 
+            self.__tkdk = jump
         else:
-            self.__tkdk = 1024 
+            self.__tkdk = 1024
         if jump < -0.005 and shying < 0.08 and xaying < 0.05 and diefu < -0.015:
             self.__tkdk = jump
             self.__tkdf = diefu
@@ -102,7 +110,7 @@ class KLineEventWindow(technical.EventWindow):
         
     # Define IN QuChaoGu Crop.
     def xtSXY(self, dateTime, values):
-        flag = -1 
+        flag = -1
         nbar = values[-1]
         
         op = nbar.getOpen()
@@ -206,11 +214,11 @@ class KLineEventWindow(technical.EventWindow):
         lw0  = nday.getLow()
 
         if op0 / lw0 < 1.001 and cl0 / op0 > 1.03 and cl0 / op0 <= 1.08 \
-                and op1 > cl1: 
+                and op1 > cl1:
             ret = 1
         return ret
 
-    # 看涨吞没形态 
+    # 看涨吞没形态
     def KZTM(self, dateTime, values):
         ret = 0
         day1 = values[-2]
@@ -255,7 +263,7 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
 
-    # 挽袖线形态 
+    # 挽袖线形态
     def WXX(self, dateTime, values):
         ret = 0
         day1 = values[-2]
@@ -275,7 +283,7 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
 
-    # Up Gap Two Crows
+    # 向上跳空两只乌鸦
     def UGTC(self, dateTime, values):
         ret = 0
         if self.__cl2 / self.__op2 >= 1.03 \
@@ -285,7 +293,7 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
 
-    # Bullish Abandoned Baby
+    # 牛市弃婴
     def BAB(self, dateTime, values):
         ret = 0
         if self.__cl2 / self.__op2 <= 0.98 \
@@ -296,107 +304,256 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
 
+    # 吞没形态
+    def Engulfed(self, dateTime, values):
+        ret  = 0
+        if max((self.__op0, self.__cl0)) > self.__hi1 and \
+                min((self.__op0, self.__cl0)) < self.__lw1:
+            if self.__op0 > self.__cl0 \
+                    and self.__op1 < self.__cl1:
+                ret = -1
+            if self.__op0 < self.__cl0 \
+                    and self.__op1 > self.__cl1:
+                ret = 1
+        return ret
+
+    # 孕线形态
+    def Pregnant(self, dateTime, values):
+        ret  = 0
+        if max((self.__op1, self.__cl1)) > self.__hi0 and \
+                min((self.__op1, self.__cl1)) < self.__lw0:
+            if self.__op0 > self.__cl0 \
+                    and self.__op1 < self.__cl1:
+                ret = -1
+            if self.__op0 < self.__cl0 \
+                    and self.__op1 > self.__cl1:
+                ret = 1
+        return ret
+
     # 捉腰带
     def BELT(self, dateTime, Bar):
-        pass
+        ret = 0
+        bars = self.BarStatus(Bar)
+        if bars is None:
+            return ret
+        rb = bars[0]
+        ts = bars[2]
+        di = bars[3]
+        if rb >= 0.03 and ts < 0.002:
+            ret = 1 - di
+        return ret
 
     # 锤子线, Hammer
     #  1 --正锤子
     # -1 --倒锤子
     def HAMMER(self, dateTime, Bar):
         ret = 0
-        op0  = Bar.getOpen()
-        cl0  = Bar.getClose()
-        lw0  = Bar.getLow()
-        hi0  = Bar.getHigh()
-        if hi0 == lw0:
+        bars = self.BarStatus(Bar)
+        if bars is None:
             return ret
-
-        dirt = 0
-        diff = op0 - cl0
-        fenm = cl0
-        if (hi0 - op0) < (cl0 - lw0):
-            cbin = (hi0 - op0) / op0
-        else:
-            cbin = (cl0 - lw0) / lw0
-            dirt = 2
-
-        if op0 < cl0:
-            diff = cl0 - op0
-            fenm = op0
-            if (hi0 - cl0) < (op0 - lw0):
-                cbin = (hi0 - cl0) / cl0
-            else:
-                cbin = (op0 - lw0) / lw0
-                dirt = 2
-
-        if diff / fenm < 0.015 and diff / fenm > 0.005 \
-                and diff / (hi0 - lw0) < 0.318 and diff / (hi0 - lw0) > 0.1 \
-                and cbin < 0.005:
-            ret = 1 - dirt
+        rb = bars[0]
+        bs = bars[1]
+        ts = bars[2]
+        di = bars[3]
+        if rb < 0.015 and rb > 0.005 and \
+                bs < 0.318 and bs > 0.1 and ts < 0.002:
+            ret = 1 - di
         return ret
 
     # 十字星
     def CROSS(self, Bar):
         ret = 0
+        bars = self.BarStatus(Bar)
+        if bars is None:
+            return ret
+        rb = bars[0]
+        bs = bars[1]
+        if rb < 0.005 and bs < 0.1:
+            ret = 1
+        return ret
+
+    # 单个Bar的状态
+    def BarStatus(self, Bar):
         op0  = Bar.getOpen()
         cl0  = Bar.getClose()
         lw0  = Bar.getLow()
         hi0  = Bar.getHigh()
         if hi0 == lw0:
-            return ret
+            return None
+        dirt  = 0
+        diff  = op0 - cl0
+        fenm  = cl0
+        shying = (hi0 - op0) / op0
+        xaying = (cl0 - lw0) / lw0
+        if (hi0 - op0) < (cl0 - lw0):
+            cbin = shying
+        else:
+            cbin = xaying
+            dirt = 2
 
-        diff = op0 - cl0
-        fenm = cl0
         if op0 < cl0:
             diff = cl0 - op0
             fenm = op0
-        if diff / (fenm + 0.0000001) < 0.005 and diff / (hi0 - lw0 + 0.000000001) < 0.1:
-            ret = 1
-        return ret
+            shying = (hi0 - cl0) / cl0
+            xaying = (op0 - lw0) / lw0
+            if (hi0 - cl0) < (op0 - lw0):
+                cbin = shying
+            else:
+                cbin = xaying
+                dirt = 2
+        realbody = diff / fenm
+        bodysize = diff / (hi0 - lw0)
+        tailsize = cbin
+        direct   = dirt
+        return (realbody, bodysize, tailsize, direct, shying, xaying)
+
+    # 相邻的BARS状态
+    def NeighborBarStatus(self, day0, day1):
+        op0 = day0.getOpen()
+        hi0 = day0.getHigh()
+        lw0 = day0.getLow()
+        cl0 = day0.getClose()
+
+        op1 = day1.getOpen()
+        hi1 = day1.getHigh()
+        lw1 = day1.getLow()
+        cl1 = day1.getClose()
+
+        # T-1日阴阳
+        last = cl1
+        if cl1 > op1:
+            last = op1
+        jump  = (op0 - last) / last
+        diefu = (cl0 - cl1) / cl1
+
+        # T日周期
+        up = cl0
+        dn = op0
+        if cl0 < op0:
+            up = op0
+            dn = cl0
+
+        # 上下缺口定义, 1向上跳空, -1向下跳空
+        gap = None
+        if lw0 > hi1:
+            self.__gapindex = self.__gapindex + 1
+            gap = ((lw0 - hi1) / hi1, (dn - hi1) / hi1, lw0, hi1, 1, 0, self.__gapindex)
+        if hi0 < lw1:
+            self.__gapindex = self.__gapindex + 1
+            gap = ((hi0 - lw1) / lw1, (up - lw1) / lw1, hi0, lw1, -1, 0, self.__gapindex)
+
+        return (jump, diefu, gap)
+
+    # 加入GAP进入GAP列表, Remove填平的GAPs
+    # attr表示缺口与前邻关系，abs(attr)表示同方向个数
+    def add2GAP(self, dateTime, gap, values):
+        nbar = values[-1]
+        lw0 = nbar.getLow(); hi0 = nbar.getHigh()
+        filled = []; filling = None; tgap = []
+        for g in self.__gaps:
+            if g[1][4] > 0:
+                if lw0 <= g[1][3]:
+                    filled.append(g)
+                    continue
+                if lw0 > g[1][3] and lw0 < g[1][2]:
+                    newg = (g[0], (g[1][0], g[1][1], lw0, g[1][3], g[1][4], g[1][5] + 1, g[1][6]))
+                    g    = newg
+                    filling = g 
+            if g[1][4] < 0:
+                if hi0 >= g[1][3]:
+                    filled.append(g)
+                    continue
+                if hi0 < g[1][3] and hi0 > g[1][2]:
+                    newg = (g[0], (g[1][0], g[1][1], hi0, g[1][3], g[1][4], g[1][5] + 1, g[1][6]))
+                    g    = newg
+                    filling = g
+            tgap.append(g)
+        self.__gaps = tgap
+
+        self.gapFillStats(dateTime, filled, filling, gap)
+        ng = self.gapNeighbor(dateTime, gap)
+        if ng[0] is not None:
+            gap = ng[0]
+            print '------------------', dateTime, gap, ng[1]
+
+        # add GAP
+        if gap is not None:
+            self.__gaps.append((dateTime, gap))
+
+    # 统计GAP的相邻特征
+    def gapNeighbor(self, dateTime, g):
+        newg = None
+        zhuq = None
+        if len(self.__gaps) == 0:
+            return (newg, zhuq)
+        pgap = self.__gaps[-1]
+        if g is not None and g[6] == (pgap[1][6] + 1):
+            if g[4] * pgap[1][4] > 0:
+                flag = 1
+                if g[4] < 0:
+                    flag = -1
+                newg = (g[0], g[1], g[2], g[3], g[4] + flag, g[5], g[6])
+                zhuq = self.__dtzq[dateTime] - self.__dtzq[pgap[0]]
+            else:
+                newg = g
+                zhuq = -1
+        return (newg, zhuq)
+
+    # 统计GAP的填补特征, 特殊返回是否存在岛形翻转
+    def gapFillStats(self, dateTime, filled, filling, gap):
+        if filling is not None:
+            print dateTime, filling[0], filling[1][5]
+
+    # 初始化计算共用变量
+    def Init(self, values):
+        day2 = values[-3]
+        self.__op2  = day2.getOpen()
+        self.__cl2  = day2.getClose()
+        self.__hi2  = day2.getHigh()
+        self.__lw2  = day2.getLow()
+        day1 = values[-2]
+        self.__op1  = day1.getOpen()
+        self.__cl1  = day1.getClose()
+        self.__hi1  = day1.getHigh()
+        self.__lw1  = day1.getLow()
+        day0 = values[-1]
+        self.__op0  = day0.getOpen()
+        self.__cl0  = day0.getClose()
+        self.__hi0  = day0.getHigh()
+        self.__lw0  = day0.getLow()
+
+        # 当日K线形态
+        bars = self.BarStatus(day0)
+        if bars is None:
+            shying = 0
+            xaying = 0
+            zhenfu = 0
+        else:
+            zhenfu = bars[0]
+            shying = bars[4]
+            xaying = bars[5]
+        # 相邻K线状态
+        (jump, diefu, gap) = self.NeighborBarStatus(day0, day1)
+        return (jump, diefu, shying, xaying, zhenfu, gap)
 
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
+
+        self.__zq = self.__zq + 1
+        self.__dtzq[dateTime] = self.__zq
+
         if value is not None and self.windowFull():
-            self.__tkdk = 1024 
-            self.__tkdf = 1024 
-
+            self.__tkdk = 1024
+            self.__tkdf = 1024
             values = self.getValues()
-            # 当日K线形态
-            nop = values[-1].getOpen()
-            ncl = values[-1].getClose() 
-            nhi = values[-1].getHigh() 
-            nlw = values[-1].getLow() 
-            up = nop
-            dn = ncl
-            if ncl > nop:
-                up = ncl
-                dn = nop
-            shying = (nhi - up) / (nhi - nlw + 0.00000001) 
-            xaying = (dn - nlw) / (nhi - nlw + 0.00000001)
-            zhenfu = (ncl - nop) / (nop + 0.000000001)
-            # 相比昨日
-            last = values[-2].getClose()
-            if values[-2].getClose() > values[-2].getOpen():
-                last = values[-2].getOpen()
-            jump = ((values[-1].getOpen() - last) / last)
-            diefu = (values[-1].getClose() - values[-2].getClose()) / values[-2].getClose()
+            (jump, diefu, shying, xaying, zhenfu, gap) = self.Init(values)
 
-            day2 = values[-3]
-            self.__op2  = day2.getOpen()
-            self.__cl2  = day2.getClose()
-            self.__hi2  = day2.getHigh()
-            self.__lw2  = day2.getLow()
-            day1 = values[-2]
-            self.__op1  = day1.getOpen()
-            self.__cl1  = day1.getClose()
-            self.__hi1  = day1.getHigh()
-            day0 = values[-1]
-            self.__op0  = day0.getOpen()
-            self.__cl0  = day0.getClose()
-
-            self.tkdk(dateTime,jump, diefu, shying, xaying) 
+            self.tkdk(dateTime, jump, diefu, shying, xaying)
             self.baodie(dateTime, diefu, zhenfu)
+
+            # add GAP to GAPs, REMOVE FILLED GAPs
+            self.add2GAP(dateTime, gap, values)
+
             self.__ctxt  = self.CTXT(dateTime, values)
             self.__zyd   = self.ZYD(dateTime, values)
             self.__ctxt2 = self.CTXT2(dateTime, values)
@@ -408,8 +565,11 @@ class KLineEventWindow(technical.EventWindow):
             self.__xtztf = self.xtZTF(dateTime, values)
             self.__ugtc  = self.UGTC(dateTime, values)
             self.__bab   = self.BAB(dateTime, values)
-            self.__hamm  = self.HAMMER(dateTime, day0)
-            print dateTime, '=======', self.__hamm
+            self.__hamm  = self.HAMMER(dateTime, values[-1])
+            self.__belt  = self.BELT(dateTime, values[-1])
+            self.__efed  = self.Engulfed(dateTime, values)
+            self.__pgant = self.Pregnant(dateTime, values)
+            print dateTime, '=======', self.__hamm, self.__belt, self.__efed, self.__pgant
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
