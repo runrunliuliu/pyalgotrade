@@ -309,10 +309,28 @@ class KLineEventWindow(technical.EventWindow):
 
     # 岛形反转
     def IslandReverse(self, dateTime):
+        ret = {}
         af = self.__ngap['p1']
         ng = self.__ngap['n']
+        tk = -1; fz = -1; zq = -1; drt = 0
         if len(af) > 0 and len(ng) > 0: 
-            print dateTime, self.__ngap
+            for g in af:
+                if g['d'] < 0 and ng['d'] > 0 and ng['lev1'] >= g['lev1']:
+                    drt = 1
+                if g['d'] > 0 and ng['d'] < 0 and ng['lev1'] < g['lev1']:
+                    drt = -1
+                if drt != 0:
+                    tk = abs(ng['s'] / g['s'])
+                    fz = (ng['lev1'] - g['lev1']) / g['lev1']
+                    zq = self.__dtzq[ng['day']] - self.__dtzq[g['day']]
+                    ret['pday'] = g['day'].strftime(self.__sharePars[1])
+                    ret['tk']   = float("{:.2f}".format(tk))
+                    ret['fz']   = float("{:.2f}".format(fz))
+                    ret['drt']  = drt
+                    ret['zq']   = zq
+                    ret['nm']   = 'ir'
+                    break
+        return ret
 
     # 吞没形态
     def Engulfed(self, dateTime, values):
@@ -447,10 +465,10 @@ class KLineEventWindow(technical.EventWindow):
         gap = None
         if lw0 > hi1:
             self.__gapindex = self.__gapindex + 1
-            gap = ((lw0 - hi1) / hi1, (dn - hi1) / hi1, lw0, hi1, 1, 0, self.__gapindex)
+            gap = ((lw0 - hi1) / hi1, (dn - hi1) / hi1, lw0, hi1, 1, 0, self.__gapindex, lw0, hi1)
         if hi0 < lw1:
             self.__gapindex = self.__gapindex + 1
-            gap = ((hi0 - lw1) / lw1, (up - lw1) / lw1, hi0, lw1, -1, 0, self.__gapindex)
+            gap = ((hi0 - lw1) / lw1, (up - lw1) / lw1, hi0, lw1, -1, 0, self.__gapindex, hi0, lw1)
 
         return (jump, diefu, gap)
 
@@ -467,7 +485,9 @@ class KLineEventWindow(technical.EventWindow):
                     filled.append(g)
                     continue
                 if lw0 > g[1][3] and lw0 < g[1][2]:
-                    newg = (g[0], (g[1][0], g[1][1], lw0, g[1][3], g[1][4], g[1][5] + 1, g[1][6]))
+                    newg = (g[0], (g[1][0], g[1][1], lw0, g[1][3], \
+                                   g[1][4], g[1][5] + 1, g[1][6], \
+                                   g[1][7], g[1][8]))
                     g    = newg
                     filling = g 
             if g[1][4] < 0:
@@ -475,7 +495,9 @@ class KLineEventWindow(technical.EventWindow):
                     filled.append(g)
                     continue
                 if hi0 < g[1][3] and hi0 > g[1][2]:
-                    newg = (g[0], (g[1][0], g[1][1], hi0, g[1][3], g[1][4], g[1][5] + 1, g[1][6]))
+                    newg = (g[0], (g[1][0], g[1][1], hi0, g[1][3], \
+                                   g[1][4], g[1][5] + 1, g[1][6], \
+                                   g[1][7], g[1][8]))
                     g    = newg
                     filling = g
             tgap.append(g)
@@ -507,15 +529,15 @@ class KLineEventWindow(technical.EventWindow):
                     flag = 1
                     if g[4] < 0:
                         flag = -1
-                    newg = (g[0], g[1], g[2], g[3], g[4] + flag, g[5], g[6])
+                    newg = (g[0], g[1], g[2], g[3], g[4] + flag, g[5], g[6], g[7], g[8])
                     zhuq = self.__dtzq[dateTime] - self.__dtzq[pgap[0]]
         ngap['d']  = newg[4]
         ngap['s']  = float("{:.2f}".format(newg[0] * 100))
         ngap['hb'] = float("{:.2f}".format((newg[1] - newg[0]) / newg[0]))
         ngap['zq'] = zhuq 
-        ngap['day'] = dateTime.strftime(self.__sharePars[1]) 
-        ngap['lev1'] = newg[2]
-        ngap['lev2'] = newg[3]
+        ngap['day'] = dateTime
+        ngap['lev1'] = newg[7]
+        ngap['lev2'] = newg[8]
         return (newg, ngap)
 
     # 统计GAP的填补特征, 特殊返回是否存在岛形翻转
@@ -528,19 +550,19 @@ class KLineEventWindow(technical.EventWindow):
                 g['d']    = f[1][4]
                 g['s']    = float("{:.2f}".format(f[1][0] * 100))
                 g['zq']   = self.__dtzq[dateTime] - self.__dtzq[f[0]] 
-                g['day']  = f[0].strftime(self.__sharePars[1]) 
+                g['day']  = f[0]
                 g['hfq']  = f[1][5]
-                g['lev1'] = f[1][2]
-                g['lev2'] = f[1][3]
+                g['lev1'] = f[1][7]
+                g['lev2'] = f[1][8]
                 af.append(g)
         if filling is not None:
             df['d']   = filling[1][4]
             df['s']   = float("{:.2f}".format(filling[1][0] * 100))
             df['zq']  = self.__dtzq[dateTime] - self.__dtzq[filling[0]] 
-            df['day'] = filling[0].strftime(self.__sharePars[1]) 
+            df['day'] = filling[0]
             df['hfq'] = filling[1][5]
-            df['lev1'] = filling[1][2]
-            df['lev2'] = filling[1][3]
+            df['lev1'] = filling[1][7]
+            df['lev2'] = filling[1][8]
         return (af, df)
 
     # 初始化计算共用变量
@@ -609,7 +631,7 @@ class KLineEventWindow(technical.EventWindow):
             self.__efed  = self.Engulfed(dateTime, values)
             self.__pgant = self.Pregnant(dateTime, values)
             self.__island = self.IslandReverse(dateTime)
-            print dateTime, '=======', self.__hamm, self.__belt, self.__efed, self.__pgant
+            print dateTime, '=======', self.__hamm, self.__belt, self.__efed, self.__pgant, self.__island
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
