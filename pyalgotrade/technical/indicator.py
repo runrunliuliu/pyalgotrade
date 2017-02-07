@@ -90,6 +90,9 @@ class IndEventWindow(technical.EventWindow):
         self.__dt = indfeed.Feed()
         self.__dt.addBarsFromCSV('dt',"./data/dtboard.csv.out")
 
+    def setParameters(self, tmpars):
+        self.__sharePars = tmpars
+
     def boostVol(self, dt, ma5, ma20):
         lb1 = -1 
         lb2 = -1 
@@ -453,6 +456,7 @@ class IndEventWindow(technical.EventWindow):
         self.__mas.append(ma_dict) 
         self.__vol.append(value.getVolume())
 
+        self.__kline.setParameters(self.__sharePars)
         self.__kline.onNewValue(dateTime, value)
 
         # collection MA features
