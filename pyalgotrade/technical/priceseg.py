@@ -701,15 +701,30 @@ class MacdSegEventWindow(technical.EventWindow):
             period = 'month'
         return period
 
+    def setFormat(self, period):
+        formats = '%Y-%m-%d'
+        if period == '15mink':
+            formats = '%Y-%m-%d-%H'
+        return formats
+
+    # 设置一些共有参数
+    def setShareParameters(self, value):
+        period  = self.setPeriod(value)
+        formats = self.setFormat(period)
+        return (period, formats)
+
     def onNewValue(self, dateTime, value):
         technical.EventWindow.onNewValue(self, dateTime, value)
-        self.__macd.onNewValue(self.__priceDS, dateTime, value.getClose())
+        tmpars = self.setShareParameters(value)
+        self.__period = tmpars[0]
 
+        self.__indicator.setParameters(tmpars)
+
+        self.__macd.onNewValue(self.__priceDS, dateTime, value.getClose())
         self.__indicator.onNewValue(dateTime, value)
         self.__sar.onNewValue(dateTime, value)
         self.__kdj.onNewValue(dateTime, value)
 
-        self.__period = self.setPeriod(value)
         self.__nowBar = value
         self.__datelow[dateTime]   = value.getLow()
         self.__datehigh[dateTime]  = value.getHigh()
