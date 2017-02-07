@@ -54,6 +54,9 @@ class KLineEventWindow(technical.EventWindow):
         self.__dtzq     = OrderedDict() 
         self.__zq       = 0
 
+    def setParameters(self, tmpars):
+        self.__sharePars = tmpars 
+
     def baodie(self, dateTime, diefu, zhenfu):
         mins = diefu
         if diefu > zhenfu:
@@ -304,6 +307,13 @@ class KLineEventWindow(technical.EventWindow):
             ret = 1
         return ret
 
+    # 岛形反转
+    def IslandReverse(self, dateTime):
+        af = self.__ngap['p1']
+        ng = self.__ngap['n']
+        if len(af) > 0 and len(ng) > 0: 
+            print dateTime, self.__ngap
+
     # 吞没形态
     def Engulfed(self, dateTime, values):
         ret  = 0
@@ -447,6 +457,7 @@ class KLineEventWindow(technical.EventWindow):
     # 加入GAP进入GAP列表, Remove填平的GAPs
     # attr表示缺口与前邻关系，abs(attr)表示同方向个数
     def add2GAP(self, dateTime, gap, values):
+        out  = {}
         nbar = values[-1]
         lw0 = nbar.getLow(); hi0 = nbar.getHigh()
         filled = []; filling = None; tgap = []
@@ -470,39 +481,67 @@ class KLineEventWindow(technical.EventWindow):
             tgap.append(g)
         self.__gaps = tgap
 
-        self.gapFillStats(dateTime, filled, filling, gap)
-        ng = self.gapNeighbor(dateTime, gap)
-        if ng[0] is not None:
-            gap = ng[0]
-            print '------------------', dateTime, gap, ng[1]
-
+        (af, df) = self.gapStats(dateTime, filled, filling, gap)
         # add GAP
+        ngap = {}
         if gap is not None:
+            ng = self.gapNeighbor(dateTime, gap)
+            if ng[0] is not None:
+                gap = ng[0]
             self.__gaps.append((dateTime, gap))
+            ngap = ng[1]
+        out['n']  = ngap
+        out['p1'] = af
+        out['p2'] = df
+        return out
 
-    # 统计GAP的相邻特征
+    # 统计GAP的特征及相邻特征
     def gapNeighbor(self, dateTime, g):
-        newg = None
-        zhuq = None
-        if len(self.__gaps) == 0:
-            return (newg, zhuq)
-        pgap = self.__gaps[-1]
-        if g is not None and g[6] == (pgap[1][6] + 1):
-            if g[4] * pgap[1][4] > 0:
-                flag = 1
-                if g[4] < 0:
-                    flag = -1
-                newg = (g[0], g[1], g[2], g[3], g[4] + flag, g[5], g[6])
-                zhuq = self.__dtzq[dateTime] - self.__dtzq[pgap[0]]
-            else:
-                newg = g
-                zhuq = -1
-        return (newg, zhuq)
+        newg = g 
+        zhuq = -1
+        ngap = {}
+        if len(self.__gaps) > 0:
+            pgap = self.__gaps[-1]
+            if g[6] == (pgap[1][6] + 1):
+                if g[4] * pgap[1][4] > 0:
+                    flag = 1
+                    if g[4] < 0:
+                        flag = -1
+                    newg = (g[0], g[1], g[2], g[3], g[4] + flag, g[5], g[6])
+                    zhuq = self.__dtzq[dateTime] - self.__dtzq[pgap[0]]
+        ngap['d']  = newg[4]
+        ngap['s']  = float("{:.2f}".format(newg[0] * 100))
+        ngap['hb'] = float("{:.2f}".format((newg[1] - newg[0]) / newg[0]))
+        ngap['zq'] = zhuq 
+        ngap['day'] = dateTime.strftime(self.__sharePars[1]) 
+        ngap['lev1'] = newg[2]
+        ngap['lev2'] = newg[3]
+        return (newg, ngap)
 
     # 统计GAP的填补特征, 特殊返回是否存在岛形翻转
-    def gapFillStats(self, dateTime, filled, filling, gap):
+    def gapStats(self, dateTime, filled, filling, gap):
+        af = []
+        df = {} 
+        if len(filled) > 0:
+            for f in filled:
+                g = {}
+                g['d']    = f[1][4]
+                g['s']    = float("{:.2f}".format(f[1][0] * 100))
+                g['zq']   = self.__dtzq[dateTime] - self.__dtzq[f[0]] 
+                g['day']  = f[0].strftime(self.__sharePars[1]) 
+                g['hfq']  = f[1][5]
+                g['lev1'] = f[1][2]
+                g['lev2'] = f[1][3]
+                af.append(g)
         if filling is not None:
-            print dateTime, filling[0], filling[1][5]
+            df['d']   = filling[1][4]
+            df['s']   = float("{:.2f}".format(filling[1][0] * 100))
+            df['zq']  = self.__dtzq[dateTime] - self.__dtzq[filling[0]] 
+            df['day'] = filling[0].strftime(self.__sharePars[1]) 
+            df['hfq'] = filling[1][5]
+            df['lev1'] = filling[1][2]
+            df['lev2'] = filling[1][3]
+        return (af, df)
 
     # 初始化计算共用变量
     def Init(self, values):
@@ -552,7 +591,7 @@ class KLineEventWindow(technical.EventWindow):
             self.baodie(dateTime, diefu, zhenfu)
 
             # add GAP to GAPs, REMOVE FILLED GAPs
-            self.add2GAP(dateTime, gap, values)
+            self.__ngap = self.add2GAP(dateTime, gap, values)
 
             self.__ctxt  = self.CTXT(dateTime, values)
             self.__zyd   = self.ZYD(dateTime, values)
@@ -569,6 +608,7 @@ class KLineEventWindow(technical.EventWindow):
             self.__belt  = self.BELT(dateTime, values[-1])
             self.__efed  = self.Engulfed(dateTime, values)
             self.__pgant = self.Pregnant(dateTime, values)
+            self.__island = self.IslandReverse(dateTime)
             print dateTime, '=======', self.__hamm, self.__belt, self.__efed, self.__pgant
 
     def getValue(self):
