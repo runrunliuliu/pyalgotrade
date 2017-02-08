@@ -17,11 +17,12 @@
 """
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
-
+import pprint
 from collections import OrderedDict
 import numpy as np
 from pyalgotrade import technical
 from pyalgotrade import dataseries
+from pyalgotrade.utils import collections
 
 
 class KLineEventWindow(technical.EventWindow):
@@ -51,8 +52,10 @@ class KLineEventWindow(technical.EventWindow):
         self.__gaps = []
         self.__gapindex = 0
 
-        self.__dtzq     = OrderedDict() 
-        self.__zq       = 0
+        self.__candles = []
+        self.__cdlist  = collections.ListDeque(20)
+        self.__dtzq    = OrderedDict()
+        self.__zq      = 0
 
     def setParameters(self, tmpars):
         self.__sharePars = tmpars 
@@ -288,12 +291,13 @@ class KLineEventWindow(technical.EventWindow):
 
     # 向上跳空两只乌鸦
     def UGTC(self, dateTime, values):
-        ret = 0
+        ret = {} 
         if self.__cl2 / self.__op2 >= 1.03 \
                 and self.__op1 > self.__hi2 and self.__cl1 < self.__op1 \
                 and self.__op0 > self.__op1 and self.__cl0 > self.__cl2 \
                 and self.__cl0 < self.__cl1:
-            ret = 1
+            ret['drt'] = 1
+            ret['nm']  = 'ugtc'
         return ret
 
     # 牛市弃婴
@@ -329,38 +333,49 @@ class KLineEventWindow(technical.EventWindow):
                     ret['drt']  = drt
                     ret['zq']   = zq
                     ret['nm']   = 'ir'
+                    self.__candles.append(ret)
                     break
         return ret
 
     # 吞没形态
     def Engulfed(self, dateTime, values):
-        ret  = 0
+        drt = 0
+        ret = {}
         if max((self.__op0, self.__cl0)) > self.__hi1 and \
                 min((self.__op0, self.__cl0)) < self.__lw1:
             if self.__op0 > self.__cl0 \
                     and self.__op1 < self.__cl1:
-                ret = -1
+                drt = -1
             if self.__op0 < self.__cl0 \
                     and self.__op1 > self.__cl1:
-                ret = 1
+                drt = 1
+            if drt != 0:
+                ret['drt'] = drt
+                ret['nm']  = 'engulfed'
+                self.__candles.append(ret)
         return ret
 
     # 孕线形态
     def Pregnant(self, dateTime, values):
-        ret  = 0
+        ret = {}
+        drt = 0
         if max((self.__op1, self.__cl1)) > self.__hi0 and \
                 min((self.__op1, self.__cl1)) < self.__lw0:
             if self.__op0 > self.__cl0 \
                     and self.__op1 < self.__cl1:
-                ret = -1
+                drt = -1
             if self.__op0 < self.__cl0 \
                     and self.__op1 > self.__cl1:
-                ret = 1
+                drt = 1
+            if drt != 0:
+                ret['drt'] = drt
+                ret['nm']  = 'pregnant'
+                self.__candles.append(ret)
         return ret
 
     # 捉腰带
     def BELT(self, dateTime, Bar):
-        ret = 0
+        ret = {} 
         bars = self.BarStatus(Bar)
         if bars is None:
             return ret
@@ -368,14 +383,16 @@ class KLineEventWindow(technical.EventWindow):
         ts = bars[2]
         di = bars[3]
         if rb >= 0.03 and ts < 0.002:
-            ret = 1 - di
+            ret['drt'] = 1 - di
+            ret['nm']  = 'belt'
+            self.__candles.append(ret)
         return ret
 
     # 锤子线, Hammer
     #  1 --正锤子
     # -1 --倒锤子
     def HAMMER(self, dateTime, Bar):
-        ret = 0
+        ret = {}
         bars = self.BarStatus(Bar)
         if bars is None:
             return ret
@@ -385,7 +402,9 @@ class KLineEventWindow(technical.EventWindow):
         di = bars[3]
         if rb < 0.015 and rb > 0.005 and \
                 bs < 0.318 and bs > 0.1 and ts < 0.002:
-            ret = 1 - di
+            ret['drt'] = 1 - di
+            ret['nm']  = 'hammer'
+            self.__candles.append(ret)
         return ret
 
     # 十字星
@@ -606,6 +625,7 @@ class KLineEventWindow(technical.EventWindow):
         if value is not None and self.windowFull():
             self.__tkdk = 1024
             self.__tkdf = 1024
+            self.__candles = []
             values = self.getValues()
             (jump, diefu, shying, xaying, zhenfu, gap) = self.Init(values)
 
@@ -631,7 +651,10 @@ class KLineEventWindow(technical.EventWindow):
             self.__efed  = self.Engulfed(dateTime, values)
             self.__pgant = self.Pregnant(dateTime, values)
             self.__island = self.IslandReverse(dateTime)
-            print dateTime, '=======', self.__hamm, self.__belt, self.__efed, self.__pgant, self.__island
+
+            self.__cdlist.append((dateTime, self.__candles))
+            for t in self.__cdlist:
+                print dateTime, '=======', t
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
