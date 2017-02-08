@@ -150,8 +150,9 @@ class XINGTAI(object):
 
     # KLines
     def klines(self):
-        dateTime = self.__nowdt
+        # dateTime = self.__nowdt
         # print dateTime, '----------', self.__klines[13]
+        pass
 
     # 趋势
     def qushi(self):
@@ -521,6 +522,7 @@ class XINGTAI(object):
         return (ret, dateTime)
 
     # 计算头肩底
+    # st--struct
     def headShoulderBottom(self, dateTime, wave5):
         ret = {}
         w5  = wave5[1]
