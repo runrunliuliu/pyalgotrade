@@ -876,7 +876,7 @@ class MacdSegEventWindow(technical.EventWindow):
             if klines[0] < 0.0 and self.__direct == 1:
                 tkdk = "{:.4f}".format(klines[0])
                 tkdf = "{:.4f}".format(klines[1])
-
+            # 斐波那契阻力位清仓
             fibs = 0
             if self.__fibs is not None:
                 fibdt = self.__dtzq[self.__fibs[0]]
@@ -890,21 +890,6 @@ class MacdSegEventWindow(technical.EventWindow):
             if len(madirect[-1]) > 0:
                 ma5d = "{:.4f}".format(madirect[-1][0])
 
-            self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
-                self.__gfbeili + qsxingtai + \
-                mafeature + (prext,) + \
-                (tkdk,tkdf) + (maval,) +  self.__pbeili + \
-                (self.__QUSHI[1], MADprice, self.__tfbeili, \
-                 fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
-                 ma5d, peekzl)
-
-            # collect2QCG
-            qcgtp = (change, self.__direct, nDIF, qtdao)
-            self.collect2QCG(dateTime, qcgtp)
-            
-            # For Show in Plot
-            self.filter4Show(dateTime, twoline, value)
-
             # XingTai
             xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
@@ -913,6 +898,21 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT()
+
+            self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
+                self.__gfbeili + qsxingtai + \
+                mafeature + (prext,) + \
+                (tkdk,tkdf) + (maval,) +  self.__pbeili + \
+                (self.__QUSHI[1], MADprice, self.__tfbeili, \
+                 fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
+                 ma5d, peekzl)
+
+            # collect2QCG, KEEP however NO USE
+            qcgtp = (change, self.__direct, nDIF, qtdao)
+            self.collect2QCG(dateTime, qcgtp)
+            
+            # For Show in Plot
+            self.filter4Show(dateTime, twoline, value)
 
             # Keep Record
             self.__prehist = hist 
