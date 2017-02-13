@@ -691,7 +691,7 @@ class XINGTAI(object):
         ret = None 
         out = dict()
         if len(wave5[1]) == 0: 
-            return ret
+            return out
         if len(wave5[1]) == 3 and self.__period == 'day':
             # start point
             timegd0 = wave5[1][0][8]
@@ -718,11 +718,22 @@ class XINGTAI(object):
             if ret is not None:
                 third1 = float("{:.2f}".format(2 * high / 3 + low / 3))
                 third2 = float("{:.2f}".format(1 * high / 3 + 2 * low / 3))
-                out['dir'] = ret
-                out['d0']  = sdate.strftime(self.__format)
-                out['d1']  = edate.strftime(self.__format)
-                out['v']   = [high, third1, third2, low]
-                out['gds'] = self.goldseg(high, low)
+
+                show = dict()
+                show['dir'] = ret
+                show['d0']  = sdate.strftime(self.__format)
+                show['d1']  = edate.strftime(self.__format)
+                show['v']   = [high, third1, third2, low]
+                show['gds'] = self.goldseg(high, low)
+               
+                # compute Lines
+                v   = (sdate, sprice, edate, third1)
+                qs1 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+                v   = (sdate, sprice, edate, third2)
+                qs2 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+
+                out['show'] = show
+                out['np'] = [qs1, qs2]
         return out
 
     # 获取最近的非盘整状态
@@ -762,8 +773,23 @@ class XINGTAI(object):
    
     # 获取速阻线
     def getSZLine(self, dateTime):
-        w5 = self.getWave5Neighbor(dateTime)
-        return w5[1][1]['szx']
+        ret = {}
+        w5  = self.getWave5Neighbor(dateTime)
+        if len(w5[1][1]['szx']) > 0:
+            qs  = w5[1][1]['szx']['np']
+            ind = self.__dtzq[dateTime]
+            np1 = float("{:.2f}".format(qs[0].compute(ind)))
+            np2 = float("{:.2f}".format(qs[1].compute(ind)))
+            np  = [np1, np2]
+
+            show = w5[1][1]['szx']['show']
+            ret['dir']  = show['dir']
+            ret['d0']   = show['d0']
+            ret['d1']   = show['d1']
+            ret['v']    = show['v']
+            ret['gds']  = show['gds']
+            ret['np']   = np
+        return ret
 
     # 支撑线和阻挡线
     def zcjd(self, nqs, nowclose, tup):
