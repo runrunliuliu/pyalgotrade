@@ -55,6 +55,9 @@ class XINGTAI(object):
         self.__speedup   = [] 
         self.__speeddown = [] 
 
+        # K线形态
+        self.__kline = []
+
     def initTup(self, dateTime, tups):
         self.__nowdt = dateTime
         # 周期
@@ -138,11 +141,13 @@ class XINGTAI(object):
         qs['mhead'] = self.__mhead
         qs['whead'] = self.__whead
 
-        qs['trib'] = self.__trib
-        qs['trih'] = self.__trih
-        qs['hsb']  = self.__hsb
-        qs['hsp']  = self.__hsp
+        qs['trib']     = self.__trib
+        qs['trih']     = self.__trih
+        qs['hsb']      = self.__hsb
+        qs['hsp']      = self.__hsp
         qs['triangle'] = self.__triangle
+
+        qs['kline'] = self.__kline
 
         out['qs'] = qs
 
@@ -150,9 +155,9 @@ class XINGTAI(object):
 
     # KLines
     def klines(self):
-        # dateTime = self.__nowdt
-        # print dateTime, '----------', self.__klines[13]
-        pass
+        cdlist   = self.__klines[12]
+        if len(cdlist) > 0:
+            self.__kline = cdlist[-1][1]
 
     # 趋势
     def qushi(self):
