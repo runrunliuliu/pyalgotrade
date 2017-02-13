@@ -28,6 +28,7 @@ class XINGTAI(object):
         # QUSHI HISTORY
         self.__hist_qs     = collections.ListDeque(60)
 
+        # 5浪结构数据
         self.__histinc_wave5  = collections.ListDeque(120)
         self.__histdes_wave5  = collections.ListDeque(120)
         self.__histhp_wave5   = collections.ListDeque(120)
@@ -54,7 +55,7 @@ class XINGTAI(object):
         self.__pspeeddn = None
         self.__speedup   = [] 
         self.__speeddown = [] 
-
+       
         # K线形态
         self.__kline = []
 
@@ -121,6 +122,7 @@ class XINGTAI(object):
 
         return json.dumps(out) 
 
+    # 返回字典结构数据
     def retDICT(self):
         out = dict()
         
