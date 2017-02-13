@@ -51,6 +51,7 @@ class KLineEventWindow(technical.EventWindow):
         # GAPS跳空缺口
         self.__gaps = []
         self.__gapindex = 0
+        self.__ngap_list = collections.ListDeque(10)
 
         self.__candles = []
         self.__cdlist  = collections.ListDeque(20)
@@ -355,6 +356,56 @@ class KLineEventWindow(technical.EventWindow):
                 self.__candles.append(ret)
         return ret
 
+    # 刺透形态
+    def Piercing(self, dateTime, values):
+        ret = {} 
+        drt = 0
+        if self.__op1 > self.__cl1 and \
+                self.__cl0 > self.__op0 and \
+                self.__op1 / self.__cl1 >= 1.02:
+            if self.__cl0 > (self.__op1 + self.__cl1) * 0.5 \
+                    and self.__op0 < self.__lw1 \
+                    and self.__cl0 < self.__op1:
+                drt = 1
+            if self.__hi0 > (self.__op1 + self.__cl1) * 0.5 \
+                    and self.__cl0 < self.__op1 \
+                    and self.__op0 < self.__lw1 \
+                    and self.__cl0 > self.__cl1:
+                drt = 2
+            if self.__cl0 > (self.__op1 + self.__cl1) * 0.5 \
+                    and self.__op0 < self.__cl1 \
+                    and self.__lw0 >= self.__lw1 \
+                    and self.__cl0 > self.__cl1 \
+                    and self.__cl0 < self.__op1:
+                drt = 3
+        if drt != 0:
+            ret['drt'] = drt 
+            ret['nm']  = 'piercing'
+            self.__candles.append(ret)
+        return ret
+
+    # 跳空缺口形态
+    def JumpGAP(self, dateTime, values):
+        ret = {}
+        drt = 0
+        if len(self.__ngap_list) > 1:
+            p1gap = self.__ngap_list[-2]
+            if len(p1gap['n']) == 0:
+                return ret
+            # 跳空阴阳线
+            if self.__cl1 / values[-3].getClose() >= 1.03 \
+                    and self.__cl1 > self.__op1 \
+                    and self.__cl0 < self.__op0 \
+                    and (self.__cl1 / self.__op1) - (self.__op0 / self.__cl0) < 0.01 \
+                    and self.__lw0 > p1gap['n']['lev2'] \
+                    and p1gap['n']['d'] > 0:
+                drt = 1
+            if drt != 0:
+                ret['drt'] = drt
+                ret['nm']  = 'jumpgap'
+                self.__candles.append(ret)
+        return ret
+
     # 孕线形态
     def Pregnant(self, dateTime, values):
         ret = {}
@@ -400,7 +451,7 @@ class KLineEventWindow(technical.EventWindow):
         bs = bars[1]
         ts = bars[2]
         di = bars[3]
-        if rb < 0.015 and rb > 0.005 and \
+        if rb < 0.02 and rb > 0.005 and \
                 bs < 0.318 and bs > 0.1 and ts < 0.002:
             ret['drt'] = 1 - di
             ret['nm']  = 'hammer'
@@ -431,7 +482,11 @@ class KLineEventWindow(technical.EventWindow):
         diff  = op0 - cl0
         fenm  = cl0
         shying = (hi0 - op0) / op0
+        sysize = hi0 - op0
+
         xaying = (cl0 - lw0) / lw0
+        xysize = cl0 - lw0
+
         if (hi0 - op0) < (cl0 - lw0):
             cbin = shying
         else:
@@ -442,7 +497,11 @@ class KLineEventWindow(technical.EventWindow):
             diff = cl0 - op0
             fenm = op0
             shying = (hi0 - cl0) / cl0
+            sysize = hi0 - cl0
+
             xaying = (op0 - lw0) / lw0
+            xysize = op0 - lw0
+
             if (hi0 - cl0) < (op0 - lw0):
                 cbin = shying
             else:
@@ -452,7 +511,12 @@ class KLineEventWindow(technical.EventWindow):
         bodysize = diff / (hi0 - lw0)
         tailsize = cbin
         direct   = dirt
-        return (realbody, bodysize, tailsize, direct, shying, xaying)
+        sysize   = sysize / (hi0 - lw0)
+        xysize   = xysize / (hi0 - lw0)
+
+        return (realbody, bodysize, tailsize, \
+                direct, shying, xaying, \
+                sysize, xysize)
 
     # 相邻的BARS状态
     def NeighborBarStatus(self, day0, day1):
@@ -634,6 +698,7 @@ class KLineEventWindow(technical.EventWindow):
 
             # add GAP to GAPs, REMOVE FILLED GAPs
             self.__ngap = self.add2GAP(dateTime, gap, values)
+            self.__ngap_list.append(self.__ngap)
 
             self.__ctxt  = self.CTXT(dateTime, values)
             self.__zyd   = self.ZYD(dateTime, values)
@@ -651,15 +716,15 @@ class KLineEventWindow(technical.EventWindow):
             self.__efed  = self.Engulfed(dateTime, values)
             self.__pgant = self.Pregnant(dateTime, values)
             self.__island = self.IslandReverse(dateTime)
+            self.__pierce = self.Piercing(dateTime, values)
+            self.__jump   = self.JumpGAP(dateTime, values)
 
             self.__cdlist.append((dateTime, self.__candles))
-            for t in self.__cdlist:
-                print dateTime, '=======', t
 
     def getValue(self):
         return (self.__tkdk, self.__tkdf, self.__bdie, \
                 self.__ctxt, self.__zyd, self.__ctxt2, \
                 self.__szx, self.__kztm, self.__ctxt3, \
                 self.__wxx, self.__xtsxy, self.__xtztf, \
-                self.__ugtc, self.__bab)
+                self.__cdlist)
 #
