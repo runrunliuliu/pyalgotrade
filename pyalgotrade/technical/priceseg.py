@@ -890,7 +890,7 @@ class MacdSegEventWindow(technical.EventWindow):
             if len(madirect[-1]) > 0:
                 ma5d = "{:.4f}".format(madirect[-1][0])
 
-            # XingTai
+            # XingTai信号
             xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
                      self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili,\
@@ -898,7 +898,9 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT()
+            # XingTai交易策略
 
+            # 特征数据
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
                 mafeature + (prext,) + \
