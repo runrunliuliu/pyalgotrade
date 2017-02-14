@@ -325,8 +325,8 @@ class KLineEventWindow(technical.EventWindow):
                 if g['d'] > 0 and ng['d'] < 0 and ng['lev1'] < g['lev1']:
                     drt = -1
                 if drt != 0:
-                    tk = abs(ng['s'] / g['s'])
-                    fz = (ng['lev1'] - g['lev1']) / g['lev1']
+                    tk = abs(ng['s'] / (g['s'] + 0.0000001))
+                    fz = (ng['lev1'] - g['lev1']) / (g['lev1'] + 0.0000001)
                     zq = self.__dtzq[ng['day']] - self.__dtzq[g['day']]
                     ret['pday'] = g['day'].strftime(self.__sharePars[1])
                     ret['tk']   = float("{:.2f}".format(tk))
@@ -400,6 +400,10 @@ class KLineEventWindow(technical.EventWindow):
                     and self.__lw0 > p1gap['n']['lev2'] \
                     and p1gap['n']['d'] > 0:
                 drt = 1
+            # 向上跳空缺口
+            if p1gap['n']['d'] > 0:
+                drt = 2
+
             if drt != 0:
                 ret['drt'] = drt
                 ret['nm']  = 'jumpgap'
