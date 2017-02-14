@@ -4,6 +4,7 @@ from pyalgotrade import dataseries
 from pyalgotrade.utils import collections
 from pyalgotrade.utils import qsLineFit 
 from pyalgotrade.utils import stats 
+from pyalgotrade.utils import xthandle
 from pyalgotrade.dataseries import bards
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import macd
@@ -198,6 +199,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         # 形态
         self.__xingtai    = xingtai.XINGTAI()
+        self.__xthandle   = xthandle.XThandle()
         self.__mhead      = OrderedDict()
         self.__mhead_used = set()
 
@@ -899,6 +901,7 @@ class MacdSegEventWindow(technical.EventWindow):
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT()
             # XingTai交易策略
+            self.__xthandle.run(dateTime, value, self.__XINGTAI)
 
             # 特征数据
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
