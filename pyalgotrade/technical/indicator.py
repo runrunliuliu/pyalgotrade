@@ -355,7 +355,7 @@ class IndEventWindow(technical.EventWindow):
 
         wsma5 = 0
         if f2[0] is not None and self.__pf2[0] is not None:
-            if f2[0] < -0.01 and abs(f2[0] / self.__pf2[0]) > 2:
+            if f2[0] < -0.01 and abs(f2[0] / (self.__pf2[0] + 0.00000001) ) > 2:
                 wsma5 = 1
             if f2[0] < -0.02:
                 wsma5 = 1
