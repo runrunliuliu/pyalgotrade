@@ -389,19 +389,20 @@ class KLineEventWindow(technical.EventWindow):
         ret = {}
         drt = 0
         if len(self.__ngap_list) > 1:
-            p1gap = self.__ngap_list[-2]
-            if len(p1gap['n']) == 0:
-                return ret
+
             # 跳空阴阳线
-            if self.__cl1 / values[-3].getClose() >= 1.03 \
+            p1gap = self.__ngap_list[-2]
+            if len(p1gap['n']) > 0 \
+                    and self.__cl1 / values[-3].getClose() >= 1.03 \
                     and self.__cl1 > self.__op1 \
                     and self.__cl0 < self.__op0 \
                     and (self.__cl1 / self.__op1) - (self.__op0 / self.__cl0) < 0.01 \
                     and self.__lw0 > p1gap['n']['lev2'] \
                     and p1gap['n']['d'] > 0:
                 drt = 1
+
             # 向上跳空缺口
-            if p1gap['n']['d'] > 0:
+            if len(self.__ngap['n']) > 0 and self.__ngap['n']['d'] > 0:
                 drt = 2
 
             if drt != 0:
