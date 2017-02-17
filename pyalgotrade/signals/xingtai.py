@@ -85,7 +85,9 @@ class XINGTAI(object):
         self.__direct = tups[9]
         self.__format = '%Y-%m-%d'
         self.__period = tups[10]
-        if tups[10] == '15mink':
+        if tups[10] == '30mink':
+            self.__format = '%Y-%m-%d-%H-%M'
+        if tups[10] == '60mink':
             self.__format = '%Y-%m-%d-%H'
 
         self.__update = 0
