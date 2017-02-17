@@ -69,6 +69,14 @@ def parse_date(date, freq):
         mint  = int(date[14:16])
         ret = datetime.datetime(year, month, day, hour, mint)
 
+    if freq == bar.Frequency.MIN60:
+        year  = int(date[0:4])
+        month = int(date[5:7])
+        day   = int(date[8:10])
+        hour  = int(date[11:13])
+        mint  = int(date[14:16])
+        ret = datetime.datetime(year, month, day, hour, mint)
+
     return ret
 
 
