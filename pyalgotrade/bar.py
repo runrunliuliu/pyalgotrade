@@ -46,6 +46,7 @@ class Frequency(object):
     MONTH  = 24*60*60*31
     MIN15  = 60*15
     MIN30  = 60*30
+    MIN60  = 60*60
 
 
 class Bar(object):
