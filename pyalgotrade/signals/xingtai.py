@@ -345,20 +345,25 @@ class XINGTAI(object):
         qs24 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
         s24  = qs24.getSlope()
 
+        # 阀值参数parameters
+        slope_t = 0.0005
+        slope_b = 0.001
+
         # 对称三角
-        if preqs[0] == 1202 and s13 < 0 and s24 > 0 and abs(s13 + s24) <= 0.0003:
+        # print 'DEBUG: ------------', dateTime, preqs, s13, s24
+        if preqs[0] == 1202 and s13 < -1 * slope_b and s24 > slope_b and abs(s13 + s24) <= slope_t:
             xtname = 'symtriangle'
-        if preqs[0] == 2203 and s13 > 0 and s24 < 0 and abs(s13 + s24) <= 0.0003:
+        if preqs[0] == 2203 and s13 > slope_b and s24 < -1 * slope_b and abs(s13 + s24) <= slope_t:
             xtname = 'symtriangle'
         # 上升三角
-        if (preqs[0] == 1201 or preqs[0] == 1202) and abs(s13) <= 0.0001 and s24 >= 0.001:
+        if (preqs[0] == 1201 or preqs[0] == 1202) and abs(s13) <= slope_t and s24 >= 0.001:
             xtname = 'asctriangle'
-        if (preqs[0] == 2102 or preqs[0] == 2203) and abs(s24) <= 0.0001 and s13 >= 0.001:
+        if (preqs[0] == 2102 or preqs[0] == 2203) and abs(s24) <= slope_t and s13 >= 0.001:
             xtname = 'asctriangle'
         # 下降三角
-        if (preqs[0] == 1202 or preqs[0] == 1302) and abs(s24) <= 0.0001 and s13 <= -0.001:
+        if (preqs[0] == 1202 or preqs[0] == 1302) and abs(s24) <= slope_t and s13 <= -0.001:
             xtname = 'destriangle'
-        if (preqs[0] == 2203 or preqs[0] == 2204) and abs(s13) <= 0.0001 and s24 <= -0.001:
+        if (preqs[0] == 2203 or preqs[0] == 2204) and abs(s13) <= slope_t and s24 <= -0.001:
             xtname = 'destriangle'
         # 喇叭形
         if preqs[0] == 1301 and s24 <= -0.001 and s13 >= 0.001:
@@ -367,12 +372,12 @@ class XINGTAI(object):
             xtname = 'trumptriangle'
         # 上升旗形
         if (preqs[0] == 1101 and preqs[0] == 1201 and preqs[0] == 2102) \
-                and abs(s13 - s24) < 0.0003 \
+                and abs(s13 - s24) < slope_t \
                 and s13 >= 0.001 and s24 >= 0.001:
             xtname = 'aflagtriangle'
         # 下降旗形
         if (preqs[0] == 1302 and preqs[0] == 2303 and preqs[0] == 2204) \
-                and abs(s13 - s24) < 0.0003 \
+                and abs(s13 - s24) < slope_t \
                 and s13 <= -0.001 and s24 <= -0.001:
             xtname = 'dflagtriangle'
         # 上升楔形
@@ -394,7 +399,7 @@ class XINGTAI(object):
                 and (s24 - s13) >= 0.002:
             xtname = 'deswedge'
         # 矩形
-        if abs(s13) <= 0.0001 and abs(s24) <= 0.0001:
+        if abs(s13) <= slope_t and abs(s24) <= slope_t:
             xtname = 'rectangle'
         nind = self.__dtzq[dateTime]
 
