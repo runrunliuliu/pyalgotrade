@@ -667,8 +667,8 @@ class MacdSegEventWindow(technical.EventWindow):
             return
         valley = [] 
         peek   = []
-        sdf   = []
-        index = []
+        sdf    = []
+        index  = []
         for k,v in self.__gd.iteritems():
             index.append((k,v))
             sdf.append(v)
@@ -678,10 +678,12 @@ class MacdSegEventWindow(technical.EventWindow):
             now = index[-1 * i]
             pre = index[-1 * (i + 1)]
             nex = index[-1 * (i - 1)]
-            if now[1] < nex[1] and now[1] < pre[1]:
+            # if now[1] < nex[1] and now[1] < pre[1]:
+            if now[1] < pre[1]:
                 tups = (now[0], now[1], (pre[1] - now[1]) / now[1], (nex[1] - now[1]) / now[1])
                 valley.append(tups)
-            if now[1] > nex[1] and now[1] > pre[1]:
+            # if now[1] > nex[1] and now[1] > pre[1]:
+            if now[1] > pre[1]:
                 tups = (now[0], now[1], (now[1] - pre[1]) / now[1], (now[1] - nex[1]) / now[1])
                 peek.append(tups)
 
