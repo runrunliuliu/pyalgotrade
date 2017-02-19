@@ -74,7 +74,8 @@ def parse_date(date, freq):
         month = int(date[5:7])
         day   = int(date[8:10])
         hour  = int(date[11:13])
-        ret = datetime.datetime(year, month, day, hour)
+        mint  = int(date[14:16])
+        ret = datetime.datetime(year, month, day, hour, mint)
 
     return ret
 
