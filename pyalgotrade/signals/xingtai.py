@@ -88,7 +88,7 @@ class XINGTAI(object):
         if tups[10] == '30min':
             self.__format = '%Y-%m-%d-%H-%M'
         if tups[10] == '60min':
-            self.__format = '%Y-%m-%d-%H'
+            self.__format = '%Y-%m-%d-%H-%M'
 
         self.__update = 0
         if tups[11] == 1 or tups[12] == -1:
