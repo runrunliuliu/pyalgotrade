@@ -98,6 +98,8 @@ class XINGTAI(object):
         self.__diff = 0.01
         if self.__inst[0:2] == 'SZ' or self.__inst[0:2] == 'SH':
             self.__diff = 0.01
+            if self.__period == '30min':
+                self.__diff = 0.001
 
         self.__klines = tups[14]
 
@@ -338,18 +340,23 @@ class XINGTAI(object):
         p1 = preqs[5][0]
         p3 = preqs[5][2]
         v  = (preqs[8][0], p1['v'], preqs[8][2], p3['v']) 
-        qs13 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+        qs13 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq, formats = self.__format)
         s13  = qs13.getSlope()
         # 2-4
         p2 = preqs[5][1]
         p4 = preqs[5][3]
         v  = (preqs[8][1], p2['v'], preqs[8][3], p4['v']) 
-        qs24 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
+        qs24 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq, formats = self.__format)
         s24  = qs24.getSlope()
+
+        print dateTime, self.__format, qs13.toString()
 
         # 阀值参数parameters
         slope_t = 0.0005
         slope_b = 0.001
+
+        if self.__period == '30min':
+            slope_t = 0.0001
 
         # 对称三角
         # print 'DEBUG: ------------', dateTime, preqs, s13, s24
@@ -358,47 +365,47 @@ class XINGTAI(object):
         if preqs[0] == 2203 and s13 > slope_b and s24 < -1 * slope_b and abs(s13 + s24) <= slope_t:
             xtname = 'symtriangle'
         # 上升三角
-        if (preqs[0] == 1201 or preqs[0] == 1202) and abs(s13) <= slope_t and s24 >= 0.001:
+        if (preqs[0] == 1201 or preqs[0] == 1202) and abs(s13) <= slope_t and s24 >= slope_b:
             xtname = 'asctriangle'
-        if (preqs[0] == 2102 or preqs[0] == 2203) and abs(s24) <= slope_t and s13 >= 0.001:
+        if (preqs[0] == 2102 or preqs[0] == 2203) and abs(s24) <= slope_t and s13 >= slope_b:
             xtname = 'asctriangle'
         # 下降三角
-        if (preqs[0] == 1202 or preqs[0] == 1302) and abs(s24) <= slope_t and s13 <= -0.001:
+        if (preqs[0] == 1202 or preqs[0] == 1302) and abs(s24) <= slope_t and s13 <= -1 * slope_b:
             xtname = 'destriangle'
-        if (preqs[0] == 2203 or preqs[0] == 2204) and abs(s13) <= slope_t and s24 <= -0.001:
+        if (preqs[0] == 2203 or preqs[0] == 2204) and abs(s13) <= slope_t and s24 <= -1 * slope_b:
             xtname = 'destriangle'
         # 喇叭形
-        if preqs[0] == 1301 and s24 <= -0.001 and s13 >= 0.001:
+        if preqs[0] == 1301 and s24 <= -1 * slope_b and s13 >= slope_b:
             xtname = 'trumptriangle'
-        if preqs[0] == 2103 and s24 >= 0.001 and s13 <= -0.001:
+        if preqs[0] == 2103 and s24 >= slope_b and s13 <= -1 * slope_b:
             xtname = 'trumptriangle'
         # 上升旗形
         if (preqs[0] == 1101 and preqs[0] == 1201 and preqs[0] == 2102) \
                 and abs(s13 - s24) < slope_t \
-                and s13 >= 0.001 and s24 >= 0.001:
+                and s13 >= slope_b and s24 >= slope_b:
             xtname = 'aflagtriangle'
         # 下降旗形
         if (preqs[0] == 1302 and preqs[0] == 2303 and preqs[0] == 2204) \
                 and abs(s13 - s24) < slope_t \
-                and s13 <= -0.001 and s24 <= -0.001:
+                and s13 <= -1 * slope_b and s24 <= -1 * slope_b:
             xtname = 'dflagtriangle'
         # 上升楔形
         if (preqs[0] == 1101 and preqs[0] == 1201) \
-                and s13 >= 0.001 and s24 >= 0.001 \
-                and (s24 - s13) >= 0.002:
+                and s13 >= slope_b and s24 >= slope_b \
+                and (s24 - s13) >= slope_b * 2:
             xtname = 'ascwedge'
         # 上升楔形
-        if preqs[0] == 2102 and s13 >= 0.001 and s24 >= 0.001 \
-                and (s13 - s24) >= 0.002:
+        if preqs[0] == 2102 and s13 >= slope_b and s24 >= slope_b \
+                and (s13 - s24) >= slope_b * 2:
             xtname = 'ascwedge'
         # 下降楔形
         if (preqs[0] == 2303 and preqs[0] == 2204) \
-                and s13 <= -0.001 and s24 <= -0.001 \
-                and (s13 - s24) >= 0.002:
+                and s13 <= -1 * slope_b and s24 <= -1 * slope_b \
+                and (s13 - s24) >= slope_b * 2:
             xtname = 'deswedge'
         # 下降楔形
-        if preqs[0] == 1302 and s13 <= -0.001 and s24 <= -0.001 \
-                and (s24 - s13) >= 0.002:
+        if preqs[0] == 1302 and s13 <= -1 * slope_b and s24 <= -1 * slope_b \
+                and (s24 - s13) >= slope_b * 2:
             xtname = 'deswedge'
         # 矩形
         if abs(s13) <= slope_t and abs(s24) <= slope_t:
