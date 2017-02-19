@@ -196,30 +196,30 @@ class XINGTAI(object):
         pqs = bqs[0] 
         nqs = pqs
 
+        high0 = bqs[1]; low0 = bqs[2]
+        high1 = bqs[3]; low1 = bqs[4]
+        
         if pqs == 1101 or pqs == 1201 or pqs == 1202:
-            if ngdhigh >= bqs[1]:
+            if ngdhigh >= high0:
                 nqs = 2102
             else:
                 nqs = 2203
-
         if pqs == 1301 or pqs == 1302:
-            if ngdhigh >= bqs[2] and ngdhigh < bqs[1]:
+            if ngdhigh >= low1 and ngdhigh < high0:
                 nqs = 2204
-            if ngdhigh < bqs[2]:
+            if ngdhigh < low1:
                 nqs = 2303
-            if ngdhigh >= bqs[1]:
+            if ngdhigh >= high0:
                 nqs = 2103
-
         if pqs == 2102 or pqs == 2103:
-            if ngdlow < bqs[1] and ngdlow > bqs[2]:
+            if ngdlow < high1 and ngdlow > low0:
                 nqs = 1201
-            if ngdlow >= bqs[1]: 
+            if ngdlow >= high1: 
                 nqs = 1101
-            if ngdlow < bqs[2]:
+            if ngdlow < low0:
                 nqs = 1301
-
-        if pqs == 2203 and pqs == 2303 and pqs == 2204:
-            if ngdlow >= bqs[2]:
+        if pqs == 2203 or pqs == 2303 or pqs == 2204:
+            if ngdlow >= low0:
                 nqs = 1202
             else:
                 nqs = 1302
