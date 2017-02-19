@@ -100,6 +100,8 @@ class XINGTAI(object):
             self.__diff = 0.01
             if self.__period == '30min':
                 self.__diff = 0.001
+            if self.__period == '60min':
+                self.__diff = 0.001
 
         self.__klines = tups[14]
 
@@ -356,6 +358,8 @@ class XINGTAI(object):
         slope_b = 0.001
 
         if self.__period == '30min':
+            slope_t = 0.0001
+        if self.__period == '60min':
             slope_t = 0.0001
 
         # 对称三角
@@ -708,7 +712,7 @@ class XINGTAI(object):
         out = dict()
         if len(wave5[1]) == 0: 
             return out
-        if len(wave5[1]) == 3 and self.__period == 'day':
+        if len(wave5[1]) == 3:
             # start point
             timegd0 = wave5[1][0][8]
             struct0 = wave5[1][0][5]
