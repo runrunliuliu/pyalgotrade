@@ -701,12 +701,18 @@ class MacdSegEventWindow(technical.EventWindow):
             period = 'week'
         if value.getFrequency() == bar.Frequency.MONTH:
             period = 'month'
+        if value.getFrequency() == bar.Frequency.MIN30:
+            period = '30min'
+        if value.getFrequency() == bar.Frequency.MIN60:
+            period = '60min'
         return period
 
     def setFormat(self, period):
         formats = '%Y-%m-%d'
-        if period == '15mink':
-            formats = '%Y-%m-%d-%H'
+        if period == '30min':
+            formats = '%Y-%m-%d-%H-%M'
+        if period == '60min':
+            formats = '%Y-%m-%d-%H-%M'
         return formats
 
     # 设置一些共有参数
