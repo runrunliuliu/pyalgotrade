@@ -1,3 +1,4 @@
+# coding:utf-8
 from pyalgotrade import technical
 from pyalgotrade import bar
 from pyalgotrade import dataseries
@@ -678,11 +679,10 @@ class MacdSegEventWindow(technical.EventWindow):
             now = index[-1 * i]
             pre = index[-1 * (i + 1)]
             nex = index[-1 * (i - 1)]
-            # if now[1] < pre[1]:
+            # IGNORE INDEX; 回测显示这种过滤有益于总体收益
             if now[1] < nex[1] and now[1] < pre[1]:
                 tups = (now[0], now[1], (pre[1] - now[1]) / now[1], (nex[1] - now[1]) / now[1])
                 valley.append(tups)
-            # if now[1] > pre[1]:
             if now[1] > nex[1] and now[1] > pre[1]:
                 tups = (now[0], now[1], (now[1] - pre[1]) / now[1], (now[1] - nex[1]) / now[1])
                 peek.append(tups)
