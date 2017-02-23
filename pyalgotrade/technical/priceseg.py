@@ -907,7 +907,7 @@ class MacdSegEventWindow(technical.EventWindow):
                      self.__inst, klines)
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
-            self.__XINGTAI = self.__xingtai.retDICT()
+            self.__XINGTAI = self.__xingtai.retDICT(value)
             # XingTai交易策略
             self.__xthandle.run(dateTime, value, self.__XINGTAI)
 
