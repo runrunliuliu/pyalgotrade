@@ -129,7 +129,7 @@ class XINGTAI(object):
         return json.dumps(out) 
 
     # 返回字典结构数据
-    def retDICT(self):
+    def retDICT(self, value):
         out = dict()
         
         qs = dict()
@@ -156,6 +156,9 @@ class XINGTAI(object):
         qs['triangle'] = self.__triangle
 
         qs['kline'] = self.__kline
+
+        qs['ohlc'] = [value.getOpen(), value.getHigh(), \
+                      value.getLow(), value.getClose()]
 
         out['qs'] = qs
 
@@ -352,8 +355,6 @@ class XINGTAI(object):
         v  = (preqs[8][1], p2['v'], preqs[8][3], p4['v']) 
         qs24 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq, formats = self.__format)
         s24  = qs24.getSlope()
-
-        print dateTime, self.__format, qs13.toString()
 
         # 阀值参数parameters
         slope_t = 0.0005
