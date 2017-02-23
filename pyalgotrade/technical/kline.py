@@ -304,8 +304,9 @@ class KLineEventWindow(technical.EventWindow):
     # 牛市弃婴
     def BAB(self, dateTime, values):
         ret = 0
+        cross = self.CROSS(dateTime, values[-2])
         if self.__cl2 / self.__op2 <= 0.98 \
-                and self.CROSS(values[-2]) == 1 \
+                and len(cross) > 0 and cross['drt'] == 1 \
                 and self.__op1 < self.__lw2 \
                 and self.__op0 > self.__hi1 \
                 and self.__cl0 / self.__op0 >= 1.02:
@@ -464,15 +465,17 @@ class KLineEventWindow(technical.EventWindow):
         return ret
 
     # 十字星
-    def CROSS(self, Bar):
-        ret = 0
+    def CROSS(self, dateTime, Bar):
+        ret = {}
         bars = self.BarStatus(Bar)
         if bars is None:
             return ret
         rb = bars[0]
         bs = bars[1]
         if rb < 0.005 and bs < 0.1:
-            ret = 1
+            ret['drt'] = 1
+            ret['nm']  = 'cross'
+            self.__candles.append(ret)
         return ret
 
     # 单个Bar的状态
@@ -717,6 +720,7 @@ class KLineEventWindow(technical.EventWindow):
             self.__ugtc  = self.UGTC(dateTime, values)
             self.__bab   = self.BAB(dateTime, values)
             self.__hamm  = self.HAMMER(dateTime, values[-1])
+            self.__cross = self.CROSS(dateTime, values[-1])
             self.__belt  = self.BELT(dateTime, values[-1])
             self.__efed  = self.Engulfed(dateTime, values)
             self.__pgant = self.Pregnant(dateTime, values)
