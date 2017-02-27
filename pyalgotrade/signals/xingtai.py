@@ -59,6 +59,13 @@ class XINGTAI(object):
         # K线形态
         self.__kline = []
 
+        # 周期
+        self.__zhouqi = []
+
+        # 斐波那契数列
+        self.__fbsq  = {1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144}
+        self.__fbsq1 = {2, 4, 7, 12, 20, 33, 54, 88, 143}
+
     def initTup(self, dateTime, tups):
         self.__nowdt = dateTime
         # 周期
@@ -111,6 +118,7 @@ class XINGTAI(object):
         self.fanzhuan()
         self.chixu()
         self.klines()
+        self.zhouqi()
 
     def retJSON(self):
         out = dict()
@@ -160,9 +168,42 @@ class XINGTAI(object):
         qs['ohlc'] = [value.getOpen(), value.getHigh(), \
                       value.getLow(), value.getClose()]
 
+        qs['zq']   = self.__zhouqi
         out['qs'] = qs
 
         return out
+
+    # 计算周期
+    def zhouqi(self):
+        def compute(times):
+            ret = []
+            for s in times:
+                trange = nowind - self.__dtzq[s] + 1
+                if trange in self.__fbsq1:
+                    ret.append((s, trange))
+            return ret
+        dateTime = self.__nowdt
+        ret = []
+        if len(self.__hist_qs) > 0:
+            nowind   = self.__dtzq[self.__nowdt]
+            pqs = self.__hist_qs[-1]
+            w5  = self.getWave5Neighbor(dateTime)
+
+            ret1 = compute(pqs[8])
+            tret = ret1
+            if len(w5[1][1]['szx']) > 0:
+                st   = w5[1][1]['szx']['time']
+                ret2 = compute(st)
+                tret  = tret + ret2
+            used = set()
+            for t in tret:
+                if t[0] not in used:
+                    kv = dict()
+                    kv['d'] = t[0].strftime(self.__format)
+                    kv['v'] = t[1]
+                    ret.append(kv)
+                used.add(t[0])
+        self.__zhouqi = ret
 
     # KLines
     def klines(self):
@@ -756,7 +797,8 @@ class XINGTAI(object):
                 qs2 = qsLineFit.QsLineFit.initFromTuples(v, self.__dtzq)
 
                 out['show'] = show
-                out['np'] = [qs1, qs2]
+                out['np']   = [qs1, qs2]
+                out['time'] = [sdate, edate]
         return out
 
     # 获取最近的非盘整状态
