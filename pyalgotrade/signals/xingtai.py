@@ -175,35 +175,68 @@ class XINGTAI(object):
 
     # 计算周期
     def zhouqi(self):
-        def compute(times):
-            ret = []
-            for s in times:
-                trange = nowind - self.__dtzq[s] + 1
-                if trange in self.__fbsq1:
-                    ret.append((s, trange))
-            return ret
+        def compute(dt):
+            trange = nind - self.__dtzq[dt] + 1
+            return trange
+        zq   = dict()
         dateTime = self.__nowdt
-        ret = []
+        nind = self.__dtzq[dateTime]
+        ret1 = dict()
+        ret2 = []
         if len(self.__hist_qs) > 0:
-            nowind   = self.__dtzq[self.__nowdt]
-            pqs = self.__hist_qs[-1]
-            w5  = self.getWave5Neighbor(dateTime)
+            pqs  = self.__hist_qs[-1]
+            pqs2 = None
+            if len(self.__hist_qs) > 1:
+                pqs2 = self.__hist_qs[-2]
+                ret1['AF'] = compute(pqs2[8][0])
+            ret1['BF'] = compute(pqs[8][0])
+            ret1['CF'] = compute(pqs[8][1])
 
-            ret1 = compute(pqs[8])
-            tret = ret1
+            DF = compute(pqs[8][2])
+            ret1['DF'] = DF
+
+            EF = compute(pqs[8][3])
+            ret1['EF'] = EF
+
+            # 谐波关系1: DE && EN
+            DE = self.__dtzq[pqs[8][3]] - self.__dtzq[pqs[8][2]] + 1
+            ret1['DE'] = DE
+            
+            # 谐波关系2: CE && DF
+            CE = self.__dtzq[pqs[8][3]] - self.__dtzq[pqs[8][1]] + 1
+            ret1['CE'] = CE
+            
+            # 谐波关系3: CE/AC && DF/BD
+            BD = self.__dtzq[pqs[8][2]] - self.__dtzq[pqs[8][0]] + 1
+            ret1['BD'] = BD
+            if pqs2 is not None:
+                AC = self.__dtzq[pqs[8][1]] - self.__dtzq[pqs2[8][0]] + 1
+                ret1['AC'] = AC
+                r1 = float("{:.2f}".format(CE / (AC + 0.0)))
+                ret1['CE/AC'] = r1
+                r2 = float("{:.2f}".format(DF / (BD + 0.0)))
+                ret1['DF/BD'] = r2
+
+            # 江恩比率
+            CD = self.__dtzq[pqs[8][2]] - self.__dtzq[pqs[8][1]] + 1
+            ret1['CD'] = CD
+            r1 = float("{:.2f}".format(DF / (CD + 0.0)))
+            ret1['DF/CD'] = r1
+            r1 = float("{:.2f}".format(EF / (CE + 0.0)))
+            ret1['EF/CE'] = r1
+
+            # 五浪
+            w5  = self.getWave5Neighbor(dateTime)
             if len(w5[1][1]['szx']) > 0:
-                st   = w5[1][1]['szx']['time']
-                ret2 = compute(st)
-                tret  = tret + ret2
-            used = set()
-            for t in tret:
-                if t[0] not in used:
-                    kv = dict()
-                    kv['d'] = t[0].strftime(self.__format)
-                    kv['v'] = t[1]
-                    ret.append(kv)
-                used.add(t[0])
-        self.__zhouqi = ret
+                st = w5[1][1]['szx']['time']
+                w1 = compute(st[0])
+                w2 = compute(st[1])
+                ret2 = [w1, w2]
+            
+            zq['zq1'] = ret1
+            zq['zq2'] = ret2
+
+        self.__zhouqi = zq
 
     # KLines
     def klines(self):
