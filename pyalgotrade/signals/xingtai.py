@@ -269,6 +269,7 @@ class XINGTAI(object):
         self.__valleydays.add(vall0)
         self.__valleydays.add(vall1)
 
+        # print self.__nowdt, self.__update, self.__direct, tup
         bqs = self.basicQS(tup, self.__direct)
         if self.__update == 1:
             self.__hist_qs.append(bqs)
@@ -997,7 +998,6 @@ class XINGTAI(object):
         high0 = self.__high[peek0]; high1 = self.__high[peek1]
         low0 = self.__low[vall0]; low1 = self.__low[vall1]
 
-        # print self.__nowdt, tup, high0, high1, low0, low1
         zhouqi = None
         struct = None 
         timegd = None
