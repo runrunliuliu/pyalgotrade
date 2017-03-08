@@ -412,6 +412,13 @@ class XINGTAI(object):
         if len(self.__hist_triangle) > 0:
             triangle = self.__hist_triangle[-1]
             ret = triangle[0]
+
+            qs13 = triangle[2]
+            qs24 = triangle[3]
+            nind = self.__dtzq[dateTime]
+            ret['l1'] = qs13.toDICT(nind)
+            ret['l2'] = qs24.toDICT(nind)
+
         return ret
 
     # 多种形态
@@ -492,13 +499,10 @@ class XINGTAI(object):
         # 矩形
         if abs(s13) <= slope_t and abs(s24) <= slope_t:
             xtname = 'rectangle'
-        nind = self.__dtzq[dateTime]
 
-        output['l1']   = qs13.toDICT(nind)
-        output['l2']   = qs24.toDICT(nind)
         output['name'] = xtname
 
-        return (output, dateTime)
+        return (output, dateTime, qs13, qs24)
 
     # 获取加速趋势线
     def getSpeedQs(self, dateTime):
