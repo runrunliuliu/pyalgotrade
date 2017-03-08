@@ -683,7 +683,7 @@ class MacdSegEventWindow(technical.EventWindow):
             if now[1] < nex[1] and now[1] < pre[1]:
                 tups = (now[0], now[1], (pre[1] - now[1]) / now[1], (nex[1] - now[1]) / now[1])
                 valley.append(tups)
-            if now[1] > nex[1] and now[1] > pre[1]:
+            if now[1] >= nex[1] and now[1] > pre[1]:
                 tups = (now[0], now[1], (now[1] - pre[1]) / now[1], (now[1] - nex[1]) / now[1])
                 peek.append(tups)
 
@@ -768,7 +768,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
                 # Fix valley point based on BeiLi 
                 # UPDATE: It's not NECESSARY for CHANGE to be happend
-                self.updateGD(now_dt)
+                self.updateGD(now_dt, dateTime)
                 if change == 1:
                     self.__gd[self.__gddt] = gdprice
 
@@ -1895,7 +1895,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         return (incdiff, incqsfit, desdiff, desqsfit, incdiff_high, incdiff_low, desdiff_high, desdiff_low)
 
-    def updateGD(self, now_dt):
+    def updateGD(self, now_dt, dateTime):
         item = None
         if self.__gddt in self.__LFVbeili and self.__fix == 1:
             item = self.__LFVbeili[self.__gddt]
