@@ -430,6 +430,48 @@ class KLineEventWindow(technical.EventWindow):
                 self.__candles.append(ret)
         return ret
 
+    # N字形
+    def NZX(self, dateTime, values):
+        ret = {}
+        d4cl = values[-4].getClose()
+        d4vl = values[-4].getVolume()
+
+        d3op = values[-3].getOpen()
+        d3cl = values[-3].getClose()
+        d3vl = values[-3].getVolume()
+        d3st = self.BarStatus(values[-3])
+        if d3st is None:
+            return ret
+        d3sy = d3st[4]
+        d3rb = d3st[0]
+
+        d2cl = values[-2].getClose()
+        d2op = values[-2].getOpen()
+        d2vl = values[-2].getVolume()
+        d2st = self.BarStatus(values[-2])
+        if d2st is None:
+            return ret
+        d2rb = d2st[0]
+        
+        d1cl = values[-1].getClose()
+        d1op = values[-1].getOpen()
+        d1vl = values[-1].getVolume()
+        d1st = self.BarStatus(values[-1])
+        if d1st is None:
+            return ret
+        d1rb = d1st[0]
+
+        if d3vl / d4vl > 1.5 and d3cl / d4cl > 1.06 \
+                and d3rb > 0.05 and d3sy < 0.005 and d3cl > d3op \
+                and d2rb > 0.02 and d2cl < d2op and d2cl < d3cl \
+                and d2cl > (d3cl / 4 + 3 * d3op / 4) \
+                and d1rb > 0.01 and d1cl < d1op and d1cl < d2cl \
+                and d1cl > (d3cl / 8 + 7 * d3op / 8) \
+                and d1vl / d2vl < 0.8 and d1vl / d3vl <= 0.5:
+            ret['nm']  = 'NZX'
+            ret['drt'] = 1
+            self.__candles.append(ret)
+
     # 捉腰带
     def BELT(self, dateTime, Bar):
         ret = {} 
@@ -727,6 +769,7 @@ class KLineEventWindow(technical.EventWindow):
             self.__island = self.IslandReverse(dateTime)
             self.__pierce = self.Piercing(dateTime, values)
             self.__jump   = self.JumpGAP(dateTime, values)
+            self.__nxz    = self.NZX(dateTime, values)
 
             self.__cdlist.append((dateTime, self.__candles))
 
