@@ -111,6 +111,7 @@ class XINGTAI(object):
                 self.__diff = 0.001
 
         self.__klines = tups[14]
+        self.__score  = float("{:.2f}".format(tups[15]))
 
     # Main Module
     def run(self):
@@ -119,6 +120,7 @@ class XINGTAI(object):
         self.chixu()
         self.klines()
         self.zhouqi()
+        self.EliotWave5()
 
     def retJSON(self):
         out = dict()
@@ -169,7 +171,9 @@ class XINGTAI(object):
                       value.getLow(), value.getClose()]
 
         qs['zq']   = self.__zhouqi
-        out['qs'] = qs
+
+        out['qs']    = qs
+        out['score'] = self.__score
 
         return out
 
@@ -987,6 +991,13 @@ class XINGTAI(object):
             for r in ret:
                 out.append(r.toDICT(self.__dtzq[dateTime]))
         return out
+
+    # 艾略特标准五浪结构解析
+    def EliotWave5(self):
+        dateTime = self.__nowdt
+        if len(self.__hist_qs) > 0:
+            pqs = self.__hist_qs[-1]
+            # print dateTime, pqs
 
     # 三种最基本的走势定义
     #  1 -- 上升
