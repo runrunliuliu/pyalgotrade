@@ -679,6 +679,7 @@ class MacdSegEventWindow(technical.EventWindow):
             now = index[-1 * i]
             pre = index[-1 * (i + 1)]
             nex = index[-1 * (i - 1)]
+
             # IGNORE INDEX; 回测显示这种过滤有益于总体收益
             if now[1] < nex[1] and now[1] < pre[1]:
                 tups = (now[0], now[1], (pre[1] - now[1]) / now[1], (nex[1] - now[1]) / now[1])
@@ -686,6 +687,18 @@ class MacdSegEventWindow(technical.EventWindow):
             if now[1] >= nex[1] and now[1] > pre[1]:
                 tups = (now[0], now[1], (now[1] - pre[1]) / now[1], (now[1] - nex[1]) / now[1])
                 peek.append(tups)
+
+        # FIX BUG: add THE FIRST POINT
+        lens = len(index)
+        if lens > 1:
+            f = index[-1 * lens]
+            s = index[-1 * (lens - 1)]
+            if f[1] > s[1]:
+                tups = (f[0], f[1], 1.0, (f[1] - s[1]) / f[1])
+                peek.append(tups)
+            if f[1] < s[1]:
+                tups = (f[0], f[1], -1.0, (s[1] - f[1]) / f[1])
+                valley.append(tups)
 
         self.__valley  = valley
         self.__peek    = peek
@@ -904,7 +917,7 @@ class MacdSegEventWindow(technical.EventWindow):
             xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
                      self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili,\
-                     self.__inst, klines)
+                     self.__inst, klines, self.__fts[0][0])
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT(value)
