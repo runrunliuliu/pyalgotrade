@@ -110,9 +110,18 @@ class XINGTAI(object):
             if self.__period == '60min':
                 self.__diff = 0.001
 
-        self.__klines = tups[14]
-        self.__score  = float("{:.2f}".format(tups[15]))
-        self.__masigs = tups[16]
+        self.__klines   = tups[14]
+        self.__score    = float("{:.2f}".format(tups[15]))
+        self.__masigs   = tups[16]
+        self.__macdsigs = tups[17]
+
+        self.__gd = dict()
+        if len(self.__macdsigs) > 0:
+            self.__gd['d'] = self.__nowgd.strftime(self.__format)
+            if self.__macdsigs['hist'] > 0:
+                self.__gd['v'] = self.__high[self.__nowgd]
+            else:
+                self.__gd['v'] = self.__low[self.__nowgd]
 
     # Main Module
     def run(self):
@@ -176,6 +185,8 @@ class XINGTAI(object):
         out['qs']    = qs
         out['score'] = self.__score
         out['ma']    = self.__masigs
+        out['macd']  = self.__macdsigs
+        out['nowgd'] = self.__gd
 
         return out
 
