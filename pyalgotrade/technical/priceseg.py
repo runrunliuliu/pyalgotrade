@@ -22,6 +22,7 @@ from pyalgotrade.signals import macdvalid
 from pyalgotrade.signals import bdvalid
 from pyalgotrade.signals import dtvalid
 from pyalgotrade.signals import xingtai
+from pyalgotrade.signals import ma as masignal
 import logging
 import logging.config
 import datetime
@@ -198,6 +199,8 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__desma5date_list = collections.ListDeque(5)
         # USE END
 
+        # 均线信号
+        self.__masignal   = masignal.MA()
         # 形态
         self.__xingtai    = xingtai.XINGTAI()
         self.__xthandle   = xthandle.XThandle()
@@ -913,11 +916,22 @@ class MacdSegEventWindow(technical.EventWindow):
             if len(madirect[-1]) > 0:
                 ma5d = "{:.4f}".format(madirect[-1][0])
 
+            # ----------------------------- TO BE RECONSTRUCT ----------------------- #
+            # MACD信号 to BE ADDED
+
+            # MA信号
+            mtups = (self.__indicator.getMAdirect(), \
+                     self.__indicator.getMAPosition() \
+                     )
+            self.__masignal.initTup(dateTime, mtups)
+            self.__masignal.run()
+            masignals = self.__masignal.toDict()
+
             # XingTai信号
             xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
                      self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili,\
-                     self.__inst, klines, self.__fts[0][0])
+                     self.__inst, klines, self.__fts[0][0], masignals)
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT(value)
@@ -1217,6 +1231,8 @@ class MacdSegEventWindow(technical.EventWindow):
         buy = 0
 
         # 天级别买点
+
+        valid = []
         if self.__period == 'day' \
                 and len(self.__desdate_list) > 0 \
                 and len(self.__tupo_list) > 0 \
@@ -1238,7 +1254,6 @@ class MacdSegEventWindow(technical.EventWindow):
             pdbars   = len(self.__desdate_list[-1])
             upbars   = len(self.__incdate_list[-1])
             
-            valid    = []
             masigs  = mavalid.MAvalid()
             macdsig = macdvalid.MACDvalid()
 
