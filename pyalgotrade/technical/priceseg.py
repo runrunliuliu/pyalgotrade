@@ -23,6 +23,7 @@ from pyalgotrade.signals import bdvalid
 from pyalgotrade.signals import dtvalid
 from pyalgotrade.signals import xingtai
 from pyalgotrade.signals import ma as masignal
+from pyalgotrade.signals import macd as macdsignal
 import logging
 import logging.config
 import datetime
@@ -201,6 +202,10 @@ class MacdSegEventWindow(technical.EventWindow):
 
         # 均线信号
         self.__masignal   = masignal.MA()
+        
+        # macd信号
+        self.__macdsignal = macdsignal.MACD()
+
         # 形态
         self.__xingtai    = xingtai.XINGTAI()
         self.__xthandle   = xthandle.XThandle()
@@ -918,6 +923,10 @@ class MacdSegEventWindow(technical.EventWindow):
 
             # ----------------------------- TO BE RECONSTRUCT ----------------------- #
             # MACD信号 to BE ADDED
+            macdtups = (qshist, change, self.__nowhist, self.__prehist)
+            self.__macdsignal.initTup(dateTime, macdtups)
+            self.__macdsignal.run()
+            macdsignals = self.__macdsignal.toDict()
 
             # MA信号
             mtups = (self.__indicator.getMAdirect(), \
@@ -931,7 +940,7 @@ class MacdSegEventWindow(technical.EventWindow):
             xtups = (self.__dtzq, self.__peek, self.__valley, \
                      self.__dateopen, self.__datehigh, self.__datelow, self.__dateclose, \
                      self.__nowgd, qshist, self.__direct, self.__period, change, self.__beili,\
-                     self.__inst, klines, self.__fts[0][0], masignals)
+                     self.__inst, klines, self.__fts[0][0], masignals, macdsignals)
             self.__xingtai.initTup(dateTime, xtups)
             self.__xingtai.run()
             self.__XINGTAI = self.__xingtai.retDICT(value)
