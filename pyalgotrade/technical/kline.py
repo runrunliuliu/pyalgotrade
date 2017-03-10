@@ -412,6 +412,28 @@ class KLineEventWindow(technical.EventWindow):
                 self.__candles.append(ret)
         return ret
 
+    # 连续一字板打开
+    def YZB(self, dateTime, values):
+        ret  = {}
+        bar1 = values[-2]
+        bar0 = values[-1]
+
+        op1 = bar1.getOpen()
+        hi1 = bar1.getHigh()
+        lw1 = bar1.getLow()
+        cl1 = bar1.getClose()
+
+        op0 = bar0.getOpen()
+        hi0 = bar0.getHigh()
+        lw0 = bar0.getLow()
+        cl0 = bar0.getClose()
+
+        if op1 == cl1 and op1 == hi1 and op1 == lw1 \
+                and op0 == hi0 and op0 == cl0 and op0 > lw0:
+            ret['nm']  = 'yzbk'
+            ret['drt'] = 1
+            print dateTime, ret
+
     # 孕线形态
     def Pregnant(self, dateTime, values):
         ret = {}
@@ -770,6 +792,7 @@ class KLineEventWindow(technical.EventWindow):
             self.__pierce = self.Piercing(dateTime, values)
             self.__jump   = self.JumpGAP(dateTime, values)
             self.__nxz    = self.NZX(dateTime, values)
+            self.__yzbk   = self.YZB(dateTime, values)
 
             self.__cdlist.append((dateTime, self.__candles))
 
