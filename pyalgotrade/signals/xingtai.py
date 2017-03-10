@@ -999,6 +999,9 @@ class XINGTAI(object):
             pqs = self.__hist_qs[-1]
             # print dateTime, pqs
 
+    def EliotCheck(self):
+        pass
+
     # 三种最基本的走势定义
     #  1 -- 上升
     #  2 -- 盘整
