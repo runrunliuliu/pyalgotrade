@@ -112,6 +112,7 @@ class XINGTAI(object):
 
         self.__klines = tups[14]
         self.__score  = float("{:.2f}".format(tups[15]))
+        self.__masigs = tups[16]
 
     # Main Module
     def run(self):
@@ -174,6 +175,7 @@ class XINGTAI(object):
 
         out['qs']    = qs
         out['score'] = self.__score
+        out['ma']    = self.__masigs
 
         return out
 
