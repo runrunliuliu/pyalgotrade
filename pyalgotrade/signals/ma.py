@@ -17,13 +17,23 @@ class MA(object):
         ret = dict()
         if self.__bull is not None:
             ret['bull'] = self.__bull
+            ret['abv']  = self.__ab
 
         return ret
 
     # 执行
     def run(self):
         self.__bull = self.MABull()
-        
+        self.__ab   = self.MAAbove()
+
+    # 均线位置
+    def MAAbove(self):
+        ret = 0
+        np_map = np.asarray(self.__maposition[-1])
+        if np.min(np_map) > 0:
+            ret = 1
+        return ret
+
     def MABull(self):
         ret = 0
         # 均线方向
