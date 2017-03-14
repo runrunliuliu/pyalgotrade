@@ -1158,16 +1158,24 @@ class XINGTAI(object):
 
         if check == 3:
             eliot['st'][num]  = line
+
+        # 反转形成新形态
         if check == 2:
             newe = dict()
             tmp  = dict()
-            tmp[0] = eliot['st'][eliot['num']]
+            
+            index = num
+            if num > 1:
+                if line[1] == eliot['st'][num][1]:
+                    index = num - 1
+            tmp[0] = eliot['st'][index]
             tmp[1] = line
             newe['st']  = tmp 
             newe['num'] = 1
             newe['son'] = dict()
             self.__eliotw5.append(newe)
             return newe
+
         if check == 1:
             eliot['num']          = num + 1
             eliot['st'][num + 1]  = line
