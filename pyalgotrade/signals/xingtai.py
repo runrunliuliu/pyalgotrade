@@ -100,6 +100,7 @@ class XINGTAI(object):
         if tups[10] == '60min':
             self.__format = '%Y-%m-%d-%H-%M'
 
+        self.__beili  = tups[12]
         self.__update = 0
         if tups[11] == 1 or tups[12] == -1:
             self.__update = 1
@@ -1154,6 +1155,9 @@ class XINGTAI(object):
     def EliotAdd2Dad(self, eliot, line, check):
         num = eliot['num']
         son = eliot['son']
+
+        if check == 3:
+            eliot['st'][num]  = line
         if check == 2:
             newe = dict()
             tmp  = dict()
@@ -1216,6 +1220,15 @@ class XINGTAI(object):
                 ret = -1
                 return ret
 
+            # 背离
+            if self.__beili == -1 and line[0][0] > st[index + 1][0][0]:
+                if line[1] == st[index + 1][1]:
+                    if line[1] == -1 and line[0][1] < st[index + 1][0][1]:
+                        ret = 3
+                    if line[1] == 1 and line[0][1] > st[index + 1][0][1]:
+                        ret = 3
+                    return ret
+
             if st[0][1] == 1 and line[0][1] <= st[index][0][1]:
                 ret = 1
             if st[0][1] == -1 and line[0][1] >= st[index][0][1]:
@@ -1235,6 +1248,8 @@ class XINGTAI(object):
                 ret = 2
             if index > 0 and st[0][1] == 1 and line[0][1] > st[0][0][1]:
                 ret = 2
+
+            print eliot, line, ret
         return ret
 
     # 三种最基本的走势定义
