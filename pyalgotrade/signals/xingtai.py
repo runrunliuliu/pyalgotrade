@@ -1,4 +1,5 @@
 # coding:utf-8
+import logging
 import json
 import copy
 import numpy as np
@@ -9,6 +10,7 @@ from pyalgotrade.utils import qsLineFit
 class XINGTAI(object):
 
     def __init__(self):
+        self.__logger  = logging.getLogger('XINGTAI')
         # final output
         self.__nqs    = 0
         self.__preqs  = 0
@@ -1179,15 +1181,21 @@ class XINGTAI(object):
         if check == 1:
             eliot['num']          = num + 1
             eliot['st'][num + 1]  = line
+
+        # 形成子浪
         if check == 0:
-            tmp = dict()
-            tmp[0] = eliot['st'][num - 1]
-            tmp[1] = eliot['st'][num]
-            tmp[2] = line
-            son['st']  = tmp
-            son['num'] = 2
-            son['fz']  = eliot['st'][num - 2]
-            son['son'] = dict()
+            if line[1] == eliot['st'][num][1]:
+                self.__logger.log(logging.ERROR, 'Drop_line: %s %s', \
+                                  line[0][0].strftime(self.__format), line[0][1])
+            else:
+                tmp = dict()
+                tmp[0] = eliot['st'][num - 1]
+                tmp[1] = eliot['st'][num]
+                tmp[2] = line
+                son['st']  = tmp
+                son['num'] = 2
+                son['fz']  = eliot['st'][num - 2]
+                son['son'] = dict()
         eliot['son'] = son
         return eliot
 
