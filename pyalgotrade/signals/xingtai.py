@@ -133,7 +133,7 @@ class XINGTAI(object):
         self.chixu()
         self.klines()
         self.zhouqi()
-        # self.EliotWave5()
+        self.EliotWave5()
 
     def retJSON(self):
         out = dict()
@@ -1083,6 +1083,7 @@ class XINGTAI(object):
             s = show(eliot['son'])
         ret['f'] = f
         ret['s'] = s
+        print dateTime, f, s
         return ret
         
     # 艾略特标准五浪结构解析
@@ -1209,6 +1210,12 @@ class XINGTAI(object):
             ret = 1
         else:
             index = eliot['num'] - 1
+
+            # 新的一比时间错误，放弃
+            if line[0][0] <= st[index + 1][0][0]:
+                ret = -1
+                return ret
+
             if st[0][1] == 1 and line[0][1] <= st[index][0][1]:
                 ret = 1
             if st[0][1] == -1 and line[0][1] >= st[index][0][1]:
