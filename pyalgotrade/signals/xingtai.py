@@ -1086,7 +1086,6 @@ class XINGTAI(object):
             s = show(eliot['son'])
         ret['f'] = f
         ret['s'] = s
-        print dateTime, f, s
         return ret
         
     # 艾略特标准五浪结构解析
@@ -1264,8 +1263,6 @@ class XINGTAI(object):
                 ret = 2
             if index > 0 and st[0][1] == 1 and line[0][1] > st[0][0][1]:
                 ret = 2
-
-            print eliot, line, ret
         return ret
 
     # 三种最基本的走势定义
