@@ -1102,7 +1102,11 @@ class XINGTAI(object):
                 self.EliotAddLine(line)
             if len(self.__eliotw5) > 0:
                 eliot = self.__eliotw5[-1]
-                self.__eliot = self.EliotShow(dateTime, eliot)
+
+                ret = self.EliotUpRT(eliot)
+                self.__eliotw5[-1] = ret
+
+                self.__eliot = self.EliotShow(dateTime, ret)
 
     # 艾略特一笔的定义
     def EliotLine(self, dateTime):
@@ -1146,16 +1150,33 @@ class XINGTAI(object):
             eliot = self.EliotTrans(eliot)
             self.__eliotw5[-1] = eliot
 
+    # 浪型更新RealTime
+    def EliotUpRT(self, eliot):
+        ret = eliot
+        son = eliot['son']
+        if len(son) > 0:
+            gdp = self.__gdp[3]
+            if eliot['st'][0][1] == 1 and gdp['v'] > son['fz2'][0][1]:
+                ret = eliot['son']
+            if eliot['st'][0][1] == -1 and gdp['v'] < son['fz2'][0][1]:
+                ret = eliot['son']
+        return ret
+
     # 子浪转主浪
     def EliotTrans(self, eliot):
         ret = eliot
         son = eliot['son']
         if len(son) > 0:
-            if son['st'][0][1] == -1 and son['fz'][0][1] < son['st'][son['num']][0][1]:
+            last = son['st'][son['num']][0][1]
+            if son['st'][0][1] == -1 and son['fz1'][0][1] < last:
                 ret = eliot['son']
-            if son['st'][0][1] == 1 and son['fz'][0][1] > son['st'][son['num']][0][1]:
+            if son['st'][0][1] == 1 and son['fz1'][0][1] > last:
                 ret = eliot['son']
             # 加入新的反转，子浪破了主浪的结构
+            if eliot['st'][0][1] == 1 and last > son['fz2'][0][1]:
+                ret = eliot['son']
+            if eliot['st'][0][1] == -1 and last < son['fz2'][0][1]:
+                ret = eliot['son']
         return ret
 
     # 加入主浪
@@ -1199,7 +1220,8 @@ class XINGTAI(object):
                 tmp[2] = line
                 son['st']  = tmp
                 son['num'] = 2
-                son['fz']  = eliot['st'][num - 2]
+                son['fz1']  = eliot['st'][num - 2]
+                son['fz2']  = eliot['st'][0]
                 son['son'] = dict()
         eliot['son'] = son
         return eliot
