@@ -28,6 +28,8 @@ class XINGTAI(object):
         self.__peekdays   = set()
         self.__valleydays = set()
        
+        self.__gdp = None
+
         # QUSHI HISTORY
         self.__hist_qs     = collections.ListDeque(60)
 
@@ -369,18 +371,17 @@ class XINGTAI(object):
             if len(ret) > 0:
                 self.__hist_whead.append(ret)
 
-        gdp = None
         if self.__nowgd is not None:
             ngd = self.__nowgd.strftime(self.__format)
             ngv = self.__low[self.__nowgd] 
             if self.__direct == -1:
                 ngv = self.__high[self.__nowgd]
-            gdp = (ngd, ngv, self.__direct, {'d': ngd, 'v': ngv})
+            self.__gdp = (ngd, ngv, self.__direct, {'d': ngd, 'v': ngv})
 
-        self.__mhead = self.getHistXingTai(self.__hist_mhead, dateTime, gdp)
-        self.__whead = self.getHistXingTai(self.__hist_whead, dateTime, gdp)
-        self.__hsb   = self.getHistXingTai(self.__hist_hsb, dateTime, gdp)
-        self.__hsp   = self.getHistXingTai(self.__hist_hsp, dateTime, gdp)
+        self.__mhead = self.getHistXingTai(self.__hist_mhead, dateTime, self.__gdp)
+        self.__whead = self.getHistXingTai(self.__hist_whead, dateTime, self.__gdp)
+        self.__hsb   = self.getHistXingTai(self.__hist_hsb, dateTime, self.__gdp)
+        self.__hsp   = self.getHistXingTai(self.__hist_hsp, dateTime, self.__gdp)
 
     # M头精准定义
     def MHead(self, dateTime):
@@ -1084,8 +1085,12 @@ class XINGTAI(object):
         f = show(eliot)
         if len(eliot['son']) > 0:
             s = show(eliot['son'])
-        ret['f'] = f
-        ret['s'] = s
+        ret['f']   = f
+        ret['s']   = s
+        gdp = {}
+        if self.__gdp is not None:
+            gdp = self.__gdp[3]
+        ret['gdp'] = gdp
         return ret
         
     # 艾略特标准五浪结构解析
@@ -1150,6 +1155,7 @@ class XINGTAI(object):
                 ret = eliot['son']
             if son['st'][0][1] == 1 and son['fz'][0][1] > son['st'][son['num']][0][1]:
                 ret = eliot['son']
+            # 加入新的反转，子浪破了主浪的结构
         return ret
 
     # 加入主浪
@@ -1248,7 +1254,7 @@ class XINGTAI(object):
                 ret = 1
             if st[0][1] == -1 and line[0][1] >= st[index][0][1]:
                 ret = 1
-            # 反转
+            # 新加入一笔导致当前浪破位, 结束当前浪，反转
             if index == 0 and st[index + 1][1] == 1 and line[0][1] < st[0][0][1]:
                 ret = 2
             if index == 0 and st[index + 1][1] == -1 and line[0][1] > st[0][0][1]:
