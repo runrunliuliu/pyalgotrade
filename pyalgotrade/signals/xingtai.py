@@ -1247,6 +1247,22 @@ class XINGTAI(object):
             eliot['son'] = dict()
             check = self.EliotCheck(eliot, line)
             eliot = self.EliotAdd2Dad(eliot, line, check)
+        if check == 4:
+            maxv = -1
+            minv = 100
+            adds = None
+            num  = son['num']
+            for i in range(0, num + 1):
+                if son['st'][i][1] == -1 and son['st'][i][0][1] < minv:
+                    minv = son['st'][i][0][1]
+                    adds = son['st'][i]
+                if son['st'][i][1] == 1 and son['st'][i][0][1] > maxv:
+                    maxv = son['st'][i][0][1]
+                    adds = son['st'][i]
+            eliot['st'][eliot['num']] = adds
+            eliot['son'] = dict()
+            check = self.EliotCheck(eliot, line)
+            eliot = self.EliotAdd2Dad(eliot, line, check)
         return 1
 
     # 艾略特检测
@@ -1257,7 +1273,6 @@ class XINGTAI(object):
             ret = 1
         else:
             index = eliot['num'] - 1
-
             # 新的一比时间错误，放弃
             if line[0][0] <= st[index + 1][0][0]:
                 ret = -1
@@ -1287,10 +1302,12 @@ class XINGTAI(object):
             if index > 0 and st[0][1] == -1 and st[index + 1][1] == 1 and line[0][1] < st[index][0][1] \
                     and st[index + 1][0][1] > st[index][0][1]:
                 ret = 2
+
+            # 子浪破位，下降浪找低点，上升浪找高点
             if index > 0 and st[0][1] == -1 and line[0][1] < st[0][0][1]:
-                ret = 2
+                ret = 4
             if index > 0 and st[0][1] == 1 and line[0][1] > st[0][0][1]:
-                ret = 2
+                ret = 4
         return ret
 
     # 三种最基本的走势定义
