@@ -385,6 +385,18 @@ class KLineEventWindow(technical.EventWindow):
             self.__candles.append(ret)
         return ret
 
+    # 获取最近的一个缺口
+    def LastGAP(self, dateTime, values):
+        ret = {}
+        if len(self.__gaps) > 0:
+            lev1 = self.__gaps[-1][1][2]
+            lev2 = self.__gaps[-1][1][3]
+            ret['nm']   = 'lastgap'
+            ret['l1'] = lev1
+            ret['l2'] = lev2
+            self.__candles.append(ret)
+        return ret
+
     # 跳空缺口形态
     def JumpGAP(self, dateTime, values):
         ret = {}
@@ -788,11 +800,12 @@ class KLineEventWindow(technical.EventWindow):
             self.__belt  = self.BELT(dateTime, values[-1])
             self.__efed  = self.Engulfed(dateTime, values)
             self.__pgant = self.Pregnant(dateTime, values)
-            self.__island = self.IslandReverse(dateTime)
-            self.__pierce = self.Piercing(dateTime, values)
-            self.__jump   = self.JumpGAP(dateTime, values)
-            self.__nxz    = self.NZX(dateTime, values)
-            self.__yzbk   = self.YZB(dateTime, values)
+            self.__island  = self.IslandReverse(dateTime)
+            self.__pierce  = self.Piercing(dateTime, values)
+            self.__jump    = self.JumpGAP(dateTime, values)
+            self.__nxz     = self.NZX(dateTime, values)
+            self.__yzbk    = self.YZB(dateTime, values)
+            self.__lastgap = self.LastGAP(dateTime, values)
 
             self.__cdlist.append((dateTime, self.__candles))
 
