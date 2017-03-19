@@ -394,6 +394,7 @@ class KLineEventWindow(technical.EventWindow):
             ret['nm']   = 'lastgap'
             ret['l1'] = lev1
             ret['l2'] = lev2
+            ret['dt'] = self.__gaps[-1][0].strftime(self.__sharePars[1])
             self.__candles.append(ret)
         return ret
 
