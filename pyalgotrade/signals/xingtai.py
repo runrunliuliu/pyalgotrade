@@ -1237,16 +1237,31 @@ class XINGTAI(object):
             if tmp0[1] == 1 and line[0][1] > tmp0[0][1]:
                 son['st'][num] = line
             eliot['son'] = son
+
+        # 更新子浪
         if check == 1:
             son['num']            = son['num'] + 1
             son['st'][son['num']] = line
             eliot['son'] = son
+            num = eliot['num']
+
+            # 如果子浪形成新高或者新低更新父浪
+            if eliot['st'][0][1] == 1 and son['st'][0][1] == -1 \
+                    and eliot['st'][num][1] == 1 and line[1] == 1 \
+                    and line[0][1] > eliot['st'][num][0][1]:
+                eliot['st'][num] = line
+            if eliot['st'][0][1] == -1 and son['st'][0][1] == 1 \
+                    and eliot['st'][num][1] == -1 and line[1] == -1 \
+                    and line[0][1] < eliot['st'][num][0][1]:
+                eliot['st'][num] = line
+
         if check == 2:
             sonlast = son['st'][son['num']]
             eliot['st'][eliot['num']] = sonlast
             eliot['son'] = dict()
             check = self.EliotCheck(eliot, line)
             eliot = self.EliotAdd2Dad(eliot, line, check)
+
         if check == 4:
             maxv = -1
             minv = 100
