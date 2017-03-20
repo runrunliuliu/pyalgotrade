@@ -58,6 +58,8 @@ class KLineEventWindow(technical.EventWindow):
         self.__dtzq    = OrderedDict()
         self.__zq      = 0
 
+        self.__tphp   = None
+
     def setParameters(self, tmpars):
         self.__sharePars = tmpars 
 
@@ -385,6 +387,41 @@ class KLineEventWindow(technical.EventWindow):
             self.__candles.append(ret)
         return ret
 
+    # 爆阳横盘
+    def TPHP(self, dateTime, values):
+        ret    = {}
+        update = 0
+        nbar   = self.BarStatus(values[-1])
+        neibor = self.NeighborBarStatus(values[-1], values[-2])
+        if nbar is not None and nbar[0] > 0.08 and nbar[1] > 0.8 \
+                and neibor[1] > 0.09 and neibor[3] > 2.0:
+            self.__tphp = (dateTime, values[-1])
+            update = 1
+
+        # 第一次更新过滤
+        if update == 1:
+            return ret
+
+        if update == 0 and self.__tphp is not None:
+            flag = 1
+            zq = self.__dtzq[dateTime] - self.__dtzq[self.__tphp[0]]
+            if zq > 15:
+                flag = 0
+            if values[-1].getVolume() / self.__tphp[1].getVolume() > 1.0:
+                flag = 0
+            if values[-1].getClose() / self.__tphp[1].getClose() > 1.05:
+                flag = 0
+            if values[-1].getClose() / self.__tphp[1].getClose() < 0.95:
+                flag = 0
+            # 突破横盘状态中
+            if flag == 1:
+                ret['zq'] = zq
+                ret['nm'] = 'tphp'
+                self.__candles.append(ret)
+            # 突破无效
+            if flag == 0:
+                self.__tphp = None
+
     # 获取最近的一个缺口
     def LastGAP(self, dateTime, values):
         ret = {}
@@ -615,6 +652,8 @@ class KLineEventWindow(technical.EventWindow):
         lw1 = day1.getLow()
         cl1 = day1.getClose()
 
+        lb  = day0.getVolume() / day1.getVolume()
+
         # T-1日阴阳
         last = cl1
         if cl1 > op1:
@@ -638,7 +677,7 @@ class KLineEventWindow(technical.EventWindow):
             self.__gapindex = self.__gapindex + 1
             gap = ((hi0 - lw1) / lw1, (up - lw1) / lw1, hi0, lw1, -1, 0, self.__gapindex, hi0, lw1)
 
-        return (jump, diefu, gap)
+        return (jump, diefu, gap, lb)
 
     # 加入GAP进入GAP列表, Remove填平的GAPs
     # attr表示缺口与前邻关系，abs(attr)表示同方向个数
@@ -762,7 +801,7 @@ class KLineEventWindow(technical.EventWindow):
             shying = bars[4]
             xaying = bars[5]
         # 相邻K线状态
-        (jump, diefu, gap) = self.NeighborBarStatus(day0, day1)
+        (jump, diefu, gap, lb) = self.NeighborBarStatus(day0, day1)
         return (jump, diefu, shying, xaying, zhenfu, gap)
 
     def onNewValue(self, dateTime, value):
@@ -807,6 +846,8 @@ class KLineEventWindow(technical.EventWindow):
             self.__nxz     = self.NZX(dateTime, values)
             self.__yzbk    = self.YZB(dateTime, values)
             self.__lastgap = self.LastGAP(dateTime, values)
+            
+            self.TPHP(dateTime, values)
 
             self.__cdlist.append((dateTime, self.__candles))
 
