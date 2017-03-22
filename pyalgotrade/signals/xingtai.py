@@ -910,6 +910,7 @@ class XINGTAI(object):
                     new5 = new5 + (w5[i], )
             return new5
 
+        step = 1
         while(i < len(QS) + 1):
             q = QS[-1 * i]
            
