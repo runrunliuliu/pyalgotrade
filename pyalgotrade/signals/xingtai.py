@@ -20,6 +20,8 @@ class XINGTAI(object):
         self.__jd     = {}
         self.__szl    = {}
 
+        self.__dtd    = {}
+
         self.__speedqs = {}
 
         self.__incsector = []
@@ -40,6 +42,9 @@ class XINGTAI(object):
 
         self.__eliotw5 = []
         self.__eliot   = dict()
+        
+        self.__tmp_eliotw5 = []
+        self.__recursion   = 0
        
         # MHead历史数据
         self.__hist_mhead = []
@@ -52,6 +57,9 @@ class XINGTAI(object):
         self.__hist_hsb  = []
         # HeadShouldersPeek
         self.__hist_hsp  = []
+        
+        # 趋势线
+        self.__hist_qsl  = []
 
         # Triangle
         self.__hist_triangle  = collections.ListDeque(20)
@@ -122,6 +130,7 @@ class XINGTAI(object):
         self.__score    = float("{:.2f}".format(tups[15]))
         self.__masigs   = tups[16]
         self.__macdsigs = tups[17]
+        self.__nowval   = tups[18]
 
         self.__gd = dict()
         if len(self.__macdsigs) > 0:
@@ -358,6 +367,9 @@ class XINGTAI(object):
         self.__szl     = self.getSZLine(dateTime)
         self.__speedqs = self.getSpeedQs(dateTime) 
 
+        # 大通道
+        self.__dtd = self.getQSLine(dateTime)
+
     # 反转
     def fanzhuan(self):
         dateTime = self.__nowdt
@@ -456,6 +468,8 @@ class XINGTAI(object):
                          ret['l2']['p1'], \
                          ret['l1']['p2'], \
                          ret['l2']['p2']]
+
+            ret['dtd'] = self.__dtd
 
         return ret
 
@@ -626,7 +640,69 @@ class XINGTAI(object):
         if len(hsp[0]) > 0:
             self.__hist_hsp.append(hsp)
 
+        # 计算趋势线
+        qsl = self.qsLine(dateTime, wave5)
+        if len(qsl) > 0:
+            self.__hist_qsl.append(qsl)
+
         return (dateTime, ret)
+
+    def getW5Struct(self, wave5):
+        vall = []
+        peek = []
+        w5    = wave5[1]
+        if len(w5) < 3:
+            return None 
+
+        d1 = w5[0][8][0]
+        d2 = w5[0][8][1]
+        d3 = w5[0][8][2]
+        d4 = w5[1][8][2]
+        d5 = w5[1][8][3]
+        d6 = w5[2][8][3]
+ 
+        v1 = w5[0][5][0]['v']
+        v2 = w5[0][5][1]['v']
+        v3 = w5[0][5][2]['v']
+        v4 = w5[1][5][2]['v']
+        v5 = w5[1][5][3]['v']
+        v6 = w5[2][5][3]['v']
+
+        # 奇数
+        odd  = [(d1, v1), (d3, v3), (d5, v5)]
+        # 偶数
+        even = [(d2, v2), (d4, v4), (d6, v6)]
+
+        peek = even
+        vall = odd
+        if w5[0][0] < 2000:
+            peek = odd
+            vall = even
+        return (peek, vall) 
+ 
+    # 计算趋势线
+    def qsLine(self, dateTime, wave5):
+        ret   = []
+        w5st  = self.getW5Struct(wave5)
+        if w5st is not None:
+            peek = w5st[0]
+            vall = w5st[1]
+            def gen(arr):
+                t13 = (arr[0][0], arr[0][1], arr[1][0], arr[1][1]) 
+                p13 = qsLineFit.QsLineFit.initFromTuples(t13, self.__dtzq)
+
+                t15 = (arr[0][0], arr[0][1], arr[2][0], arr[2][1]) 
+                p15 = qsLineFit.QsLineFit.initFromTuples(t15, self.__dtzq)
+
+                t35 = (arr[1][0], arr[1][1], arr[2][0], arr[2][1]) 
+                p35 = qsLineFit.QsLineFit.initFromTuples(t35, self.__dtzq)
+
+                return (p13, p15, p35)
+
+            pl = gen(peek)
+            vl = gen(vall)
+            ret = [pl, vl]
+        return ret
 
     # 计算三重底
     def triBottom(self, dateTime, wave5):
@@ -827,8 +903,18 @@ class XINGTAI(object):
                 used.add(item)
             return (w5, used)
 
+        def remove(w5, indict):
+            new5 = ()
+            for i in range(0, len(w5)):
+                if i not in indict:
+                    new5 = new5 + (w5[i], )
+            return new5
+
         while(i < len(QS) + 1):
             q = QS[-1 * i]
+           
+            # FOR DEBUG
+            # print dateTime, i, q, w5
             # 基本结构无minbar
             if q[-1] == -1:
                 if i == 1:
@@ -856,8 +942,14 @@ class XINGTAI(object):
                 if i == len(QS):
                     (w5, used) = add(w5, used, q[8][0:3])
                 else:
-                    (w5, used) = add(w5, used, q[8][0:2])
-                step = 1
+                    if q[0] == 1302 or q[0] == 2102:
+                        num = len(w5)
+                        w5  = remove(w5, {num - 1})
+                        (w5, used) = add(w5, used, (q[8][3],))
+                        step = 2
+                    else:
+                        (w5, used) = add(w5, used, q[8][0:2])
+                        step = 1
             if i == len(QS) - 1:
                 step = 1
             i = i + step
@@ -948,6 +1040,33 @@ class XINGTAI(object):
                     nstatus = 0
 
         return (nstatus, neighbb)
+
+    # 获取qsLine，至少一条线
+    def getQSLine(self, dateTime):
+        val = self.__nowval
+        ret = {}
+        if len(self.__hist_qsl) == 0:
+            return ret
+        qsl = self.__hist_qsl[-1]
+
+        nind = self.__dtzq[dateTime]
+
+        def getNearest(tup, val):
+            minx = 100000000000  
+            mind = 0
+            for i in range(0, len(tup)):
+                nval = tup[i].compute(nind)
+                if abs(val - nval) < minx:
+                    minx = abs(val - nval)
+                    mind = i
+            return tup[mind]
+
+        l1 = getNearest(qsl[0], val.getClose())
+        l2 = getNearest(qsl[1], val.getClose())
+
+        ret['l1'] = l1.toDICT(nind)
+        ret['l2'] = l2.toDICT(nind)
+        return ret
    
     # 获取速阻线
     def getSZLine(self, dateTime):
@@ -1081,16 +1200,25 @@ class XINGTAI(object):
                 tmp['num'] = i
                 ret.append(tmp)
             return ret
+        lastdt = eliot['st'][eliot['num']][0][0]
         s = []
         f = show(eliot)
         if len(eliot['son']) > 0:
             s = show(eliot['son'])
+            tmp = eliot['son']
+            lastdt = tmp['st'][tmp['num']][0][0]
         ret['f']   = f
         ret['s']   = s
         gdp = {}
         if self.__gdp is not None:
             gdp = self.__gdp[3]
         ret['gdp'] = gdp
+
+        if len(self.__tmp_eliotw5) > 0:
+            tmpeliot = self.__tmp_eliotw5[-1]
+            if tmpeliot['st'][tmpeliot['num']][0][0] > lastdt:
+                t = show(tmpeliot)
+                ret['g'] = t
         return ret
         
     # 艾略特标准五浪结构解析
@@ -1099,7 +1227,7 @@ class XINGTAI(object):
         line = self.EliotLine(dateTime)
         if line is not None:
             if self.__update == 1:
-                self.EliotAddLine(line)
+                self.EliotAddLine(line, self.__eliotw5)
             if len(self.__eliotw5) > 0:
                 eliot = self.__eliotw5[-1]
 
@@ -1129,26 +1257,26 @@ class XINGTAI(object):
         return line
    
     # 增加一笔
-    def EliotAddLine(self, line):
+    def EliotAddLine(self, line, eliotw5):
         eliot = dict()
-        if len(self.__eliotw5) > 0:
-            eliot = self.__eliotw5[-1]
+        if len(eliotw5) > 0:
+            eliot = eliotw5[-1]
         if len(eliot) == 0:
             tmp    = dict()
             tmp[0] = line
             eliot['st']  = tmp
             eliot['num'] = 0
             eliot['son'] = dict()
-            self.__eliotw5.append(eliot)
+            eliotw5.append(eliot)
         else:
             if len(eliot['son']) > 0:
                 check = self.EliotCheck(eliot['son'], line)
-                self.EliotAdd2Son(eliot, line, check)
+                self.EliotAdd2Son(eliot, line, check, eliotw5)
             else:
                 check = self.EliotCheck(eliot, line)
-                eliot = self.EliotAdd2Dad(eliot, line, check)
+                eliot = self.EliotAdd2Dad(eliot, line, check, eliotw5)
             eliot = self.EliotTrans(eliot)
-            self.__eliotw5[-1] = eliot
+            eliotw5[-1] = eliot
 
     # 浪型更新RealTime
     def EliotUpRT(self, eliot):
@@ -1180,7 +1308,7 @@ class XINGTAI(object):
         return ret
 
     # 加入主浪
-    def EliotAdd2Dad(self, eliot, line, check):
+    def EliotAdd2Dad(self, eliot, line, check, eliotw5):
         num = eliot['num']
         son = eliot['son']
 
@@ -1201,7 +1329,7 @@ class XINGTAI(object):
             newe['st']  = tmp 
             newe['num'] = 1
             newe['son'] = dict()
-            self.__eliotw5.append(newe)
+            eliotw5.append(newe)
             return newe
 
         if check == 1:
@@ -1227,15 +1355,23 @@ class XINGTAI(object):
         return eliot
 
     # 加入子浪
-    def EliotAdd2Son(self, eliot, line, check):
+    def EliotAdd2Son(self, eliot, line, check, eliotw5):
         son = eliot['son']
         if check == 0:
-            num  = son['num']
-            tmp0 = son['st'][num]
+            num    = son['num']
+            tmp0   = son['st'][num]
             if tmp0[1] == -1 and line[0][1] < tmp0[0][1]:
                 son['st'][num] = line
             if tmp0[1] == 1 and line[0][1] > tmp0[0][1]:
                 son['st'][num] = line
+            # if change == 0 and self.__recursion < 1:
+            #     self.__recursion = self.__recursion + 1
+            #     self.EliotAddLine(line, self.__tmp_eliotw5)
+            #     if len(self.__tmp_eliotw5) > 0:
+            #         tmp = self.__tmp_eliotw5[-1]
+            #         ret = self.EliotUpRT(tmp)
+            #         self.__tmp_eliotw5[-1] = ret
+            #     self.__recursion = self.__recursion - 1 
             eliot['son'] = son
 
         # 更新子浪
@@ -1260,7 +1396,7 @@ class XINGTAI(object):
             eliot['st'][eliot['num']] = sonlast
             eliot['son'] = dict()
             check = self.EliotCheck(eliot, line)
-            eliot = self.EliotAdd2Dad(eliot, line, check)
+            eliot = self.EliotAdd2Dad(eliot, line, check, eliotw5)
 
         if check == 4:
             maxv = -1
@@ -1277,7 +1413,7 @@ class XINGTAI(object):
             eliot['st'][eliot['num']] = adds
             eliot['son'] = dict()
             check = self.EliotCheck(eliot, line)
-            eliot = self.EliotAdd2Dad(eliot, line, check)
+            eliot = self.EliotAdd2Dad(eliot, line, check, eliotw5)
         return 1
 
     # 艾略特检测
