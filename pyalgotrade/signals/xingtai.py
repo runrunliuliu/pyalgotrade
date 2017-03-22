@@ -1074,7 +1074,7 @@ class XINGTAI(object):
                 yuzhi = 0.05
             for q in qsl:
                 nval = q.compute(nind)
-                if abs(close - nval) / nval < yuzhi:
+                if abs(close - nval) / (nval + 0.00000001) < yuzhi:
                     ck = 1
                     break
             # 在通道内部
