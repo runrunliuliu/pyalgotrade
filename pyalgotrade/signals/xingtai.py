@@ -20,7 +20,7 @@ class XINGTAI(object):
         self.__jd     = {}
         self.__szl    = {}
 
-        self.__dtd    = {}
+        self.__dtd = {}
 
         self.__speedqs = {}
 
@@ -60,6 +60,7 @@ class XINGTAI(object):
         
         # 趋势线
         self.__hist_qsl  = []
+        self.__spec_qsl  = []
 
         # Triangle
         self.__hist_triangle  = collections.ListDeque(20)
@@ -368,7 +369,7 @@ class XINGTAI(object):
         self.__speedqs = self.getSpeedQs(dateTime) 
 
         # 大通道
-        self.__dtd = self.getQSLine(dateTime)
+        self.__dtd = self.getDATD(dateTime)
 
     # 反转
     def fanzhuan(self):
@@ -616,6 +617,7 @@ class XINGTAI(object):
     def computeWave5(self, dateTime, wave5):
         ret = dict()
 
+        ret['w5']  = wave5
         # 计算速阻线
         szline = self.szline(self.__nowdt, wave5)
         ret['szx'] = szline
@@ -642,7 +644,7 @@ class XINGTAI(object):
 
         # 计算趋势线
         qsl = self.qsLine(dateTime, wave5)
-        if len(qsl) > 0:
+        if len(qsl[0]) > 0:
             self.__hist_qsl.append(qsl)
 
         return (dateTime, ret)
@@ -682,27 +684,41 @@ class XINGTAI(object):
  
     # 计算趋势线
     def qsLine(self, dateTime, wave5):
+        def gen(arr, flag):
+            t13 = (arr[0][0], arr[0][1], arr[1][0], arr[1][1])
+            p13 = qsLineFit.QsLineFit.initFromTuples(t13, self.__dtzq)
+            t15 = (arr[0][0], arr[0][1], arr[2][0], arr[2][1])
+            p15 = qsLineFit.QsLineFit.initFromTuples(t15, self.__dtzq)
+            t35 = (arr[1][0], arr[1][1], arr[2][0], arr[2][1])
+            p35 = qsLineFit.QsLineFit.initFromTuples(t35, self.__dtzq)
+
+            def check(qsfit, dt, val, flag):
+                ret = 0
+                ind = self.__dtzq[dt]
+                pval = qsfit.compute(ind)
+                if (pval - val) * flag < 0:
+                    ret = 1
+                return (ret, qsfit.getWindows(), qsfit)
+
+            ck13 = check(p13, arr[2][0], arr[2][1], flag)
+            ck15 = check(p15, arr[1][0], arr[1][1], flag)
+            ck35 = check(p35, arr[0][0], arr[0][1], flag)
+
+            tmp = ck13
+            for k in [ck15, ck35]:
+                if k[0] == 1 and k[1] > tmp[1]:
+                    tmp = k
+            return tmp[2]
         ret   = []
+        # 前一个5浪
         w5st  = self.getW5Struct(wave5)
         if w5st is not None:
             peek = w5st[0]
             vall = w5st[1]
-            def gen(arr):
-                t13 = (arr[0][0], arr[0][1], arr[1][0], arr[1][1]) 
-                p13 = qsLineFit.QsLineFit.initFromTuples(t13, self.__dtzq)
-
-                t15 = (arr[0][0], arr[0][1], arr[2][0], arr[2][1]) 
-                p15 = qsLineFit.QsLineFit.initFromTuples(t15, self.__dtzq)
-
-                t35 = (arr[1][0], arr[1][1], arr[2][0], arr[2][1]) 
-                p35 = qsLineFit.QsLineFit.initFromTuples(t35, self.__dtzq)
-
-                return (p13, p15, p35)
-
-            pl = gen(peek)
-            vl = gen(vall)
+            pl = gen(peek, -1)
+            vl = gen(vall, 1)
             ret = [pl, vl]
-        return ret
+        return (ret, wave5[0])
 
     # 计算三重底
     def triBottom(self, dateTime, wave5):
@@ -884,7 +900,7 @@ class XINGTAI(object):
         if aqs[0][0] == 2102 and (aqs[2][0] == 2102 or aqs[2][0] == 2103):
             return (1, aqs)
         # 下降浪
-        if aqs[0][0] == 1302 and (aqs[2][0] == 1302 or aqs[2][0] == 1301):
+        if (aqs[0][0] == 1302 or aqs[0][0] == 1202 ) and (aqs[2][0] == 1302 or aqs[2][0] == 1301):
             return (-1, aqs)
         # 其他
         return (0, aqs)
@@ -1043,30 +1059,50 @@ class XINGTAI(object):
         return (nstatus, neighbb)
 
     # 获取qsLine，至少一条线
-    def getQSLine(self, dateTime):
-        val = self.__nowval
+    def getDATD(self, dateTime):
         ret = {}
+        nind = self.__dtzq[dateTime]
         if len(self.__hist_qsl) == 0:
             return ret
-        qsl = self.__hist_qsl[-1]
+        qsl  = self.__hist_qsl[-1]
+        # 检查当前是否在通道附近, 或者在通道内部
+        def check(qsl, val):
+            close = val.getClose()
+            ck    = 0
+            yuzhi = 0.10
+            if self.__inst[0:2] == 'ZS':
+                yuzhi = 0.05
+            for q in qsl:
+                nval = q.compute(nind)
+                if abs(close - nval) / nval < yuzhi:
+                    ck = 1
+                    break
+            # 在通道内部
+            if close <= qsl[0].compute(nind) and close >= qsl[1].compute(nind):
+                ck = 1
+            # 通道已经交叉
+            if qsl[0].compute(nind) <= qsl[1].compute(nind):
+                ck = 0
+            return ck
 
-        nind = self.__dtzq[dateTime]
+        val = self.__nowval
 
-        def getNearest(tup, val):
-            minx = 100000000000  
-            mind = 0
-            for i in range(0, len(tup)):
-                nval = tup[i].compute(nind)
-                if abs(val - nval) < minx:
-                    minx = abs(val - nval)
-                    mind = i
-            return tup[mind]
-
-        l1 = getNearest(qsl[0], val.getClose())
-        l2 = getNearest(qsl[1], val.getClose())
+        # 计算大通道, 默认是当前五浪，需要检查最近的一次明显趋势通道
+        l1   = qsl[0][0]
+        l2   = qsl[0][1]
+        spec = None
+        if len(self.__spec_qsl) > 0:
+            spec = self.__spec_qsl[-1]
+        if spec is not None and check(spec[0], val) == 1:
+            l1 = spec[0][0]
+            l2 = spec[0][1]
 
         ret['l1'] = l1.toDICT(nind)
         ret['l2'] = l2.toDICT(nind)
+
+        # ADD SPECIAL to HISTORY
+        if qsl[1] != 0:
+            self.__spec_qsl.append(qsl)
         return ret
    
     # 获取速阻线
