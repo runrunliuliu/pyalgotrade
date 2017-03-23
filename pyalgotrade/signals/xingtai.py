@@ -474,6 +474,29 @@ class XINGTAI(object):
 
         return ret
 
+    # 获取triangle形态的名字
+    def getTriangleName(self, dateTime, pl, vl):
+        xtname = 'NULL'
+        # 阀值参数parameters
+        slope_rt = 3 
+        # slope_b = 0.001
+        # slope_t = 0.0005
+        # if self.__period == '30min':
+        #     slope_t = 0.0001
+        # if self.__period == '60min':
+        #     slope_t = 0.0001
+
+        pslope = pl.getSlope() 
+        vslope = vl.getSlope()
+
+        # 喇叭形
+        if (pslope > 0 and vslope < 0 ) or \
+                (pslope > 0 and vslope > 0 and pslope / vslope > slope_rt) or \
+                (pslope < 0 and vslope < 0 and pslope / vslope > slope_rt):
+            xtname = 'trumptriangle'
+
+        return xtname
+
     # 多种形态
     def triangle(self, dateTime, preqs):
         xtname = 'NULL'
@@ -1077,11 +1100,17 @@ class XINGTAI(object):
                 if abs(close - nval) / (nval + 0.00000001) < yuzhi:
                     ck = 1
                     break
+            up = qsl[0].compute(nind)
+            dn = qsl[1].compute(nind)
             # 在通道内部
-            if close <= qsl[0].compute(nind) and close >= qsl[1].compute(nind):
+            if close <= up and close >= dn:
                 ck = 1
             # 通道已经交叉
-            if qsl[0].compute(nind) <= qsl[1].compute(nind):
+            if up <= dn:
+                ck = 0
+            # 在喇叭形的通道内部
+            if close < up * 0.90 and close > dn * 1.10 \
+                    and self.getTriangleName(dateTime, qsl[0], qsl[1]) == 'trumptriangle':
                 ck = 0
             return ck
 
