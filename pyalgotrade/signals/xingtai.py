@@ -1097,7 +1097,7 @@ class XINGTAI(object):
                 yuzhi = 0.05
             for q in qsl:
                 nval = q.compute(nind)
-                if abs(close - nval) / (nval + 0.00000001) < yuzhi:
+                if abs(close - nval) / abs(nval + 0.00000001) < yuzhi:
                     ck = 1
                     break
             up = qsl[0].compute(nind)
@@ -1122,9 +1122,13 @@ class XINGTAI(object):
         spec = None
         if len(self.__spec_qsl) > 0:
             spec = self.__spec_qsl[-1]
-        if spec is not None and check(spec[0], val) == 1:
-            l1 = spec[0][0]
-            l2 = spec[0][1]
+
+        checkflag = 0
+        if spec is not None:
+            checkflag = check(spec[0], val)
+            if checkflag == 1:
+                l1 = spec[0][0]
+                l2 = spec[0][1]
 
         ret['l1'] = l1.toDICT(nind)
         ret['l2'] = l2.toDICT(nind)
