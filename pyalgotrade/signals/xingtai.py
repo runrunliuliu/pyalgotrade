@@ -2,6 +2,7 @@
 import logging
 import json
 import copy
+import os
 import numpy as np
 from pyalgotrade.utils import collections
 from pyalgotrade.utils import qsLineFit
@@ -82,6 +83,11 @@ class XINGTAI(object):
         self.__fbsq  = {1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144}
         self.__fbsq1 = {2, 4, 7, 12, 20, 33, 54, 88, 143}
 
+        # Load ChanLun Data
+        fname = ''
+        self.__chanlun = self.loadChanLun(fname)
+
+    # 初始化Tuple
     def initTup(self, dateTime, tups):
         self.__nowdt = dateTime
         # 周期
@@ -140,6 +146,17 @@ class XINGTAI(object):
                 self.__gd['v'] = self.__high[self.__nowgd]
             else:
                 self.__gd['v'] = self.__low[self.__nowgd]
+
+    # load chanlun
+    def loadChanLun(self, fname):
+        ret   = []
+        if not os.path.isfile(fname):
+            return ret
+        fname = open(fname, 'r')
+        for l in fname:
+            l = l.strip()
+            ret.append(l)
+        return ret
 
     # Main Module
     def run(self):
@@ -900,6 +917,11 @@ class XINGTAI(object):
             count = count + 1
         return QS
 
+    # 构造wave5define的标准结构，从缠论的顶底分型
+    # 六个点, 只考虑最近的六个点
+    def wave5ChanLun(self, dateTime, p6):
+        pass
+
     # 定义五浪的标准结构
     def wave5define(self, dateTime, w5):
         i   = 0
@@ -952,9 +974,9 @@ class XINGTAI(object):
         step = 1
         while(i < len(QS) + 1):
             q = QS[-1 * i]
-           
+        
             # FOR DEBUG
-            # print dateTime, i, q, w5
+            # print dateTime, i, q, w5, q[-1], q[0]
             # 基本结构无minbar
             if q[-1] == -1:
                 if i == 1:
@@ -966,13 +988,25 @@ class XINGTAI(object):
                 step = 1
             # 基本结构minbar居中
             if q[-1] == 1:
-                if q[0] == 1302 or q[0] == 1301 \
-                        or q[0] == 2102 or q[0] == 2103:
-                    (w5, used) = add(w5, used, (q[8][3],))
-                    step = 2
-                else:
-                    (w5, used) = add(w5, used, (q[8][1],))
+                # 第一个QS需要特殊处理
+                if i == 1:
+                    if q[0] == 1302 or q[0] == 2102:
+                        (w5, used) = add(w5, used, (q[8][0],))
+                    if q[0] == 1202 or q[0] == 2203:
+                        (w5, used) = add(w5, used, (q[8][0],))
+                    if q[0] == 1301 or q[0] == 2103:
+                        (w5, used) = add(w5, used, (q[8][2:4],))
+                    if q[0] == 1101 or q[0] == 1201 or q[0] == 2303 or q[0] == 2204:
+                        (w5, used) = add(w5, used, (q[8][1:3],))
                     step = 1
+                else:
+                    if q[0] == 1302 or q[0] == 1301 \
+                            or q[0] == 2102 or q[0] == 2103:
+                        (w5, used) = add(w5, used, (q[8][3],))
+                        step = 2
+                    else:
+                        (w5, used) = add(w5, used, (q[8][1],))
+                        step = 1
             # 基本结构minbar居始
             if q[-1] == 0:
                 (w5, used) = add(w5, used, q[8][2:4])
@@ -1119,10 +1153,10 @@ class XINGTAI(object):
         # 计算大通道, 默认是当前五浪，需要检查最近的一次明显趋势通道
         l1   = qsl[0][0]
         l2   = qsl[0][1]
+
         spec = None
         if len(self.__spec_qsl) > 0:
             spec = self.__spec_qsl[-1]
-
         checkflag = 0
         if spec is not None:
             checkflag = check(spec[0], val)
