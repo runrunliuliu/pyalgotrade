@@ -995,9 +995,9 @@ class XINGTAI(object):
                     if q[0] == 1202 or q[0] == 2203:
                         (w5, used) = add(w5, used, (q[8][0],))
                     if q[0] == 1301 or q[0] == 2103:
-                        (w5, used) = add(w5, used, (q[8][2:4],))
+                        (w5, used) = add(w5, used, q[8][2:4])
                     if q[0] == 1101 or q[0] == 1201 or q[0] == 2303 or q[0] == 2204:
-                        (w5, used) = add(w5, used, (q[8][1:3],))
+                        (w5, used) = add(w5, used, q[8][1:3])
                     step = 1
                 else:
                     if q[0] == 1302 or q[0] == 1301 \
