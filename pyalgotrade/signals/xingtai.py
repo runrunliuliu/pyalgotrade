@@ -950,13 +950,18 @@ class XINGTAI(object):
     # 六个点, 只考虑最近的六个点
     def wave5ChanLun(self, dateTime):
         # 出现新的拐点
-        nind   = self.__dict_cl[dateTime]
-        w5     = ()
+        nind = self.__dict_cl[dateTime]
+        w5   = ()
+        aqs  = []
+
+        # 至少需要6个拐点
+        if len(self.__list_cl) < 6:
+            return (0, aqs)
+
         for i in range(0, 6):
             p  = self.__list_cl[nind - i]
             w5 = (p,) + w5
-        aqs  = []
-        i    = 0
+        i = 0
         while i < len(w5) - 3:
             direct = 0
             if w5[i][1] == 0:
