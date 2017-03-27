@@ -171,7 +171,6 @@ class XINGTAI(object):
             arr = l.strip().split(',')
             dt = datetime.datetime.strptime(arr[0], "%Y-%m-%d")
             tp = int(arr[1])
-
             ret.append((dt, tp))
             dic[dt] = cnt - 1
 
@@ -959,6 +958,8 @@ class XINGTAI(object):
             return (0, aqs)
 
         for i in range(0, 6):
+            if nind - i < 0:
+                break
             p  = self.__list_cl[nind - i]
             w5 = (p,) + w5
         i = 0
@@ -970,6 +971,7 @@ class XINGTAI(object):
             else:
                 tup = (w5[i+2][0], w5[i+0][0], w5[i+3][0], w5[i+1][0])
                 direct = -1
+
             qs = self.basicQS(tup, direct)
             aqs.append(qs)
             i = i + 1
