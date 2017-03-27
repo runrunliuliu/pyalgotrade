@@ -227,7 +227,7 @@ class XINGTAI(object):
         # qs['trih']     = self.__trih
         qs['hsb']      = self.__hsb
         qs['hsp']      = self.__hsp
-        qs['triangle'] = self.__triangle
+        qs['triangle'] = copy.deepcopy(self.__triangle)
 
         qs['kline'] = self.__kline
 
@@ -319,93 +319,88 @@ class XINGTAI(object):
     # 趋势
     def qushi(self):
         # 至少4段,前完趋势，当前可能趋势
-        ret = None
-        if len(self.__fpeek) < 2:
-            return ret
-        if len(self.__fvalley) < 2:
-            return ret
-
-        peek0 = self.__fpeek[0][0]
-        peek1 = self.__fpeek[1][0]
-        vall0 = self.__fvalley[0][0]
-        vall1 = self.__fvalley[1][0]
-
-        ngdlow  = self.__low[self.__nowgd]
-        ngdhigh = self.__high[self.__nowgd]
-
-        tup = (peek0, peek1, vall0, vall1)
-
-        # add2peekdays
-        self.__peekdays.add(peek0)
-        self.__peekdays.add(peek1)
-        self.__valleydays.add(vall0)
-        self.__valleydays.add(vall1)
-
-        # print self.__nowdt, self.__update, self.__direct, tup
-        bqs = self.basicQS(tup, self.__direct)
-        if self.__update == 1:
-            self.__hist_qs.append(bqs)
-        pqs = bqs[0] 
-        nqs = pqs
-
-        high0 = bqs[1]; low0 = bqs[2]
-        high1 = bqs[3]; low1 = bqs[4]
-
-        if pqs == 1101 or pqs == 1201 or pqs == 1202:
-            if ngdhigh >= high0:
-                nqs = 2102
-            else:
-                nqs = 2203
-        if pqs == 1301 or pqs == 1302:
-            if ngdhigh >= low1 and ngdhigh < high0:
-                nqs = 2204
-            if ngdhigh < low1:
-                nqs = 2303
-            if ngdhigh >= high0:
-                nqs = 2103
-        if pqs == 2102 or pqs == 2103:
-            if ngdlow < high1 and ngdlow > low0:
-                nqs = 1201
-            if ngdlow >= high1: 
-                nqs = 1101
-            if ngdlow <= low0 and pqs == 2103:
-                nqs = 1301
-            if ngdlow <= low0 and pqs == 2102:
-                nqs = 1201
-        if pqs == 2203 or pqs == 2303 or pqs == 2204:
-            if ngdlow >= low0:
-                nqs = 1202
-            else:
-                nqs = 1302
-
-        self.__preqs  = pqs
-        self.__nqs    = nqs
-        self.__struct = bqs[5]
-        self.__gs     = bqs[6]
-
-        nowclose = self.__close[self.__nowdt]
-        self.zcjd(pqs, nowclose, tup)
-
-        self.__incsector = self.incSectorLine(self.__nowdt)
-        self.__dessector = self.desSectorLine(self.__nowdt)
-
         dateTime = self.__nowdt
-        if self.__update == 1:
-            wave5    = self.wave5construct(dateTime)
-            wave5ret = self.computeWave5(dateTime, wave5)
-            if wave5[0] == 1: 
-                self.__histinc_wave5.append(wave5ret)
-            if wave5[0] == -1: 
-                self.__histdes_wave5.append(wave5ret)
-            if wave5[0] == 0: 
-                self.__histhp_wave5.append(wave5ret)
-            self.speedQS(dateTime)
+        if len(self.__fpeek) >= 2 and len(self.__fvalley) >= 2:
+            peek0 = self.__fpeek[0][0]
+            peek1 = self.__fpeek[1][0]
+            vall0 = self.__fvalley[0][0]
+            vall1 = self.__fvalley[1][0]
 
-        self.__szl     = self.getSZLine(dateTime)
-        self.__speedqs = self.getSpeedQs(dateTime) 
+            ngdlow  = self.__low[self.__nowgd]
+            ngdhigh = self.__high[self.__nowgd]
 
-        # 大通道
-        self.__dtd = self.getDATD(dateTime)
+            tup = (peek0, peek1, vall0, vall1)
+
+            # add2peekdays
+            self.__peekdays.add(peek0)
+            self.__peekdays.add(peek1)
+            self.__valleydays.add(vall0)
+            self.__valleydays.add(vall1)
+
+            # print self.__nowdt, self.__update, self.__direct, tup
+            bqs = self.basicQS(tup, self.__direct)
+            if self.__update == 1:
+                self.__hist_qs.append(bqs)
+            pqs = bqs[0] 
+            nqs = pqs
+
+            high0 = bqs[1]; low0 = bqs[2]
+            high1 = bqs[3]; low1 = bqs[4]
+
+            if pqs == 1101 or pqs == 1201 or pqs == 1202:
+                if ngdhigh >= high0:
+                    nqs = 2102
+                else:
+                    nqs = 2203
+            if pqs == 1301 or pqs == 1302:
+                if ngdhigh >= low1 and ngdhigh < high0:
+                    nqs = 2204
+                if ngdhigh < low1:
+                    nqs = 2303
+                if ngdhigh >= high0:
+                    nqs = 2103
+            if pqs == 2102 or pqs == 2103:
+                if ngdlow < high1 and ngdlow > low0:
+                    nqs = 1201
+                if ngdlow >= high1: 
+                    nqs = 1101
+                if ngdlow <= low0 and pqs == 2103:
+                    nqs = 1301
+                if ngdlow <= low0 and pqs == 2102:
+                    nqs = 1201
+            if pqs == 2203 or pqs == 2303 or pqs == 2204:
+                if ngdlow >= low0:
+                    nqs = 1202
+                else:
+                    nqs = 1302
+
+            self.__preqs  = pqs
+            self.__nqs    = nqs
+            self.__struct = bqs[5]
+            self.__gs     = bqs[6]
+
+            nowclose = self.__close[self.__nowdt]
+            self.zcjd(pqs, nowclose, tup)
+
+            self.__incsector = self.incSectorLine(self.__nowdt)
+            self.__dessector = self.desSectorLine(self.__nowdt)
+
+            if self.__update == 1:
+                wave5    = self.wave5construct(dateTime)
+                wave5ret = self.computeWave5(dateTime, wave5)
+                if wave5[0] == 1:
+                    self.__histinc_wave5.append(wave5ret)
+                if wave5[0] == -1:
+                    self.__histdes_wave5.append(wave5ret)
+                if wave5[0] == 0:
+                    self.__histhp_wave5.append(wave5ret)
+                self.speedQS(dateTime)
+
+            self.__szl     = self.getSZLine(dateTime)
+            self.__speedqs = self.getSpeedQs(dateTime)
+
+            # 大通道
+            self.__dtd = self.getDATD(dateTime)
 
         # 小通道
         if dateTime in self.__dict_cl:
@@ -413,6 +408,7 @@ class XINGTAI(object):
             qsl  = self.qsLine(dateTime, w5cl)
             if len(qsl[0]) > 0:
                 self.__hist_chan.append(qsl)
+
         self.__xtd = self.getXTD(dateTime)
 
     # 反转
@@ -515,6 +511,8 @@ class XINGTAI(object):
                          ret['l2']['p2']]
 
             ret['dtd'] = self.__dtd
+
+        if self.__xtd is not None:     
             ret['xtd'] = self.__xtd
 
         return ret
@@ -975,7 +973,6 @@ class XINGTAI(object):
             qs = self.basicQS(tup, direct)
             aqs.append(qs)
             i = i + 1
-
         # 为空返回空
         if len(aqs) < 3:
             return (0, aqs)
