@@ -207,7 +207,7 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__macdsignal = macdsignal.MACD()
 
         # 形态
-        self.__xingtai    = xingtai.XINGTAI()
+        self.__xingtai    = xingtai.XINGTAI(self.__inst)
         self.__xthandle   = xthandle.XThandle()
         self.__mhead      = OrderedDict()
         self.__mhead_used = set()
