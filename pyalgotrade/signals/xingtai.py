@@ -2,6 +2,7 @@
 import logging
 import json
 import copy
+import datetime
 import os
 import numpy as np
 from pyalgotrade.utils import collections
@@ -10,7 +11,7 @@ from pyalgotrade.utils import qsLineFit
 
 class XINGTAI(object):
 
-    def __init__(self):
+    def __init__(self, inst):
         self.__logger  = logging.getLogger('XINGTAI')
         # final output
         self.__nqs    = 0
@@ -22,6 +23,7 @@ class XINGTAI(object):
         self.__szl    = {}
 
         self.__dtd = {}
+        self.__xtd = {}
 
         self.__speedqs = {}
 
@@ -62,6 +64,8 @@ class XINGTAI(object):
         # 趋势线
         self.__hist_qsl  = []
         self.__spec_qsl  = []
+        
+        self.__hist_chan = []
 
         # Triangle
         self.__hist_triangle  = collections.ListDeque(20)
@@ -84,8 +88,13 @@ class XINGTAI(object):
         self.__fbsq1 = {2, 4, 7, 12, 20, 33, 54, 88, 143}
 
         # Load ChanLun Data
-        fname = ''
-        self.__chanlun = self.loadChanLun(fname)
+        self.__list_cl = []
+        self.__dict_cl = {}
+        fname = './data/czsc/' + inst + '.csv'
+        tmp = self.loadChanLun(fname)
+        if len(tmp) != 0:
+            self.__list_cl = tmp[0]
+            self.__dict_cl = tmp[1]
 
     # 初始化Tuple
     def initTup(self, dateTime, tups):
@@ -149,14 +158,25 @@ class XINGTAI(object):
 
     # load chanlun
     def loadChanLun(self, fname):
-        ret   = []
+        dic = {}
+        ret = []
         if not os.path.isfile(fname):
             return ret
         fname = open(fname, 'r')
+        cnt = 0
         for l in fname:
-            l = l.strip()
-            ret.append(l)
-        return ret
+            if cnt == 0:
+                cnt = cnt + 1
+                continue
+            arr = l.strip().split(',')
+            dt = datetime.datetime.strptime(arr[0], "%Y-%m-%d")
+            tp = int(arr[1])
+
+            ret.append((dt, tp))
+            dic[dt] = cnt - 1
+
+            cnt = cnt + 1
+        return (ret, dic)
 
     # Main Module
     def run(self):
@@ -388,6 +408,14 @@ class XINGTAI(object):
         # 大通道
         self.__dtd = self.getDATD(dateTime)
 
+        # 小通道
+        if dateTime in self.__dict_cl:
+            w5cl = self.wave5ChanLun(dateTime)
+            qsl  = self.qsLine(dateTime, w5cl)
+            if len(qsl[0]) > 0:
+                self.__hist_chan.append(qsl)
+        self.__xtd = self.getXTD(dateTime)
+
     # 反转
     def fanzhuan(self):
         dateTime = self.__nowdt
@@ -488,6 +516,7 @@ class XINGTAI(object):
                          ret['l2']['p2']]
 
             ret['dtd'] = self.__dtd
+            ret['xtd'] = self.__xtd
 
         return ret
 
@@ -919,8 +948,38 @@ class XINGTAI(object):
 
     # 构造wave5define的标准结构，从缠论的顶底分型
     # 六个点, 只考虑最近的六个点
-    def wave5ChanLun(self, dateTime, p6):
-        pass
+    def wave5ChanLun(self, dateTime):
+        # 出现新的拐点
+        nind   = self.__dict_cl[dateTime]
+        w5     = ()
+        for i in range(0, 6):
+            p  = self.__list_cl[nind - i]
+            w5 = (p,) + w5
+        aqs  = []
+        i    = 0
+        while i < len(w5) - 3:
+            direct = 0
+            if w5[i][1] == 0:
+                tup = (w5[i+3][0], w5[i+1][0], w5[i+2][0], w5[i+0][0])
+                direct = 1
+            else:
+                tup = (w5[i+2][0], w5[i+0][0], w5[i+3][0], w5[i+1][0])
+                direct = -1
+            qs = self.basicQS(tup, direct)
+            aqs.append(qs)
+            i = i + 1
+
+        # 为空返回空
+        if len(aqs) < 3:
+            return (0, aqs)
+        # 上升浪
+        if aqs[0][0] == 2102 and (aqs[2][0] == 2102 or aqs[2][0] == 2103):
+            return (1, aqs)
+        # 下降浪
+        if (aqs[0][0] == 1302 or aqs[0][0] == 1202 ) and (aqs[2][0] == 1302 or aqs[2][0] == 1301):
+            return (-1, aqs)
+        # 其他
+        return (0, aqs)
 
     # 定义五浪的标准结构
     def wave5define(self, dateTime, w5):
@@ -1114,6 +1173,19 @@ class XINGTAI(object):
                     nstatus = 0
 
         return (nstatus, neighbb)
+
+    # 获取小通道
+    def getXTD(self, dateTime):
+        ret = {}
+        if len(self.__hist_chan) == 0:
+            return ret
+        nind = self.__dtzq[dateTime]
+        qsl  = self.__hist_chan[-1]
+        l1   = qsl[0][0]
+        l2   = qsl[0][1]
+        ret['l1'] = l1.toDICT(nind)
+        ret['l2'] = l2.toDICT(nind)
+        return ret
 
     # 获取qsLine，至少一条线
     def getDATD(self, dateTime):
