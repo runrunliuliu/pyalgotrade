@@ -74,6 +74,7 @@ class MacdSegEventWindow(technical.EventWindow):
 
         self.__gfbeili = (-1, -1)
 
+        self.__Indicator  = None
         self.__XINGTAI    = None
         self.__xtMHead    = None
         self.__xtCT       = None
@@ -766,12 +767,19 @@ class MacdSegEventWindow(technical.EventWindow):
         self.__dtzq[dateTime] = self.__zq
         self.__dtindex.append(dateTime)
 
-        (self.__fts, self.__mas) = self.__indicator.getValue()
+        ind_ret    = self.__indicator.getValue()
+        self.__fts = ind_ret[0]
+        self.__mas = ind_ret[1]
+
         self.__dtmas[dateTime] = self.__mas
         change        = 0
         self.__beili  = 0 
         self.__vbeili = 0 
         nwprice = None
+
+        # 收集指标数据
+        self.__Indicator = (self.__mas, )
+
         if self.__macd[-1] is not None:
             # 增加到MA5序列
             self.add2MA5(dateTime, self.__mas[5])
@@ -2025,7 +2033,7 @@ class MacdSegEventWindow(technical.EventWindow):
                self.__vbeili, self.__xtTriangle, self.__roc, self.__dtzq, \
                self.__dropout, self.__ftDes, self.__ftInc, self.__observed, \
                self.__cxshort, self.__QUSHI, self.__DTBORAD, self.__NBS, self.__xtCT, \
-               self.__qcg, self.__xtMHead, self.__XINGTAI)
+               self.__qcg, self.__xtMHead, self.__XINGTAI, self.__Indicator)
         return ret
 
 
