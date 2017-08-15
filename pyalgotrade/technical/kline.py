@@ -533,13 +533,13 @@ class KLineEventWindow(technical.EventWindow):
             return ret
         d1rb = d1st[0]
 
-        if d3vl / d4vl > 1.5 and d3cl / d4cl > 1.06 \
+        if d3vl / (0.000001 + d4vl) > 1.5 and d3cl / d4cl > 1.06 \
                 and d3rb > 0.05 and d3sy < 0.005 and d3cl > d3op \
                 and d2rb > 0.02 and d2cl < d2op and d2cl < d3cl \
                 and d2cl > (d3cl / 4 + 3 * d3op / 4) \
                 and d1rb > 0.01 and d1cl < d1op and d1cl < d2cl \
                 and d1cl > (d3cl / 8 + 7 * d3op / 8) \
-                and d1vl / d2vl < 0.8 and d1vl / d3vl <= 0.5:
+                and d1vl / (0.0000001 + d2vl) < 0.8 and d1vl / (0.0000001 + d3vl) <= 0.5:
             ret['nm']  = 'NZX'
             ret['drt'] = 1
             self.__candles.append(ret)
@@ -652,7 +652,7 @@ class KLineEventWindow(technical.EventWindow):
         lw1 = day1.getLow()
         cl1 = day1.getClose()
 
-        lb  = day0.getVolume() / day1.getVolume()
+        lb  = day0.getVolume() / (0.0000000001 + day1.getVolume())
 
         # T-1日阴阳
         last = cl1
