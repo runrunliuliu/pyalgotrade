@@ -962,7 +962,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
                  fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
-                 ma5d, peekzl)
+                 ma5d, peekzl, self.__XINGTAI['qs']['pqs'], self.__XINGTAI['qs']['nqs'])
 
             # collect2QCG, KEEP however NO USE
             qcgtp = (change, self.__direct, nDIF, qtdao)
