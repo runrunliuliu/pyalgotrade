@@ -955,6 +955,13 @@ class MacdSegEventWindow(technical.EventWindow):
             # XingTai交易策略
             self.__xthandle.run(dateTime, value, self.__XINGTAI)
 
+            pqs = 0
+            nqs = 0
+            if self.__xingtai.filterQS(2) == 0:
+                pqs = self.__XINGTAI['qs']['pqs']
+                nqs = self.__XINGTAI['qs']['nqs']
+            # Xingtai END
+
             # 特征数据
             self.__cxshort = (cDIF, cDEA) + self.__cxshort + \
                 self.__gfbeili + qsxingtai + \
@@ -962,7 +969,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
                  fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
-                 ma5d, peekzl, self.__XINGTAI['qs']['pqs'], self.__XINGTAI['qs']['nqs'])
+                 ma5d, peekzl, pqs, nqs)
 
             # collect2QCG, KEEP however NO USE
             qcgtp = (change, self.__direct, nDIF, qtdao)
