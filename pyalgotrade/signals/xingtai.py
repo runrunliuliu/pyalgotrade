@@ -156,6 +156,24 @@ class XINGTAI(object):
             else:
                 self.__gd['v'] = self.__low[self.__nowgd]
 
+    # get QSlist
+    def getQSlist(self):
+        return self.__hist_qs
+
+    # return flag to indicator the last NUM QS is merge or not
+    def filterQS(self, num):
+        flag = 0
+        if len(self.__hist_qs) < 2:
+            return flag 
+        for i in range(1, num + 1):
+            qs     = self.__hist_qs[-1 * i]
+            zqarr  = np.asarray(qs[7])
+            # 如果相邻拐点bars过少, ignore 
+            if min(zqarr) <= 3:
+                flag = 1
+                break
+        return flag 
+
     # load chanlun
     def loadChanLun(self, fname):
         dic = {}
@@ -237,11 +255,11 @@ class XINGTAI(object):
         qs['zq']   = self.__zhouqi
         qs['wave'] = self.__eliot
 
-        out['qs']    = qs
-        out['score'] = self.__score
-        out['ma']    = self.__masigs
-        out['macd']  = self.__macdsigs
-        out['nowgd'] = self.__gd
+        out['qs']     = qs
+        out['score']  = self.__score
+        out['ma']     = self.__masigs
+        out['macd']   = self.__macdsigs
+        out['nowgd']  = self.__gd
 
         return out
 
