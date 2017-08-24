@@ -960,6 +960,11 @@ class MacdSegEventWindow(technical.EventWindow):
             if self.__xingtai.filterQS(2) == 0:
                 pqs = self.__XINGTAI['qs']['pqs']
                 nqs = self.__XINGTAI['qs']['nqs']
+
+            leftpeek = -1
+            peekHat = self.__xingtai.getPeekHat()
+            if len(peekHat) > 0:
+                leftpeek = peekHat['lp']
             # Xingtai END
 
             # 特征数据
@@ -969,7 +974,7 @@ class MacdSegEventWindow(technical.EventWindow):
                 (tkdk,tkdf) + (maval,) +  self.__pbeili + \
                 (self.__QUSHI[1], MADprice, self.__tfbeili, \
                  fibs, bias5120, fbprice, fbpress, bddf, goldseg, \
-                 ma5d, peekzl, pqs, nqs)
+                 ma5d, peekzl, pqs, nqs, leftpeek)
 
             # collect2QCG, KEEP however NO USE
             qcgtp = (change, self.__direct, nDIF, qtdao)
