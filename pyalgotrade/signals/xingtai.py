@@ -1331,7 +1331,7 @@ class XINGTAI(object):
     # HAT帽子形态
     def peekHat(self, dateTime, bqs, nqs, ngdlow, ngdhigh):
         ret = {}
-        if bqs[0] == 2103 and nqs == 1201:
+        if bqs[0] == 2103 and (nqs == 1201 or nqs == 1301):
             st = bqs[5]
             zf = (st[-1]['v'] / st[-2]['v']) - 1
             df = (st[-1]['v'] / ngdlow) -1
@@ -1342,6 +1342,8 @@ class XINGTAI(object):
             if zf >= 0.25 and (ratio <= 1.25 and ratio >= 0.80): 
                 ret['dt'] = dateTime
                 ret['lp'] = leftpeek
+        if (bqs[0] == 1201 or bqs[0] == 1301) and len(self.__peekHat) > 0:
+            ret = self.__peekHat
         return ret
 
     # 上升扇形
