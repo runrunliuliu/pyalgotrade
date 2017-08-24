@@ -30,6 +30,8 @@ class XINGTAI(object):
         self.__incsector = []
         self.__dessector = []
 
+        self.__peekHat = dict()
+
         self.__peekdays   = set()
         self.__valleydays = set()
        
@@ -159,6 +161,10 @@ class XINGTAI(object):
     # get QSlist
     def getQSlist(self):
         return self.__hist_qs
+
+    # get PeekHat
+    def getPeekHat(self):
+        return self.__peekHat
 
     # return flag to indicator the last NUM QS is merge or not
     def filterQS(self, num):
@@ -402,6 +408,8 @@ class XINGTAI(object):
 
             self.__incsector = self.incSectorLine(self.__nowdt)
             self.__dessector = self.desSectorLine(self.__nowdt)
+
+            self.__peekHat   = self.peekHat(dateTime, bqs, nqs, ngdlow, ngdhigh)
 
             if self.__update == 1:
                 wave5    = self.wave5construct(dateTime)
@@ -725,7 +733,7 @@ class XINGTAI(object):
         hsp = self.headShoulderPeek(dateTime, wave5)
         if len(hsp[0]) > 0:
             self.__hist_hsp.append(hsp)
-
+        
         # 计算趋势线
         qsl = self.qsLine(dateTime, wave5)
         if len(qsl[0]) > 0:
@@ -1319,6 +1327,22 @@ class XINGTAI(object):
             gi = float(gi)
             out.append(gi)
         return out
+
+    # HAT帽子形态
+    def peekHat(self, dateTime, bqs, nqs, ngdlow, ngdhigh):
+        ret = {}
+        if bqs[0] == 2103 and nqs == 1201:
+            st = bqs[5]
+            zf = (st[-1]['v'] / st[-2]['v']) - 1
+            df = (st[-1]['v'] / ngdlow) -1
+            ratio = zf / df
+           
+            leftpeek = st[-3]['v']
+            nowclose = self.__close[self.__nowdt]
+            if zf >= 0.25 and (ratio <= 1.25 and ratio >= 0.80): 
+                ret['dt'] = dateTime
+                ret['lp'] = leftpeek
+        return ret
 
     # 上升扇形
     def incSectorLine(self, dateTime):
