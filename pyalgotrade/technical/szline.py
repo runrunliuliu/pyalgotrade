@@ -1,3 +1,5 @@
+# coding:utf-8
+
 from pyalgotrade import technical
 from pyalgotrade.utils import collections
 
