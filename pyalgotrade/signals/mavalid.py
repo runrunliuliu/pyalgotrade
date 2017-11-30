@@ -1,5 +1,5 @@
+# coding: utf-8
 import numpy as np
-
 
 # 均线的有效信号判定，结合macd和sar指标
 class MAvalid(object):
