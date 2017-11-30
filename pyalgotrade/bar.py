@@ -19,7 +19,7 @@
 """
 
 import abc
-
+import logging
 from pyalgotrade import warninghelpers
 
 
@@ -162,10 +162,10 @@ class BasicBar(Bar):
             raise Exception("low > close on %s" % (dateTime))
 
         self.__dateTime = dateTime
-        self.__open = open_
+        self.__open  = open_
         self.__close = close
-        self.__high = high
-        self.__low = low
+        self.__high  = high
+        self.__low   = low
         self.__volume = volume
         self.__adjClose = adjClose
         self.__frequency = frequency
@@ -194,6 +194,14 @@ class BasicBar(Bar):
             self.__frequency,
             self.__useAdjustedValue
         )
+
+    # not valid if price < 0
+    def isValid(self):
+        valid = True 
+        if self.__open <= 0 or self.__close <= 0 \
+                or self.__high <= 0 or self.__low <= 0:
+            valid = False 
+        return valid
 
     def setUseAdjustedValue(self, useAdjusted):
         if useAdjusted and self.__adjClose is None:
