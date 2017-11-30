@@ -1,3 +1,4 @@
+# coding: utf-8
 # PyAlgoTrade
 #
 # Copyright 2011-2015 Gabriel Martin Becedillas Ruiz
@@ -138,9 +139,9 @@ class SAREventWindow(technical.EventWindow):
             # diff >= 0 则为买入周期, abs(diff)表示强度
             # diff = 0.0
             if self.__long[-1] == 1:
-                diff = (self.__low[-1] - sar) / sar
+                diff = (self.__low[-1] - sar) / (sar + 0.0000001)
             if self.__long[-1] == -1:
-                diff = (self.__high[-1] - sar) / sar
+                diff = (self.__high[-1] - sar) / (sar + 0.0000001)
 
             def nextsar(t1, t2, ep, psar, af, minlw, maxhi):
                 if t1 == t2:
