@@ -1,3 +1,4 @@
+# coding: utf-8
 # PyAlgoTrade
 #
 # Copyright 2016- liuliu.tju@gmail.com
@@ -27,6 +28,7 @@ from pyalgotrade.technical import kline
 from array import array
 from pyalgotrade.barfeed import indfeed
 import numpy as np
+import os
 
 
 class BarWrapper(object):
@@ -88,7 +90,9 @@ class IndEventWindow(technical.EventWindow):
         self.__inst = inst
 
         self.__dt = indfeed.Feed()
-        self.__dt.addBarsFromCSV('dt',"./data/dtboard.csv.out")
+        dtfile = "./data/dtboard.csv.out"
+        if os.path.isfile(dtfile):
+            self.__dt.addBarsFromCSV('dt', dtfile)
 
     def setParameters(self, tmpars):
         self.__sharePars = tmpars
