@@ -1,5 +1,6 @@
-import numpy as np
+# coding: utf-8
 
+import numpy as np
 
 # macd有效信号判定，结合macd和sar指标
 class MACDvalid(object):
