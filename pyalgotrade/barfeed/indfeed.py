@@ -113,9 +113,10 @@ class Feed(membf.BarFeed):
 
         membf.BarFeed.__init__(self, frequency, maxLen)
 
-        self.__dict = {}
-        self.__bars = {}
-        self.__name = None
+        self.__fields = []
+        self.__dict   = {}
+        self.__bars   = {}
+        self.__name   = None
         self.__timezone = timezone
         self.__sanitizeBars = False
         self.__dailyTime = None
@@ -166,9 +167,9 @@ class Feed(membf.BarFeed):
         # add to pandas frame
         self.__df   = pd.read_csv(path,dtype = {'code':np.str})
 
-        self.__name = name
-        rowParser   = RowParser(self.getDailyBarTime(), self.getFrequency(), timezone, self.__sanitizeBars)
-        reader      = csvutils.FastDictReader(open(path, "r"), fieldnames=rowParser.getFieldNames(), delimiter=rowParser.getDelimiter())
+        self.__name   = name
+        rowParser     = RowParser(self.getDailyBarTime(), self.getFrequency(), timezone, self.__sanitizeBars)
+        reader        = csvutils.FastDictReader(open(path, "r"), fieldnames=rowParser.getFieldNames(), delimiter=rowParser.getDelimiter())
         self.__fields = reader.getFiledNames()
         rowParser.setKeys(reader.getFiledNames(), index)
 
