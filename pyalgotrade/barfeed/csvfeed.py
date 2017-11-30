@@ -23,9 +23,11 @@ from pyalgotrade.utils import csvutils
 from pyalgotrade.barfeed import membf
 from pyalgotrade import dataseries
 from pyalgotrade import bar
-
+import logging
+import logging.config
 import datetime
 import pytz
+
 
 
 # Interface for csv row parsers.
@@ -126,6 +128,7 @@ class BarFeed(membf.BarFeed):
         membf.BarFeed.__init__(self, frequency, maxLen)
         self.__barFilter = None
         self.__dailyTime = datetime.time(0, 0, 0)
+        self.logger = logging.getLogger('BarFeed')
 
     def getDailyBarTime(self):
         return self.__dailyTime
@@ -143,9 +146,12 @@ class BarFeed(membf.BarFeed):
         # Load the csv file
         loadedBars = []
         reader = csvutils.FastDictReader(open(path, "r"), fieldnames=rowParser.getFieldNames(), delimiter=rowParser.getDelimiter())
+        self.logger.log(logging.ERROR, 'load stock: %s', instrument)
         for row in reader:
             bar_ = rowParser.parseBar(row)
-            if bar_ is not None and (self.__barFilter is None or self.__barFilter.includeBar(bar_)):
+            if bar_.isValid() is False:
+                self.logger.log(logging.ERROR, 'Bad Bar: %s %s', instrument, bar_.getDateTime())
+            if bar_ is not None and (self.__barFilter is None or self.__barFilter.includeBar(bar_)) and bar_.isValid():
                 loadedBars.append(bar_)
 
         self.addBarsFromSequence(instrument, loadedBars, market)
